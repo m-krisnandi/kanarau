@@ -1011,5 +1011,5 @@ INSERT INTO kotoba (id, kanji, hiragana, meaning_id, meaning_en, meaning_my, not
 (12600, '挫く', 'くじく', 'Crush', 'Crush', 'နှိပ်စက်သည်။', 'Kelas kata: v', '挫くの意味を確認する。', 'Memeriksa arti dari 挫く.', 'N1');
 
 -- Step 3: Sequence Restarts
-ALTER TABLE kanji ALTER COLUMN id RESTART WITH 5000;
-ALTER TABLE kotoba ALTER COLUMN id RESTART WITH 13000;
+SELECT setval(pg_get_serial_sequence('kanji', 'id'), GREATEST(5000, COALESCE((SELECT MAX(id) FROM kanji), 0)));
+SELECT setval(pg_get_serial_sequence('kotoba', 'id'), GREATEST(13000, COALESCE((SELECT MAX(id) FROM kotoba), 0)));

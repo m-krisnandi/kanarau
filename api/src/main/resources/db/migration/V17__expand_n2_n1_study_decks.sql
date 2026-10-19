@@ -2180,5 +2180,5 @@ INSERT INTO deck_kotoba (id, deck_id, kotoba_id, sort_order) VALUES
 (3100, 135, 10161, 30);
 
 -- Reset sequence beyond inserted IDs
-ALTER TABLE deck_kotoba ALTER COLUMN id RESTART WITH 3201;
-ALTER TABLE decks ALTER COLUMN id RESTART WITH 1000;
+SELECT setval(pg_get_serial_sequence('deck_kotoba', 'id'), GREATEST(3201, COALESCE((SELECT MAX(id) FROM deck_kotoba), 0)));
+SELECT setval(pg_get_serial_sequence('decks', 'id'), GREATEST(1000, COALESCE((SELECT MAX(id) FROM decks), 0)));

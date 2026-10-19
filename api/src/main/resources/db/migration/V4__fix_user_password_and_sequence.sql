@@ -4,6 +4,6 @@ SET password_hash = '$2a$10$nfPYRtUfnYhvsbBRVkimUeJrfCptmfuDlvALkvN6GQiPqKrtU0QK
 WHERE email = 'muhamad.krisnandi.22@gmail.com';
 
 -- Ensure identity sequences start past seeded IDs
-ALTER TABLE users ALTER COLUMN id RESTART WITH 100;
-ALTER TABLE decks ALTER COLUMN id RESTART WITH 200;
-ALTER TABLE kotoba ALTER COLUMN id RESTART WITH 500;
+SELECT setval(pg_get_serial_sequence('users', 'id'), GREATEST(100, COALESCE((SELECT MAX(id) FROM users), 0)));
+SELECT setval(pg_get_serial_sequence('decks', 'id'), GREATEST(200, COALESCE((SELECT MAX(id) FROM decks), 0)));
+SELECT setval(pg_get_serial_sequence('kotoba', 'id'), GREATEST(500, COALESCE((SELECT MAX(id) FROM kotoba), 0)));
