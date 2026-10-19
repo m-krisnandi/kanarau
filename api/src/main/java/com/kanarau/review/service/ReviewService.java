@@ -50,12 +50,14 @@ public class ReviewService {
         List<UserProgress> dueTomorrowList = userProgressRepository.findDueReviews(userId, tomorrow);
         long dueTomorrow = Math.max(0, dueTomorrowList.size() - dueCount);
 
-
-
         return new ReviewStatsResponse(dueCount, dueCount, dueTomorrow, 0);
     }
 
     public List<QuizCardResponse> getReviewQueue(Long userId) {
+        return getReviewQueue(userId, "id");
+    }
+
+    public List<QuizCardResponse> getReviewQueue(Long userId, String lang) {
         if (userId == null) {
             return Collections.emptyList();
         }
@@ -78,13 +80,20 @@ public class ReviewService {
         List<QuizCardResponse> cards = new ArrayList<>();
         Random random = new Random();
 
+        List<String> allMeaningsPool = kotobas.stream()
+                .map(item -> getMeaningForLang(item, lang))
+                .filter(m -> m != null && !m.isBlank())
+                .toList();
+
         for (Kotoba k : kotobas) {
-            KotobaResponse kDto = KotobaResponse.from(k);
+            KotobaResponse kDto = KotobaResponse.from(k, lang);
+            String localizedMeaning = getMeaningForLang(k, lang);
 
             List<String> meaningChoices = generateChoices(
-                    k.getMeaningId(),
-                    kotobas.stream().map(Kotoba::getMeaningId).toList(),
-                    random
+                    localizedMeaning,
+                    allMeaningsPool,
+                    random,
+                    lang
             );
 
             cards.add(new QuizCardResponse(
@@ -92,7 +101,7 @@ public class ReviewService {
                     kDto,
                     "kanji_to_meaning",
                     k.getKanji() != null && !k.getKanji().isBlank() ? k.getKanji() : k.getHiragana(),
-                    k.getMeaningId(),
+                    localizedMeaning,
                     meaningChoices
             ));
         }
@@ -124,7 +133,24 @@ public class ReviewService {
         return Map.of("xp_gained", xpGained);
     }
 
-    private List<String> generateChoices(String correct, List<String> allPool, Random random) {
+    private String getMeaningForLang(Kotoba k, String lang) {
+        if (k == null) return "";
+        if ("en".equalsIgnoreCase(lang)) {
+            if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                return k.getMeaningEn();
+            }
+        } else if ("my".equalsIgnoreCase(lang)) {
+            if (k.getMeaningMy() != null && !k.getMeaningMy().isBlank()) {
+                return k.getMeaningMy();
+            }
+            if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                return k.getMeaningEn();
+            }
+        }
+        return k.getMeaningId() != null ? k.getMeaningId() : "";
+    }
+
+    private List<String> generateChoices(String correct, List<String> allPool, Random random, String lang) {
         Set<String> choices = new LinkedHashSet<>();
         choices.add(correct);
 
@@ -139,8 +165,9 @@ public class ReviewService {
             }
         }
 
+        String fallbackPrefix = "id".equalsIgnoreCase(lang) ? "Pilihan " : ("my".equalsIgnoreCase(lang) ? "ရွေးချယ်မှု " : "Option ");
         while (choices.size() < 4) {
-            choices.add("Pilihan " + (choices.size() + 1));
+            choices.add(fallbackPrefix + (choices.size() + 1));
         }
 
         List<String> result = new ArrayList<>(choices);

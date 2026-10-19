@@ -78,7 +78,7 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-// ─── Auth ──────────────────────────────────────────────────────────
+// ─── Auth ────────────────────────────────────────────────────────────
 export const authApi = {
   login(email: string, password: string) {
     return request<ApiResponse<AuthResponse>>('/auth/login', {
@@ -149,7 +149,7 @@ export const authApi = {
   },
 };
 
-// ─── Decks ─────────────────────────────────────────────────────────
+// ─── Decks ───────────────────────────────────────────────────────────
 export const deckApi = {
   list(level?: string) {
     const query = level ? '?level=' + encodeURIComponent(level) : '';
@@ -160,8 +160,9 @@ export const deckApi = {
     return request<ApiResponse<Deck>>(`/decks/${id}`);
   },
 
-  getCards(deckId: string | number) {
-    return request<ApiResponse<QuizCard[]>>(`/decks/${deckId}/cards`);
+  getCards(deckId: string | number, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return request<ApiResponse<QuizCard[]>>(`/decks/${deckId}/cards${query}`);
   },
 
   getKotoba(deckId: string | number) {
@@ -169,7 +170,7 @@ export const deckApi = {
   },
 };
 
-// ─── Study ─────────────────────────────────────────────────────────
+// ─── Study ───────────────────────────────────────────────────────────
 export const studyApi = {
   submitSession(result: SessionResult) {
     return request<ApiResponse<{ xp_gained: number }>>('/study/submit', {
@@ -186,14 +187,15 @@ export const studyApi = {
   },
 };
 
-// ─── Review ────────────────────────────────────────────────────────
+// ─── Review ──────────────────────────────────────────────────────────
 export const reviewApi = {
   getStats() {
     return request<ApiResponse<ReviewStats>>('/review/stats');
   },
 
-  getQueue() {
-    return request<ApiResponse<QuizCard[]>>('/review/queue');
+  getQueue(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return request<ApiResponse<QuizCard[]>>(`/review/queue${query}`);
   },
 
   submitReview(answers: QuizAnswer[]) {
@@ -204,7 +206,7 @@ export const reviewApi = {
   },
 };
 
-// ─── Dictionary ────────────────────────────────────────────────────
+// ─── Dictionary ──────────────────────────────────────────────────────
 export const jishoApi = {
   search(query: string, lang?: string, level?: string) {
     const langParam = lang ? `&lang=${encodeURIComponent(lang)}` : '';
@@ -214,20 +216,23 @@ export const jishoApi = {
     );
   },
 
-  getKotoba(id: string | number) {
-    return request<ApiResponse<Kotoba>>(`/jisho/kotoba/${id}`);
+  getKotoba(id: string | number, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return request<ApiResponse<Kotoba>>(`/jisho/kotoba/${id}${query}`);
   },
 
-  getKanji(id: string | number) {
-    return request<ApiResponse<Kanji>>(`/jisho/kanji/${id}`);
+  getKanji(id: string | number, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return request<ApiResponse<Kanji>>(`/jisho/kanji/${id}${query}`);
   },
 
-  getRelatedKotoba(kanjiId: string) {
-    return request<ApiResponse<Kotoba[]>>(`/jisho/kanji/${kanjiId}/kotoba`);
+  getRelatedKotoba(kanjiId: string, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return request<ApiResponse<Kotoba[]>>(`/jisho/kanji/${kanjiId}/kotoba${query}`);
   },
 };
 
-// ─── Progress ──────────────────────────────────────────────────────
+// ─── Progress ────────────────────────────────────────────────────────
 export const progressApi = {
   getOverallStats() {
     return request<ApiResponse<OverallStats>>('/progress/stats');
@@ -248,8 +253,7 @@ export const progressApi = {
   },
 };
 
-
-// ─── Feedback ──────────────────────────────────────────────────────
+// ─── Feedback ────────────────────────────────────────────────────────
 export const feedbackApi = {
   submit(payload: SubmitFeedbackPayload) {
     return request<ApiResponse<UserFeedbackItem>>("/feedback", {
@@ -259,7 +263,7 @@ export const feedbackApi = {
   },
 };
 
-// ─── Admin ─────────────────────────────────────────────────────────
+// ─── Admin ───────────────────────────────────────────────────────────
 export const adminApi = {
   getOverview() {
     return request<ApiResponse<AdminOverview>>("/admin/overview");

@@ -25,8 +25,23 @@ public record KanjiResponse(
         @JsonProperty("jlpt_level") String jlptLevel
 ) {
     public static KanjiResponse from(Kanji k) {
-        List<String> mList = k.getMeaning() != null && !k.getMeaning().isBlank()
-                ? Arrays.stream(k.getMeaning().split("[,;]\\s*")).map(String::trim).filter(s -> !s.isEmpty()).toList()
+        return from(k, "id");
+    }
+
+    public static KanjiResponse from(Kanji k, String lang) {
+        String activeMeaning = k.getMeaning();
+        if ("en".equalsIgnoreCase(lang) && k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+            activeMeaning = k.getMeaningEn();
+        } else if ("my".equalsIgnoreCase(lang)) {
+            if (k.getMeaningMy() != null && !k.getMeaningMy().isBlank()) {
+                activeMeaning = k.getMeaningMy();
+            } else if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                activeMeaning = k.getMeaningEn();
+            }
+        }
+
+        List<String> mList = activeMeaning != null && !activeMeaning.isBlank()
+                ? Arrays.stream(activeMeaning.split("[,;]\\s*")).map(String::trim).filter(s -> !s.isEmpty()).toList()
                 : Collections.emptyList();
         List<String> onList = k.getOnReading() != null && !k.getOnReading().isBlank()
                 ? Arrays.stream(k.getOnReading().split("[,;\\s]+")).map(String::trim).filter(s -> !s.isEmpty()).toList()
@@ -38,7 +53,7 @@ public record KanjiResponse(
         return new KanjiResponse(
                 k.getId(),
                 k.getCharacter(),
-                k.getMeaning(),
+                activeMeaning,
                 mList,
                 k.getMeaningEn(),
                 k.getMeaningMy(),

@@ -32,7 +32,7 @@ export const ReviewPage: React.FC = () => {
       try {
         const [statsRes, queueRes] = await Promise.all([
           reviewApi.getStats(),
-          reviewApi.getQueue(),
+          reviewApi.getQueue(language),
         ]);
         setStats(statsRes.data);
         setQueue(queueRes.data || []);
@@ -43,7 +43,7 @@ export const ReviewPage: React.FC = () => {
       }
     }
     loadData();
-  }, []);
+  }, [language]);
 
   const startReviewSession = () => {
     setIsReviewing(true);

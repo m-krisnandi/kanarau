@@ -37,9 +37,12 @@ public class ReviewController {
     }
 
     @GetMapping("/queue")
-    public ResponseEntity<ApiResponse<List<QuizCardResponse>>> getQueue(Authentication auth) {
+    public ResponseEntity<ApiResponse<List<QuizCardResponse>>> getQueue(
+            @RequestParam(required = false, defaultValue = "id") String lang,
+            Authentication auth
+    ) {
         Long userId = getUserId(auth);
-        List<QuizCardResponse> queue = reviewService.getReviewQueue(userId);
+        List<QuizCardResponse> queue = reviewService.getReviewQueue(userId, lang);
         return ResponseEntity.ok(ApiResponse.ok(queue));
     }
 

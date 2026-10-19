@@ -72,6 +72,10 @@ public class DeckService {
     }
 
     public List<QuizCardResponse> generateCardsForDeck(Long deckId) {
+        return generateCardsForDeck(deckId, "id");
+    }
+
+    public List<QuizCardResponse> generateCardsForDeck(Long deckId, String lang) {
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Deck tidak ditemukan"));
 
@@ -86,21 +90,28 @@ public class DeckService {
         List<QuizCardResponse> cards = new ArrayList<>();
         Random random = new Random(deckId);
 
+        List<String> allMeaningsPool = kotobas.stream()
+                .map(item -> getMeaningForLang(item, lang))
+                .filter(m -> m != null && !m.isBlank())
+                .toList();
+
         for (Kotoba k : kotobas) {
-            KotobaResponse kDto = KotobaResponse.from(k);
+            KotobaResponse kDto = KotobaResponse.from(k, lang);
+            String localizedMeaning = getMeaningForLang(k, lang);
 
             // 1. Kanji to Meaning
             List<String> meaningChoices = generateChoices(
-                    k.getMeaningId(),
-                    kotobas.stream().map(Kotoba::getMeaningId).toList(),
-                    random
+                    localizedMeaning,
+                    allMeaningsPool,
+                    random,
+                    lang
             );
             cards.add(new QuizCardResponse(
                     "card_" + k.getId() + "_km",
                     kDto,
                     "kanji_to_meaning",
                     k.getKanji() != null && !k.getKanji().isBlank() ? k.getKanji() : k.getHiragana(),
-                    k.getMeaningId(),
+                    localizedMeaning,
                     meaningChoices
             ));
 
@@ -109,7 +120,8 @@ public class DeckService {
                 List<String> readingChoices = generateChoices(
                         k.getHiragana(),
                         kotobas.stream().map(Kotoba::getHiragana).toList(),
-                        random
+                        random,
+                        lang
                 );
                 cards.add(new QuizCardResponse(
                         "card_" + k.getId() + "_kh",
@@ -126,13 +138,14 @@ public class DeckService {
             List<String> kanjiChoices = generateChoices(
                     correctTarget,
                     kotobas.stream().map(item -> item.getKanji() != null && !item.getKanji().isBlank() ? item.getKanji() : item.getHiragana()).toList(),
-                    random
+                    random,
+                    lang
             );
             cards.add(new QuizCardResponse(
                     "card_" + k.getId() + "_mk",
                     kDto,
                     "meaning_to_kanji",
-                    k.getMeaningId(),
+                    localizedMeaning,
                     correctTarget,
                     kanjiChoices
             ));
@@ -142,7 +155,24 @@ public class DeckService {
         return cards;
     }
 
-    private List<String> generateChoices(String correct, List<String> allPool, Random random) {
+    private String getMeaningForLang(Kotoba k, String lang) {
+        if (k == null) return "";
+        if ("en".equalsIgnoreCase(lang)) {
+            if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                return k.getMeaningEn();
+            }
+        } else if ("my".equalsIgnoreCase(lang)) {
+            if (k.getMeaningMy() != null && !k.getMeaningMy().isBlank()) {
+                return k.getMeaningMy();
+            }
+            if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                return k.getMeaningEn();
+            }
+        }
+        return k.getMeaningId() != null ? k.getMeaningId() : "";
+    }
+
+    private List<String> generateChoices(String correct, List<String> allPool, Random random, String lang) {
         Set<String> choices = new LinkedHashSet<>();
         choices.add(correct);
 
@@ -158,7 +188,14 @@ public class DeckService {
         }
 
         if (choices.size() < 4) {
-            List<String> fallbacks = List.of("tidak ada", "lainnya", "belum tahu", "tidak tercantum");
+            List<String> fallbacks;
+            if ("en".equalsIgnoreCase(lang)) {
+                fallbacks = List.of("None", "Other", "Unknown", "Not listed");
+            } else if ("my".equalsIgnoreCase(lang)) {
+                fallbacks = List.of("မရှိပါ", "အခြား", "မသိပါ", "စာရင်းမပါ");
+            } else {
+                fallbacks = List.of("tidak ada", "lainnya", "belum tahu", "tidak tercantum");
+            }
             for (String f : fallbacks) {
                 if (choices.size() < 4) choices.add(f);
             }

@@ -30,20 +30,26 @@ public class JishoController {
     }
 
     @GetMapping("/kotoba/{id}")
-    public ResponseEntity<ApiResponse<KotobaResponse>> getKotoba(@PathVariable Long id) {
-        KotobaResponse kotoba = jishoService.getKotobaById(id);
+    public ResponseEntity<ApiResponse<KotobaResponse>> getKotoba(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "id") String lang) {
+        KotobaResponse kotoba = jishoService.getKotobaById(id, lang);
         return ResponseEntity.ok(ApiResponse.ok(kotoba));
     }
 
     @GetMapping("/kanji/{id}")
-    public ResponseEntity<ApiResponse<KanjiResponse>> getKanji(@PathVariable Long id) {
-        KanjiResponse kanji = jishoService.getKanjiById(id);
+    public ResponseEntity<ApiResponse<KanjiResponse>> getKanji(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "id") String lang) {
+        KanjiResponse kanji = jishoService.getKanjiById(id, lang);
         return ResponseEntity.ok(ApiResponse.ok(kanji));
     }
 
     @GetMapping("/kanji/{kanjiId}/kotoba")
-    public ResponseEntity<ApiResponse<List<KotobaResponse>>> getKotobaForKanji(@PathVariable Long kanjiId) {
-        List<KotobaResponse> kotobas = jishoService.getKotobaByKanji(kanjiId);
+    public ResponseEntity<ApiResponse<List<KotobaResponse>>> getKotobaForKanji(
+            @PathVariable Long kanjiId,
+            @RequestParam(required = false, defaultValue = "id") String lang) {
+        List<KotobaResponse> kotobas = jishoService.getKotobaByKanji(kanjiId, lang);
         return ResponseEntity.ok(ApiResponse.ok(kotobas));
     }
 }

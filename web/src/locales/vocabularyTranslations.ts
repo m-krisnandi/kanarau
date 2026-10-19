@@ -5624,20 +5624,46 @@ export function translateMeaningString(str: string, lang: Language): string {
  * Localizes an entire QuizCard (question, choices, correct_answer and kotoba)
  */
 export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
+  if (!card) return card;
   if (lang === 'id') return card;
 
   const localizedKotoba = localizeKotoba(card.kotoba, lang);
   const isMeaningQuestion = card.direction === 'meaning_to_kanji';
   const isMeaningChoices = card.direction === 'kanji_to_meaning' || card.direction === 'hiragana_to_meaning';
 
+  let question = card.question;
+  if (isMeaningQuestion) {
+    if (localizedKotoba.meaning && localizedKotoba.meaning !== (card.kotoba as any)?.meaning_id && localizedKotoba.meaning !== (card.kotoba as any)?.meaningId) {
+      question = localizedKotoba.meaning;
+    } else {
+      question = translateMeaningString(card.question, lang);
+    }
+  }
+
+  let correctAnswer = card.correct_answer;
+  if (isMeaningChoices) {
+    if (localizedKotoba.meaning && localizedKotoba.meaning !== (card.kotoba as any)?.meaning_id && localizedKotoba.meaning !== (card.kotoba as any)?.meaningId) {
+      correctAnswer = localizedKotoba.meaning;
+    } else {
+      correctAnswer = translateMeaningString(card.correct_answer, lang);
+    }
+  }
+
+  const choices = isMeaningChoices
+    ? card.choices.map((c) => {
+        if (card.kotoba && (c === (card.kotoba as any)?.meaning_id || c === (card.kotoba as any)?.meaningId)) {
+          return localizedKotoba.meaning || c;
+        }
+        return translateMeaningString(c, lang);
+      })
+    : card.choices;
+
   return {
     ...card,
     kotoba: localizedKotoba,
-    question: isMeaningQuestion ? translateMeaningString(card.question, lang) : card.question,
-    correct_answer: isMeaningChoices ? translateMeaningString(card.correct_answer, lang) : card.correct_answer,
-    choices: isMeaningChoices
-      ? card.choices.map((c) => translateMeaningString(c, lang))
-      : card.choices,
+    question,
+    correct_answer: correctAnswer,
+    choices,
   };
 }
 

@@ -55,7 +55,7 @@ export const StudySessionPage: React.FC = () => {
       try {
         const id = deckId || '1';
         const [cardsRes, deckRes] = await Promise.allSettled([
-          deckApi.getCards(id),
+          deckApi.getCards(id, language),
           deckApi.get(id),
         ]);
         if (cardsRes.status === 'fulfilled' && cardsRes.value.data && cardsRes.value.data.length > 0) {
@@ -75,7 +75,7 @@ export const StudySessionPage: React.FC = () => {
       }
     }
     loadCards();
-  }, [deckId]);
+  }, [deckId, language]);
 
   const rawCurrentCard = cards[currentIndex];
   const currentCard = rawCurrentCard ? localizeQuizCard(rawCurrentCard, language) : null;

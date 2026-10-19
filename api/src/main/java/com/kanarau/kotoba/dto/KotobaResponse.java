@@ -24,20 +24,35 @@ public record KotobaResponse(
         @JsonProperty("kanji_details") List<KanjiResponse> kanjiDetails
 ) {
     public static KotobaResponse from(Kotoba k) {
+        return from(k, "id");
+    }
+
+    public static KotobaResponse from(Kotoba k, String lang) {
         List<KanjiResponse> details = Collections.emptyList();
         try {
             if (k.getKanjiSet() != null && !k.getKanjiSet().isEmpty()) {
-                details = k.getKanjiSet().stream().map(KanjiResponse::from).toList();
+                details = k.getKanjiSet().stream().map(kj -> KanjiResponse.from(kj, lang)).toList();
             }
         } catch (Exception ignored) {
             // Safe fallback if not initialized
+        }
+
+        String activeMeaning = k.getMeaningId();
+        if ("en".equalsIgnoreCase(lang) && k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+            activeMeaning = k.getMeaningEn();
+        } else if ("my".equalsIgnoreCase(lang)) {
+            if (k.getMeaningMy() != null && !k.getMeaningMy().isBlank()) {
+                activeMeaning = k.getMeaningMy();
+            } else if (k.getMeaningEn() != null && !k.getMeaningEn().isBlank()) {
+                activeMeaning = k.getMeaningEn();
+            }
         }
 
         return new KotobaResponse(
                 k.getId(),
                 k.getKanji(),
                 k.getHiragana(),
-                k.getMeaningId(),
+                activeMeaning,
                 k.getMeaningId(),
                 k.getMeaningEn(),
                 k.getMeaningMy(),

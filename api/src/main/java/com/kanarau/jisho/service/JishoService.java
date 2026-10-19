@@ -37,6 +37,7 @@ public class JishoService {
 
     public List<SearchResultResponse> search(String query, String lang, String level) {
         List<SearchResultResponse> results = new ArrayList<>();
+        String activeLang = (lang != null && !lang.isBlank()) ? lang.trim().toLowerCase() : "id";
 
         // When query is empty, filter by level if specified
         if (query == null || query.trim().isBlank()) {
@@ -46,31 +47,30 @@ public class JishoService {
                     JlptLevel jlpt = JlptLevel.valueOf(lvl);
                     List<Kotoba> kotobas = kotobaRepository.findByLevel(jlpt);
                     for (Kotoba k : kotobas) {
-                        results.add(new SearchResultResponse("kotoba", KotobaResponse.from(k)));
+                        results.add(new SearchResultResponse("kotoba", KotobaResponse.from(k, activeLang)));
                     }
                 } catch (IllegalArgumentException ignored) {}
 
                 List<Kanji> kanjis = kanjiRepository.findByJlptLevel(lvl);
                 for (Kanji k : kanjis) {
-                    results.add(new SearchResultResponse("kanji", KanjiResponse.from(k)));
+                    results.add(new SearchResultResponse("kanji", KanjiResponse.from(k, activeLang)));
                 }
                 return results;
             }
 
             List<Kanji> kanjis = kanjiRepository.findAll();
             for (Kanji k : kanjis) {
-                results.add(new SearchResultResponse("kanji", KanjiResponse.from(k)));
+                results.add(new SearchResultResponse("kanji", KanjiResponse.from(k, activeLang)));
             }
             List<Kotoba> kotobas = kotobaRepository.findAll();
             for (Kotoba k : kotobas) {
-                results.add(new SearchResultResponse("kotoba", KotobaResponse.from(k)));
+                results.add(new SearchResultResponse("kotoba", KotobaResponse.from(k, activeLang)));
             }
             return results;
         }
 
         String q = query.trim();
         String lowerQ = q.toLowerCase();
-        String activeLang = (lang != null && !lang.isBlank()) ? lang.trim().toLowerCase() : "id";
 
         // Convert Romaji to Hiragana & Katakana if input contains Latin alphabet
         String hira = "";
@@ -126,10 +126,10 @@ public class JishoService {
         // If Kanji has high match (e.g. single character exact match), prioritize Kanji
         List<ScoredResult> combined = new ArrayList<>();
         for (ScoredItem<Kotoba> sk : scoredKotobas) {
-            combined.add(new ScoredResult("kotoba", KotobaResponse.from(sk.item), sk.score));
+            combined.add(new ScoredResult("kotoba", KotobaResponse.from(sk.item, activeLang), sk.score));
         }
         for (ScoredItem<Kanji> sk : scoredKanjis) {
-            combined.add(new ScoredResult("kanji", KanjiResponse.from(sk.item), sk.score));
+            combined.add(new ScoredResult("kanji", KanjiResponse.from(sk.item, activeLang), sk.score));
         }
 
         combined.sort((a, b) -> Integer.compare(b.score, a.score));
@@ -163,40 +163,33 @@ public class JishoService {
             return 800;
         }
 
-        // 3. Contains Japanese reading
-        if ((!hira.isEmpty() && hiragana.contains(hira)) || hiragana.contains(lowerQ)) {
-            return 600;
-        }
-
-        // 4. Target language meaning match
+        // 3. Meaning in target language match
         String targetMeaning = "en".equals(lang) ? mEn : ("my".equals(lang) ? mMy : mId);
         if (!targetMeaning.isEmpty()) {
             if (targetMeaning.equalsIgnoreCase(lowerQ)) return 500;
             if (hasWordBoundaryMatch(targetMeaning, lowerQ)) return 400;
             if (targetMeaning.toLowerCase().startsWith(lowerQ)) return 300;
-            // Short queries (<= 3 chars like "anu") must NOT match random substrings inside words like "manufacture"
             if (lowerQ.length() > 3 && targetMeaning.toLowerCase().contains(lowerQ)) {
                 return 200;
             }
         }
 
-        // 5. Cross-language fallback match
-        // Strictly ignore short queries (<= 3 chars) across other languages
+        // 4. Cross-language fallback match
         if (lowerQ.length() <= 3) {
             return 0;
         }
 
         if (mEn.contains(lowerQ) || mId.contains(lowerQ) || mMy.contains(lowerQ)) {
-            return 10;
+            return 50;
         }
 
         return 0;
     }
 
     private int scoreKanji(Kanji k, String lowerQ, String hira, String kata, String lang) {
-        String character = k.getCharacter() != null ? k.getCharacter() : "";
+        String character = k.getCharacter() != null ? k.getCharacter().toLowerCase() : "";
+        String kun = k.getKunReading() != null ? k.getKunReading().toLowerCase() : "";
         String on = k.getOnReading() != null ? k.getOnReading() : "";
-        String kun = k.getKunReading() != null ? k.getKunReading() : "";
         String mId = k.getMeaning() != null ? k.getMeaning().toLowerCase() : "";
         String mEn = k.getMeaningEn() != null ? k.getMeaningEn().toLowerCase() : "";
         String mMy = k.getMeaningMy() != null ? k.getMeaningMy() : "";
@@ -249,22 +242,34 @@ public class JishoService {
     private record ScoredResult(String type, Object item, int score) {}
 
     public KotobaResponse getKotobaById(Long id) {
+        return getKotobaById(id, "id");
+    }
+
+    public KotobaResponse getKotobaById(Long id, String lang) {
         Kotoba k = kotobaRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Kotoba tidak ditemukan"));
-        return KotobaResponse.from(k);
+        return KotobaResponse.from(k, lang);
     }
 
     public KanjiResponse getKanjiById(Long id) {
+        return getKanjiById(id, "id");
+    }
+
+    public KanjiResponse getKanjiById(Long id, String lang) {
         Kanji k = kanjiRepository.findById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Kanji tidak ditemukan"));
-        return KanjiResponse.from(k);
+        return KanjiResponse.from(k, lang);
     }
 
     public List<KotobaResponse> getKotobaByKanji(Long kanjiId) {
+        return getKotobaByKanji(kanjiId, "id");
+    }
+
+    public List<KotobaResponse> getKotobaByKanji(Long kanjiId, String lang) {
         Kanji kanji = kanjiRepository.findById(kanjiId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Kanji tidak ditemukan"));
 
         List<Kotoba> kotobas = kotobaRepository.search(kanji.getCharacter());
-        return kotobas.stream().map(KotobaResponse::from).toList();
+        return kotobas.stream().map(k -> KotobaResponse.from(k, lang)).toList();
     }
 }

@@ -42,8 +42,11 @@ public class DeckController {
     }
 
     @GetMapping("/{deckId}/cards")
-    public ResponseEntity<ApiResponse<List<QuizCardResponse>>> getCards(@PathVariable Long deckId) {
-        List<QuizCardResponse> cards = deckService.generateCardsForDeck(deckId);
+    public ResponseEntity<ApiResponse<List<QuizCardResponse>>> getCards(
+            @PathVariable Long deckId,
+            @RequestParam(required = false, defaultValue = "id") String lang
+    ) {
+        List<QuizCardResponse> cards = deckService.generateCardsForDeck(deckId, lang);
         return ResponseEntity.ok(ApiResponse.ok(cards));
     }
 
