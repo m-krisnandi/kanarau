@@ -1,0 +1,133 @@
+name: Deploy Kanarau Backend to Tencent VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - 'deploy/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: kanarau_deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Backend Test & Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Compile Backend
+        run: |
+          cd api
+          chmod +x mvnw && ./mvnw clean test-compile --no-transfer-progress
+
+  deploy:
+    name: Deploy API to Tencent Cloud VPS
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || 22 }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p $VPS_PORT -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync API Files to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || 22 }}
+        run: |
+          echo "Membuat direktori /opt/kanarau di VPS..."
+          ssh -i ~/.ssh/id_deploy -p $VPS_PORT $VPS_USER@$VPS_HOST "mkdir -p /opt/kanarau"
+
+          echo "Sinkronisasi file backend Kanarau..."
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_deploy -p $VPS_PORT -o StrictHostKeyChecking=accept-new" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'web/' \
+            --exclude 'api/target/' \
+            --exclude '.env' \
+            ./ $VPS_USER@$VPS_HOST:/opt/kanarau/
+
+      - name: Configure Environment (.env)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || 22 }}
+          KANARAU_PROD_ENV: ${{ secrets.KANARAU_PROD_ENV }}
+        run: |
+          if [ -n "$KANARAU_PROD_ENV" ]; then
+            echo "Memperbarui .env Kanarau di VPS dari GitHub Secret KANARAU_PROD_ENV..."
+            echo "$KANARAU_PROD_ENV" > /tmp/kanarau.env
+            scp -i ~/.ssh/id_deploy -P $VPS_PORT /tmp/kanarau.env $VPS_USER@$VPS_HOST:/opt/kanarau/.env
+            rm -f /tmp/kanarau.env
+          else
+            echo "Secret KANARAU_PROD_ENV tidak diset. Memastikan .env sudah ada di VPS..."
+            ssh -i ~/.ssh/id_deploy -p $VPS_PORT $VPS_USER@$VPS_HOST 'bash -s' << 'EOF'
+              if [ ! -f /opt/kanarau/.env ]; then
+                echo "Membuat file .env awal dari deploy/.env.prod.example..."
+                cp /opt/kanarau/deploy/.env.prod.example /opt/kanarau/.env
+              fi
+          EOF
+          fi
+
+      - name: Deploy Docker Compose & Health Check
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || 22 }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p $VPS_PORT $VPS_USER@$VPS_HOST 'bash -s' << 'EOF'
+            set -e
+            cd /opt/kanarau
+
+            echo "Membangun dan me-restart container backend Kanarau..."
+            docker compose -f docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
+
+            echo "Membersihkan image lama..."
+            docker image prune -f
+
+            echo "Memeriksa status container..."
+            sleep 8
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "Memeriksa endpoint API Kanarau..."
+            for i in {1..12}; do
+              if curl -fsS http://localhost:8085/api/v1/auth/login >/dev/null 2>&1 || [ $(curl -s -o /dev/null -w "%{http_code}" http://localhost:8085/api/v1/auth/login) -ne 000 ]; then
+                echo "Deploy Kanarau backend sukses! Port 8085 aktif."
+                exit 0
+              fi
+              echo "Menunggu backend Kanarau siap ($i/12)..."
+              sleep 5
+            done
+
+            echo "Log error backend Kanarau:"
+            docker compose -f docker-compose.prod.yml logs --tail=50 api
+            exit 1
+          EOF

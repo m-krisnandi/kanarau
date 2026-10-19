@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kanarau
+      POSTGRES_USER: kanarau
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    volumes:
+      - kanarau_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanarau -d kanarau"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: ${SERVER_PORT:-8085}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: kanarau
+      DB_USERNAME: kanarau
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      KANARAU_CORS_ORIGINS: ${KANARAU_CORS_ORIGINS:-https://*.vercel.app}
+    deploy:
+      resources:
+        limits:
+          memory: 450M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  kanarau_pg:

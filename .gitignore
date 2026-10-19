@@ -1,0 +1,60 @@
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+*.iml
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!deploy/.env.prod.example
+
+# Java / Maven (api)
+api/target/
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Node / Web (web)
+web/node_modules/
+node_modules/
+web/dist/
+dist/
+.npm
+.yarn
+.pnp
+.pnp.js
+
+# Build and cache
+.turbo/
+.next/
+.cache/
+.vite/

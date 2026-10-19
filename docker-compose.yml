@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kanarau
+      POSTGRES_USER: kanarau
+      POSTGRES_PASSWORD: kanarau_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./api
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/kanarau
+      SPRING_DATASOURCE_USERNAME: kanarau
+      SPRING_DATASOURCE_PASSWORD: kanarau_dev
+      JWT_SECRET: change-me-in-production-please
+    depends_on:
+      - db
+
+  web:
+    build: ./web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
