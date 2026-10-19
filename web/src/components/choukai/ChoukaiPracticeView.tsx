@@ -344,8 +344,16 @@ export const ChoukaiPracticeView: React.FC<ChoukaiPracticeViewProps> = ({ curren
         ? 'User has not selected an answer yet'
         : 'Pengguna belum menjawab';
 
-    const prompt =
+    const langDirective =
       language === 'my'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in MYANMAR (BURMESE) language only. Absolutely NO Indonesian language allowed. Quotes from Japanese audio must be explained in Myanmar script.]\n\n'
+        : language === 'en'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in ENGLISH language only. Absolutely NO Indonesian language allowed. Quotes from Japanese audio must be explained in English.]\n\n'
+        : '[PETUNJUK BAHASA: Berikan penjelasan 100% dalam BAHASA INDONESIA. Kutipan dialog bahasa Jepang dijelaskan artinya dalam Bahasa Indonesia.]\n\n';
+
+    const prompt =
+      langDirective +
+      (language === 'my'
         ? `အောက်ပါ JLPT ${currentLevel} နားထောင်မှု (${activeQuestion.typeLabel}) မေးခွန်းကို အသေးစိတ် ခွဲခြမ်းစိတ်ဖြာ ရှင်းပြပေးပါ:
 
 ခေါင်းစဉ်: ${activeQuestion.title}
@@ -424,7 +432,7 @@ INSTRUKSI WAJIB UNTUK AI SENSEI:
 1. Sebutkan secara tegas di baris awal kunci jawaban yang benar (Nomor & Teks pilihan).
 2. DAPAT DARI MANA JAWABANNYA: Kutip baris dialog percakapan asli bahasa Jepang di atas yang menjadi bukti penentu jawaban ke dalam format blockquote (>) beserta artinya dalam bahasa Indonesia.
 3. ALASAN & KATA KUNCI: Jelaskan alur percakapan dan kata kunci pendengaran (seperti kata sambung, perubahan intonasi, ekspresi sopan/keigo) yang membuktikan kebenaran jawaban tersebut.
-4. BEDAH JEBAKAN PERCAKAPAN: Ulas bagian mana dari dialog yang sengaja dipasang untuk mengecoh peserta ujian dan kenapa opsi lainnya salah.`;
+4. BEDAH JEBAKAN PERCAKAPAN: Ulas bagian mana dari dialog yang sengaja dipasang untuk mengecoh peserta ujian dan kenapa opsi lainnya salah.`);
 
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(
@@ -778,7 +786,7 @@ INSTRUKSI WAJIB UNTUK AI SENSEI:
                   className="text-[10px] font-bold text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-1.5 py-0.5 rounded border border-violet-200 transition-colors cursor-pointer"
                   title={t.modules.choukai.restartTitle}
                 >
-                  Ulang
+                  {language === 'en' ? 'Replay' : language === 'my' ? 'ပြန်ဖွင့်' : 'Ulang'}
                 </button>
                 <span className="text-stone-400">/</span>
                 <span>{formatAudioTime(audioDuration || (activeTrack?.totalDuration || 0))}</span>

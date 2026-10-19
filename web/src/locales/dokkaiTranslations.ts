@@ -480,3 +480,161 @@ Defending free expression and checking unrestrained collective retribution are n
     },
   },
 };
+
+
+export const DOKKAI_QUESTION_TRANSLATIONS: Record<string, { explanation: Record<Language, string> }> = {
+  dq_n2_1_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 tertulis jelas: 「金曜日の退勤時までに必ずすべての業務ファイルを保存し、PCの電源をお切りください」 (Sebelum pulang Jumat, pastikan menyimpan semua file dan mematikan PC).',
+      en: 'Paragraph 2 clearly states: "金曜日の退勤時までに必ずすべての業務ファイルを保存し、PCの電源をお切りください" (Before leaving work on Friday, be sure to save all work files and turn off PC power).',
+      my: 'ဒုတိယစာပိုဒ်တွင် ရှင်းလင်းစွာ ဖော်ပြထားသည်- "金曜日の退勤時までに必ずすべての業務ファイルを保存し、PCの電源をお切りください" (သောကြာနေ့ အလုပ်ဆင်းချိန်မတိုင်မီ လုပ်ငန်းဖိုင်အားလုံးကို မဖြစ်မနေ သိမ်းဆည်းပြီး ကွန်ပျူတာပါဝါ ပိတ်ထားပါ)။',
+    },
+  },
+  dq_n2_2_1: {
+    explanation: {
+      id: 'Di paragraf ke-3 tertulis tegas: Kulkas, mesin cuci, TV, dan AC adalah barang daur ulang elektronik yang 「市の粗大ゴミとしては回収できません。買い替え先の販売店または指定引き取り場所へ直接処分をご依頼くださいますよう」.',
+      en: 'Paragraph 3 firmly states: Refrigerators, washing machines, TVs, and air conditioners are designated recyclable appliances and "cannot be collected as municipal bulky trash. Please request disposal from the replacement retailer or designated drop-off location."',
+      my: 'တတိယစာပိုဒ်တွင် တိကျစွာ ဖော်ပြထားသည်- ရေခဲသေတ္တာ၊ အဝတ်လျှော်စက်၊ တီဗီနှင့် လေအေးပေးစက်များသည် အီလက်ထရွန်နစ် ပြန်လည်အသုံးပြုပစ္စည်းများဖြစ်သဖြင့် "မြို့တော်၏ အမှိုက်ကြီးအဖြစ် ကောက်ယူ၍မရပါ။ အသစ်ဝယ်ယူသည့်ဆိုင် သို့မဟုတ် သတ်မှတ်ထားသော လက်ခံနေရာတွင် တိုက်ရိုက်စွန့်ပစ်ပါ"။',
+    },
+  },
+  dq_n2_3_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 tertulis: 「期日を過ぎた場合、今期中の経費としての処理が認められず、精算金の支払いが翌々月以降に大幅に遅れる場合がございます」.',
+      en: 'Paragraph 2 states: "If the deadline passes, expense processing for the current period will not be approved, and reimbursement payment may be substantially delayed until the month after next or later."',
+      my: 'ဒုတိယစာပိုဒ်တွင် ဖော်ပြထားသည်- "သတ်မှတ်ရက် ကျော်လွန်ပါက ယခုကာလအတွက် ကုန်ကျစရိတ်စာရင်းအဖြစ် လက်ခံမည်မဟုတ်ဘဲ ပြန်လည်ထုတ်ပေးမည့်ငွေ ပေးချေမှုသည် နောက်လဆန်းပိုင်းအထိ သိသာစွာ ကြန့်ကြာနိုင်သည်"။',
+    },
+  },
+  dq_n2_4_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 dijelaskan: 「先延ばしの本質は時間の問題ではなく、ネガティブな感情の回避にある」.',
+      en: 'Paragraph 2 explains: "The essence of procrastination is not a problem of time management, but rather the avoidance of negative emotions."',
+      my: 'ဒုတိယစာပိုဒ်တွင် ရှင်းပြထားသည်- "အလုပ်ရွှေ့ဆိုင်းခြင်း၏ အဓိကအရင်းအမြစ်မှာ အချိန်ပြဿနာမဟုတ်ဘဲ မနှစ်မြို့ဖွယ် စိတ်ခံစားချက်များကို ရှောင်လွှဲလိုခြင်းကြောင့် ဖြစ်သည်"။',
+    },
+  },
+  dq_n2_4_2: {
+    explanation: {
+      id: 'Di paragraf terakhir tertulis: 「課題を『最初の5分間だけ手をつける』といった極めて小さな行動単位に分解して、心理的抵抗を減らすことこそが重要なのだ」.',
+      en: 'The final paragraph states: "Breaking the task down into an extremely small action unit such as \'working on it for just the first 5 minutes\' to reduce psychological resistance is what matters most."',
+      my: 'နောက်ဆုံးစာပိုဒ်တွင် ဖော်ပြထားသည်- "စိတ်ပိုင်းဆိုင်ရာ တွန့်ဆုတ်မှုကို လျှော့ချရန်အတွက် အလုပ်တာဝန်ကို \'ပထမ ၅ မိနစ်ခန့်သာ စတင်လုပ်ဆောင်ကြည့်ခြင်း\' ကဲ့သို့သော အလွန်သေးငယ်သည့် လုပ်ဆောင်မှုယူနစ်အဖြစ် ခွဲခြမ်းလိုက်ခြင်းသည် အလွန်အရေးကြီးသည်"။',
+    },
+  },
+  dq_n2_5_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 tertulis: 「既読機能の存在によって、『読んだのに返信しないのは失礼ではないか』『無視していると誤解されるのではないか』という不安が生じ」.',
+      en: 'Paragraph 2 states: "The existence of read receipts generates anxiety, with people worrying \'Is it rude not to reply when they know I read it?\' or \'Will they misunderstand that I am ignoring them?\'"',
+      my: 'ဒုတိယစာပိုဒ်တွင် ဖော်ပြထားသည်- "မက်ဆေ့ဂျ်ဖတ်ပြီးကြောင်းပြသသည့်စနစ်ကြောင့် \'ဖတ်ပြီး မပြန်ပါက ယဉ်ကျေးမှုမရှိရာရောက်မလား\'၊ \'ဥပေက္ခာပြုသည်ဟု အထင်လွဲခံရမလား\' ဟူသော စိုးရိမ်ပူပန်မှုများ ဖြစ်ပေါ်လာစေသည်"။',
+    },
+  },
+  dq_n2_5_2: {
+    explanation: {
+      id: 'Di kalimat terakhir tertulis jelas: 「便利さに振り回されることなく、時には意識的に通信を遮断し、自分自身の時間を取り戻す知恵が、現代人にこそ求められている」.',
+      en: 'The final sentence clearly concludes: "Modern people need the wisdom not to be swayed by convenience, to consciously disconnect from communications at times, and to reclaim their own time."',
+      my: 'နောက်ဆုံးစာကြောင်းတွင် ရှင်းလင်းစွာ ဖော်ပြထားသည်- "အဆင်ပြေလွယ်ကူမှု၏ လွှမ်းမိုးမှုကို မခံရစေဘဲ တစ်ခါတစ်ရံ ဆက်သွယ်ရေးကို သတိပြုလျက် ဖြတ်တောက်ကာ မိမိကိုယ်ပိုင်အချိန်ကို ပြန်လည်ရယူနိုင်သည့် ဉာဏ်ပညာသည် ယနေ့ခေတ်လူသားများအတွက် အမှန်တကယ် လိုအပ်သည်"။',
+    },
+  },
+  dq_n2_6_1: {
+    explanation: {
+      id: 'Lihat poin 3: Pada hari Sabtu/Minggu/Libur, sistemnya adalah 「完全事前Web予約制（前日20:00までに要予約）」 dan tidak melayani pendaftaran langsung di tempat hari-H.',
+      en: 'See Point 3: On Saturdays, Sundays, and holidays, the system requires "Strictly Advance Online Reservation (booking required by 20:00 the prior day)" and same-day on-site registration is not accepted.',
+      my: 'အချက် ၃ ကို ကြည့်ပါ- စနေ၊ တနင်္ဂနွေနှင့် အစိုးရရုံးပိတ်ရက်များတွင် "အွန်လိုင်းမှ ကြိုတင်စာရင်းသွင်းသည့်စနစ် (ယခင်နေ့ ၂၀:၀၀ မတိုင်မီ စာရင်းသွင်းရန် လိုအပ်သည်)" ဖြစ်ပြီး ထိုနေ့တွင် နေရာ၌ တိုက်ရိုက်လျှောက်ထားမှုကို လက်မခံပါ။',
+    },
+  },
+  dq_n2_7_1: {
+    explanation: {
+      id: 'Di paragraf 2 dan 3 penulis menegaskan: karya manusia berharga karena lahir dari gejolak batin, penderitaan, dan empati, serta manusia harus tetap memegang motivasi dan tanggung jawab tentang apa yang ingin disampaikan (pilihan 2).',
+      en: 'In paragraphs 2 and 3, the author emphasizes: Human work is valuable because it arises from inner conflict, suffering, and empathy, and humans must preserve the core motivation and accountability for what they wish to convey (Option 2).',
+      my: 'စာပိုဒ် ၂ နှင့် ၃ တွင် စာရေးသူက အလေးပေးဖော်ပြထားသည်- လူသားတို့၏ ဖန်တီးမှုသည် စိတ်တွင်းရုန်းကန်မှု၊ ခံစားမှုနှင့် စာနာနားလည်မှုတို့မှ မွေးဖွားလာခြင်းကြောင့် တန်ဖိုးရှိပြီး လူသားသည် မိမိဖော်ပြလိုသည့်အရာအတွက် ရည်ရွယ်ချက်နှင့် တာဝန်ယူမှုကို ဆက်လက်ထိန်းသိမ်းထားရမည် (ရွေးချယ်မှု ၂)။',
+    },
+  },
+  dq_n2_8_1: {
+    explanation: {
+      id: 'A berargumen bahwa campur tangan manusia harus diminimalisir demi konservasi murni, sedangkan B berargumen bahwa pembiaran justru berbahaya dan hutan butuh perawatan berkala serta perputaran ekonomi industri kehutanan yang sehat (pilihan 1).',
+      en: 'Author A argues that human intervention should be minimized for pure conservation, while Author B argues that neglect is dangerous and forests require periodic maintenance and a healthy forestry economic cycle (Option 1).',
+      my: 'စာရေးသူ A က သဘာဝထိန်းသိမ်းရေးအတွက် လူသားတို့၏ ဝင်ရောက်စွက်ဖက်မှုကို အတတ်နိုင်ဆုံး လျှော့ချသင့်သည်ဟု ယူဆပြီး စာရေးသူ B ကမူ လျစ်လျူရှုထားခြင်းသည် အန္တရာယ်ရှိသဖြင့် သစ်တောများကို ပုံမှန်ပြုစုထိန်းသိမ်းမှုနှင့် ကျန်းမာသော သစ်တောစီးပွားရေးလည်ပတ်မှု လိုအပ်သည်ဟု ဆိုသည် (ရွေးချယ်မှု ၁)။',
+    },
+  },
+  dq_n1_1_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 penulis menegaskan: 「人間が自らの価値観に基づいて下す決断の過程そのものにこそ、人間としての実存的な尊厳が宿っている」「効率性の追求の果てに自律的な思考を放棄してしまえば、道具に依存する客体へと転落しかねない」.',
+      en: 'In paragraph 2, the author asserts: "Existential human dignity resides in the very decision-making process where individuals make choices based on their own values" and "If we surrender autonomous thinking in pursuit of efficiency, we risk declining into mere passive objects dependent on tools."',
+      my: 'ဒုတိယစာပိုဒ်တွင် စာရေးသူက အခိုင်အမာဆိုထားသည်- "လူသားတစ်ဦးသည် မိမိကိုယ်ပိုင်တန်ဖိုးစံနှုန်းများအပေါ် အခြေခံ၍ ဆုံးဖြတ်ချက်ချသည့် လုပ်ငန်းစဉ်ကိုယ်တိုင်၌သာ လူသားဖြစ်တည်မှုဆိုင်ရာ ဂုဏ်သိက္ခာ ကိန်းအောင်းနေသည်" နှင့် "ထိရောက်မှုကို လိုက်စားရင်း ကိုယ်ပိုင်တွေးခေါ်မှုကို စွန့်လွှတ်လိုက်ပါက ကိရိယာတန်ဆာပလာများကိုသာ မှီခိုနေရသည့် အရာဝတ္ထုအဆင့်သို့ ကျဆင်းသွားနိုင်သည်"။',
+    },
+  },
+  dq_n1_2_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 dan ke-3 dijelaskan bahwa jeda ("Ma") bukan ketidakramahan atau kekurangan, melainkan bentuk etika yang mempercayai kepekaan lawan bicara dan mampu menyampaikan rasa yang lebih dalam melampaui kata-kata.',
+      en: 'Paragraphs 2 and 3 explain that the pause ("Ma") is neither coldness nor insufficiency, but a form of etiquette that trusts the conversational partner\'s sensitivity and conveys deeper sentiment beyond words.',
+      my: 'ဒုတိယနှင့် တတိယစာပိုဒ်များတွင် ရှင်းပြထားသည်- တိတ်ဆိတ်ရပ်နားမှု ("Ma") သည် မဖော်ရွေခြင်း သို့မဟုတ် ချို့ယွင်းချက်မဟုတ်ဘဲ စကားပြောဖော်၏ ခံစားသိရှိနိုင်စွမ်းကို ယုံကြည်လေးစားသည့် ယဉ်ကျေးမှုပုံစံတစ်ရပ်ဖြစ်ပြီး စကားလုံးများထက် ပိုမိုနက်နဲသောအဓိပ္ပာယ်ကို သယ်ဆောင်ပေးသည်"။',
+    },
+  },
+  dq_n1_2_2: {
+    explanation: {
+      id: 'Di paragraf ke-3 tertulis: 「相手の感受性を信頼し尊重する礼節の一形態なのである。文脈や場の空気を共有することで言葉を補完し合う」.',
+      en: 'Paragraph 3 states: "It is a form of courtesy that trusts and respects the other party\'s sensitivity. By sharing context and situational atmosphere, words complement each other."',
+      my: 'တတိယစာပိုဒ်တွင် ဖော်ပြထားသည်- "တစ်ဖက်သား၏ ခံစားသိရှိနိုင်စွမ်းကို ယုံကြည်လေးစားသော ယဉ်ကျေးမှုတစ်မျိုးဖြစ်ပြီး အခြေအနေနှင့် ပတ်ဝန်းကျင်ကို အတူတကွ မျှဝေနားလည်ခြင်းဖြင့် စကားလုံးများကို ဖြည့်ဆည်းပေးသည်"။',
+    },
+  },
+  dq_n1_3_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 dan 3 penulis menegaskan: bahasa bukan wadah pasif melainkan kerangka aktif yang sejak awal membagi dan membentuk kontur cara manusia memandang realitas (pilihan 3).',
+      en: 'In paragraphs 2 and 3, the author asserts: Language is not a passive vessel but an active framework that segments and shapes the very contours of how humans perceive reality (Option 3).',
+      my: 'စာပိုဒ် ၂ နှင့် ၃ တွင် စာရေးသူက အတည်ပြုသည်- ဘာသာစကားသည် အဓိပ္ပာယ်ကို ထည့်သွင်းထားသော တုံ့ပြန်မှုမဲ့ခွက်တစ်ခုမဟုတ်ဘဲ လူသားတို့ လက်တွေ့ဘဝကို ရှုမြင်ပုံနယ်နိမိတ်ကို စတင်ပိုင်းခြားပုံဖော်ပေးသည့် တက်ကြွသော မူဘောင်ဖြစ်သည် (ရွေးချယ်မှု ၃)။',
+    },
+  },
+  dq_n1_4_1: {
+    explanation: {
+      id: 'Di paragraf ke-2 penulis menjelaskan bahwa di dunia fisik orang melihat mimik dan merasakan luka perkataan sehingga mampu menahan diri, sedangkan di layar digital keberadaan nyata (実存的な生々しさ) terhapus (pilihan 2).',
+      en: 'In paragraph 2, the author explains that in the physical world people see facial expressions and feel the sting of words, prompting restraint, whereas digital screens erase the existential vividness of living presence (Option 2).',
+      my: 'ဒုတိယစာပိုဒ်တွင် စာရေးသူက ရှင်းပြသည်- လက်တွေ့လောကတွင် လူတို့သည် မျက်နှာအမူအရာကို တွေ့မြင်နိုင်ပြီး စကားလုံးများ၏ နာကျင်မှုကို ခံစားမိသဖြင့် မိမိကိုယ်ကို ထိန်းချုပ်နိုင်ကြသော်လည်း ဒစ်ဂျစ်တယ်ဖန်သားပြင်များပေါ်တွင်မူ အမှန်တကယ်တည်ရှိနေမှု၏ သက်ဝင်လှုပ်ရှားမှုမှာ ပျောက်ကွယ်သွားသည် (ရွေးချယ်မှု ၂)။',
+    },
+  },
+  dq_n1_4_2: {
+    explanation: {
+      id: 'Di paragraf penutup penulis menyatakan bahwa kuncinya adalah mengasah daya imajinasi bahwa di balik teks ada satu manusia yang bisa terluka (pilihan 3).',
+      en: 'In the closing paragraph, the author states that the key is cultivating imagination to realize that behind each screen and text is a living human being who can be hurt (Option 3).',
+      my: 'နိဂုံးချုပ်စာပိုဒ်တွင် စာရေးသူက အဓိကသော့ချက်မှာ စာသားများ၏ နောက်ကွယ်တွင် နာကျင်ခံစားရနိုင်သော လူသားတစ်ဦး တကယ်ရှိနေသည်ဟူသော စိတ်ကူးတွေးတောနိုင်စွမ်းကို မွေးမြူခြင်းဖြစ်သည်ဟု ဖော်ပြထားသည် (ရွေးချယ်မှု ၃)။',
+    },
+  },
+  dq_n3_1_1: {
+    explanation: {
+      id: 'Di paragraf terakhir ditegaskan: 「日本の伝統的な気配りを大切にしつつも、重要な連絡事項や業務の目的は明確な言葉で共有し合うという『二つのバランス』が強く求められています」. Jawaban yang tepat adalah pilihan 2.',
+      en: 'The final paragraph stresses: "While valuing traditional Japanese attentiveness, sharing critical communications and work goals in clear words—maintaining this dual balance—is strongly demanded." The correct answer is Option 2.',
+      my: 'နောက်ဆုံးစာပိုဒ်တွင် အလေးထားဖော်ပြထားသည်- "ဂျပန်ရိုးရာ အပြန်အလှန်ဂရုစိုက်မှုကို တန်ဖိုးထားဆဲဖြစ်သော်လည်း အရေးကြီးသောအချက်အလက်များနှင့် လုပ်ငန်းရည်မှန်းချက်များကို ရှင်းလင်းပြတ်သားသော စကားလုံးများဖြင့် မျှဝေနားလည်စေသည့် \'ဟန်ချက်နှစ်ခု\' ကို အလေးအနက် တောင်းဆိုထားပါသည်"။ မှန်ကန်သောအဖြေမှာ ရွေးချယ်မှု ၂ ဖြစ်သည်။',
+    },
+  },
+  dq_n3_2_1: {
+    explanation: {
+      id: 'Pada bagian catatan (※ 注意事項) tertulis: 「万が一作業が午前5:00より延長する場合は、午前4:30までに社内緊急連絡掲示板にてお知らせいたします」. Pilihan 2 paling akurat.',
+      en: 'In the notice section (※ Notes), it states: "In the unlikely event that work extends past 5:00 AM, an announcement will be posted on the internal emergency bulletin board by 4:30 AM." Option 2 is most accurate.',
+      my: 'မှတ်ချက်အပိုင်း (※ သတိပြုရန်) တွင် ဖော်ပြထားသည်- "လုပ်ငန်းသည် နံနက် ၅:၀၀ ထက် ကျော်လွန်သွားပါက နံနက် ၄:၃၀ မတိုင်မီ ရုံးတွင်း အရေးပေါ်ဆက်သွယ်ရေး ကြော်ငြာသင်ပုန်းတွင် အသိပေးကြေညာပါမည်"။ ရွေးချယ်မှု ၂ သည် အတိကျဆုံးဖြစ်သည်။',
+    },
+  },
+  dq_n4_1_1: {
+    explanation: {
+      id: 'Pada poin nomor 3 tertulis: 「中を水できれいに洗ってから、専用のかごに入れてください」. Tindakan pertama adalah mencucinya dengan air (pilihan 3).',
+      en: 'In Point 3 it states: "Wash the inside cleanly with water, then place it in the designated basket." The first action is washing with water (Option 3).',
+      my: 'အချက် ၃ တွင် ဖော်ပြထားသည်- "အတွင်းပိုင်းကို ရေဖြင့် သန့်စင်အောင် ဆေးကြောပြီးနောက် သတ်မှတ်ထားသော ခြင်းတောင်းထဲသို့ ထည့်ပါ"။ ပထမဆုံး လုပ်ဆောင်ရမည့်အရာမှာ ရေဖြင့်ဆေးကြောခြင်းဖြစ်သည် (ရွေးချယ်မှု ၃)။',
+    },
+  },
+  dq_n4_2_1: {
+    explanation: {
+      id: 'Penulis mengenakan pakaian tradisional yukata dan menikmati keindahan kembang api musim panas bersama teman (pilihan 2).',
+      en: 'The author wore traditional yukata and enjoyed the beauty of summer fireworks with friends (Option 2).',
+      my: 'စာရေးသူသည် ရိုးရာယုခတအဝတ်အစားကို ဝတ်ဆင်ကာ နွေရာသီ မီးရှူးမီးပန်းများ၏ လှပမှုကို သူငယ်ချင်းများနှင့်အတူ ခံစားခဲ့သည် (ရွေးချယ်မှု ၂)။',
+    },
+  },
+  dq_n5_1_1: {
+    explanation: {
+      id: 'Pada bagian catatan tertulis: 「※ 毎週水曜日はお休みです」. Jadi hari libur toko adalah hari Rabu (pilihan 2).',
+      en: 'In the notice it states: "※ Closed every Wednesday." Therefore, the shop\'s regular closing day is Wednesday (Option 2).',
+      my: 'သတိပြုရန်အပိုင်းတွင် ဖော်ပြထားသည်- "※ ဗုဒ္ဓဟူးနေ့တိုင်း ဆိုင်ပိတ်ပါသည်"။ ထို့ကြောင့် ဆိုင်ပိတ်ရက်မှာ ဗုဒ္ဓဟူးနေ့ဖြစ်သည် (ရွေးချယ်မှု ၂)။',
+    },
+  },
+  dq_n5_2_1: {
+    explanation: {
+      id: 'Tanaka menulis: 「来週の日本語のテストのために、図書館で一緒に勉強しませんか」 (Mau belajar bersama demi ujian bahasa Jepang minggu depan?). Jawaban tepat pilihan 2.',
+      en: 'Tanaka writes: "Why don\'t we study together at the library for next week\'s Japanese exam?" (Option 2 is correct).',
+      my: 'တာနာခက ရေးသားခဲ့သည်- "လာမည့်အပတ် ဂျပန်စာမေးပွဲအတွက် စာကြည့်တိုက်မှာ အတူတူ စာမလေ့လာချင်ဘူးလား" (ရွေးချယ်မှု ၂ သည် မှန်ကန်သည်)။',
+    },
+  },
+};

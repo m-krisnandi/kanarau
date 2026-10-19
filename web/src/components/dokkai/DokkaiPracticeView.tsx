@@ -445,8 +445,16 @@ Penjelasan Singkat: ${q.explanation}`;
       })
       .join('\n\n');
 
-    const prompt =
+    const langDirective =
       language === 'my'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in MYANMAR (BURMESE) language only. Absolutely NO Indonesian language allowed. Quotes from Japanese text must be explained in Myanmar script.]\n\n'
+        : language === 'en'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in ENGLISH language only. Absolutely NO Indonesian language allowed. Quotes from Japanese text must be explained in English.]\n\n'
+        : '[PETUNJUK BAHASA: Berikan penjelasan 100% dalam BAHASA INDONESIA. Kutipan kalimat teks bahasa Jepang dijelaskan artinya dalam Bahasa Indonesia.]\n\n';
+
+    const prompt =
+      langDirective +
+      (language === 'my'
         ? `အောက်ပါ JLPT ${currentLevel} စာဖတ်နားလည်မှု (Dokkai) စာပိုဒ်ကို အသေးစိတ် ခွဲခြမ်းစိတ်ဖြာ ရှင်းပြပေးပါ:
 
 ခေါင်းစဉ်: ${activePassage.title}
@@ -501,7 +509,7 @@ Untuk setiap pertanyaan:
 1. Sebutkan secara tegas nomor dan isi kunci jawaban yang benar.
 2. DAPAT DARI MANA JAWABANNYA: Kutip kalimat persis dalam teks bacaan bahasa Jepang yang menjadi dasar bukti ke dalam blockquote (>) beserta arti bahasa Indonesianya.
 3. Jelaskan ALASAN LOGIKA mengapa kalimat bukti tersebut mengarah ke jawaban benar.
-4. Bedah secara ringkas kenapa opsi-opsi lainnya salah (jebakan pilihan salah).`;
+4. Bedah secara ringkas kenapa opsi-opsi lainnya salah (jebakan pilihan salah).`);
 
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(
@@ -530,8 +538,16 @@ Untuk setiap pertanyaan:
         ? 'User has not selected an answer yet'
         : 'Pengguna belum memilih jawaban';
 
-    const prompt =
+    const langDirective =
       language === 'my'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in MYANMAR (BURMESE) language only. Absolutely NO Indonesian language allowed. Quotes from Japanese text must be explained in Myanmar script.]\n\n'
+        : language === 'en'
+        ? '[STRICT LANGUAGE DIRECTIVE: You must respond 100% in ENGLISH language only. Absolutely NO Indonesian language allowed. Quotes from Japanese text must be explained in English.]\n\n'
+        : '[PETUNJUK BAHASA: Berikan penjelasan 100% dalam BAHASA INDONESIA. Kutipan kalimat teks bahasa Jepang dijelaskan artinya dalam Bahasa Indonesia.]\n\n';
+
+    const prompt =
+      langDirective +
+      (language === 'my'
         ? `အောက်ပါ JLPT ${currentLevel} စာဖတ်နားလည်မှု မေးခွန်းကို အသေးစိတ် ခွဲခြမ်းစိတ်ဖြာ ရှင်းပြပေးပါ:
 
 စာပိုဒ် ခေါင်းစဉ်: ${activePassage.title}
@@ -601,7 +617,7 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
 1. Sebutkan secara tegas di baris awal kunci jawaban yang benar (Nomor & Teks pilihan).
 2. DAPAT DARI MANA JAWABANNYA: Kutip kalimat persis dari teks bacaan bahasa Jepang di atas yang membuktikan kebenaran jawaban tersebut ke dalam blockquote (>), lalu berikan terjemahan bahasa Indonesianya.
 3. ALASAN KENAPA JAWABAN ITU: Jelaskan alur penalaran dan logika maknanya secara padat dan mudah dipahami.
-4. KENAPA OPSI LAIN SALAH: Bedah secara spesifik kenapa pilihan-pilihan lainnya salah atau bagian mana dari pilihan tersebut yang merupakan jebakan bagi peserta ujian.`;
+4. KENAPA OPSI LAIN SALAH: Bedah secara spesifik kenapa pilihan-pilihan lainnya salah atau bagian mana dari pilihan tersebut yang merupakan jebakan bagi peserta ujian.`);
 
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(
@@ -946,7 +962,19 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
                     ? 'bg-rose-600 text-white ring-4 ring-rose-100 animate-pulse'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white ring-4 ring-emerald-100'
                 }`}
-                title={isAudioPlaying ? 'Jeda Audio' : 'Putar Audio'}
+                title={
+                  isAudioPlaying
+                    ? language === 'my'
+                      ? 'အသံ ခေတ္တရပ်ရန်'
+                      : language === 'en'
+                      ? 'Pause Audio'
+                      : 'Jeda Audio'
+                    : language === 'my'
+                    ? 'အသံဖွင့်ရန်'
+                    : language === 'en'
+                    ? 'Play Audio'
+                    : 'Putar Audio'
+                }
               >
                 {isAudioPlaying ? (
                   <Pause className="w-6 h-6 fill-white" />
@@ -1242,7 +1270,7 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
                 meaning_id: entry.meanings.id?.[0] || '',
                 meaning_en: entry.meanings.en?.[0] || '',
                 jlpt_level: (currentLevel.toUpperCase() as any) || 'N2',
-                part_of_speech: 'Kata benda',
+                part_of_speech: language === 'en' ? 'Noun' : language === 'my' ? 'နာမ်' : 'Kata benda',
                 notes: '',
                 example_sentence: '',
                 example_sentence_meaning: '',

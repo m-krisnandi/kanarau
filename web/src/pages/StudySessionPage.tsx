@@ -10,7 +10,7 @@ import type { Kotoba } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useTranslation } from '@/stores/languageStore';
-import { localizeQuizCard, localizeKotoba } from '@/locales/vocabularyTranslations';
+import { localizeQuizCard, localizeKotoba, localizeNotes } from '@/locales/vocabularyTranslations';
 import {
   ArrowLeft,
   Check,
@@ -320,8 +320,11 @@ export const StudySessionPage: React.FC = () => {
   const currentPercent = ((currentIndex / cards.length) * 100).toFixed(2);
   const activeDeckTitle = deckTitle || `DAY ${deckId || '1'} ${currentLevel}`;
 
+  const rawNotes = currentCard?.kotoba?.notes;
+  const localizedCardNotes = rawNotes ? localizeNotes(rawNotes, language) : null;
+
   const hintContent =
-    currentCard?.kotoba?.notes ||
+    localizedCardNotes ||
     (currentCard?.kotoba?.example_sentence
       ? (language === 'my'
           ? `ဥပမာ အသုံးပြုပုံ- ${currentCard.kotoba.example_sentence}\nအဓိပ္ပာယ်- ${currentCard.kotoba.example_sentence_meaning || ''}`

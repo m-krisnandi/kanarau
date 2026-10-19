@@ -190,21 +190,32 @@ export async function askGemini(prompt: string, history: ChatMessage[] = []): Pr
     userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
   }
 
-  const contents = [
-    {
-      role: 'user',
-      parts: [{ text: chosenSystemInstruction + '\n\n' + userPrefix + prompt }],
-    },
-  ];
+  let strictDirective = '';
+  if (lang === 'en') {
+    strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in ENGLISH only. No Indonesian language allowed. Explain Japanese in English.]\n\n';
+  } else if (lang === 'my') {
+    strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in MYANMAR (BURMESE) language only. No Indonesian language allowed. Explain Japanese in Myanmar script.]\n\n';
+  }
 
-  // If there's conversational history, include recent context
-  if (history.length > 0) {
-    const formattedHistory = history.slice(-4).map((msg) => ({
+  const currentTurn = {
+    role: 'user',
+    parts: [{ text: strictDirective + userPrefix + prompt }],
+  };
+
+  // Filter out initial welcome placeholder and ensure alternating user/model turns starting with 'user'
+  const validHistory = history
+    .filter((msg) => msg.id !== 'welcome' && msg.content && msg.content.trim().length > 0)
+    .slice(-4)
+    .map((msg) => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }],
     }));
-    contents.unshift(...(formattedHistory as any));
+
+  while (validHistory.length > 0 && validHistory[0]?.role !== 'user') {
+    validHistory.shift();
   }
+
+  const contents = [...validHistory, currentTurn];
 
   let lastErrorMsg = '';
 
@@ -217,7 +228,12 @@ export async function askGemini(prompt: string, history: ChatMessage[] = []): Pr
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ contents }),
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: chosenSystemInstruction }],
+          },
+          contents,
+        }),
       });
 
       if (!response.ok) {
@@ -244,28 +260,31 @@ export async function askGemini(prompt: string, history: ChatMessage[] = []): Pr
       // 2. Post-processing purifier: Eliminate any stray Indonesian keywords for Burmese or English
       if (lang === 'my') {
         cleanText = cleanText
-          .replace(/^(\s*•\s*\**)(?:Nuansa|nuansa)(\**\s*[:：])/gmi, '$1သဘောသဘာဝ (Nuance)$2')
-          .replace(/^(\s*•\s*\**)(?:Kunci JLPT|kunci jlpt)(\**\s*[:：])/gmi, '$1JLPT အဓိက သော့ချက်$2')
-          .replace(/^(\s*•\s*\**)(?:Trik Ujian|trik ujian)(\**\s*[:：])/gmi, '$1စာမေးပွဲ သော့ချက်$2')
-          .replace(/^(\s*•\s*\**)(?:Jawaban Benar|jawaban benar)(\**\s*[:：])/gmi, '$1မှန်ကန်သော အဖြေ$2')
-          .replace(/^(\s*•\s*\**)(?:Alasan Logika|alasan logika)(\**\s*[:：])/gmi, '$1ယုတ္တိနည်းကျ အကြောင်းပြချက်$2')
-          .replace(/^(\s*•\s*\**)(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah)(\**\s*[:：])/gmi, '$1အခြားရွေးချယ်စရာများ မှားယွင်းရသောအချက်$2')
-          .replace(/^(\s*•\s*\**)(?:Trik Menemukan Kunci|trik menemukan kunci)(\**\s*[:：])/gmi, '$1သော့ချက် ရှာဖွေနည်း$2')
-          .replace(/^(\s*>\s*)Terjemahan\s*[:：]/gmi, '$1ဘာသာပြန်:')
-          .replace(/^###\s*\*\*(?:Analisis Dokkai|analisis dokkai)\s*[:：]/gmi, '### **Dokkai လေ့လာဆန်းစစ်ချက်:')
-          .replace(/^###\s*\*\*(?:Analisis Choukai|analisis choukai)\s*[:：]/gmi, '### **Choukai လေ့လာဆန်းစစ်ချက်:');
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **သဘောသဘာဝ (Nuance):** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT အဓိက သော့ချက်:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Menemukan Kunci|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **စာမေးပွဲ သော့ချက်:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **မှန်ကန်သော အဖြေ:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika|Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **ယုတ္တိနည်းကျ အကြောင်းပြချက်:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah|Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **အခြားရွေးချယ်စရာများ မှားယွင်းရသောအချက်:** ')
+          .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> ဘာသာပြန်: ')
+          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai လေ့လာဆန်းစစ်ချက်:**')
+          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai လေ့လာဆန်းစစ်ချက်:**')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **ဥပမာ စာကြောင်း:** ');
       } else if (lang === 'en') {
         cleanText = cleanText
-          .replace(/^(\s*•\s*\**)(?:Nuansa|nuansa)(\**\s*[:：])/gmi, '$1Nuance$2')
-          .replace(/^(\s*•\s*\**)(?:Kunci JLPT|kunci jlpt)(\**\s*[:：])/gmi, '$1JLPT Key Points$2')
-          .replace(/^(\s*•\s*\**)(?:Trik Ujian|trik ujian)(\**\s*[:：])/gmi, '$1Exam Tips$2')
-          .replace(/^(\s*•\s*\**)(?:Jawaban Benar|jawaban benar)(\**\s*[:：])/gmi, '$1Correct Answer$2')
-          .replace(/^(\s*•\s*\**)(?:Alasan Logika|alasan logika)(\**\s*[:：])/gmi, '$1Logical Reason$2')
-          .replace(/^(\s*•\s*\**)(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah)(\**\s*[:：])/gmi, '$1Why Other Options Are Wrong$2')
-          .replace(/^(\s*•\s*\**)(?:Trik Menemukan Kunci|trik menemukan kunci)(\**\s*[:：])/gmi, '$1Key Strategy$2')
-          .replace(/^(\s*>\s*)Terjemahan\s*[:：]/gmi, '$1Translation:')
-          .replace(/^###\s*\*\*(?:Analisis Dokkai|analisis dokkai)\s*[:：]/gmi, '### **Dokkai Analysis:')
-          .replace(/^###\s*\*\*(?:Analisis Choukai|analisis choukai)\s*[:：]/gmi, '### **Choukai Analysis:');
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **Nuance:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT Key Points:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **Exam Tips:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Menemukan Kunci|trik menemukan kunci)(?:\*{0,2})\s*[:：]/gmi, '\n• **Key Strategy:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **Correct Answer:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika)(?:\*{0,2})\s*[:：]/gmi, '\n• **Logical Reason:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Reason:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah)(?:\*{0,2})\s*[:：]/gmi, '\n• **Why Other Options Are Wrong:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Trap Analysis:** ')
+          .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> Translation: ')
+          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai Analysis:**')
+          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai Analysis:**')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **Example Sentence:** ');
       }
 
       return cleanText;

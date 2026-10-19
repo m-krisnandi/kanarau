@@ -5538,6 +5538,51 @@ export const RELEVANT_TRANSLATIONS: Record<string, Record<Language, string>> = {
 /**
  * Returns localized Kotoba object with meaning, notes and example translation in the active language.
  */
+/**
+ * Translates notes and part of speech strings (e.g. 'Kelas kata: v')
+ */
+export function localizeNotes(notes: string | null | undefined, lang: Language): string {
+  if (!notes) return '';
+  if (lang === 'id') return notes;
+
+  return notes.replace(/Kelas kata:\s*([a-zA-Z0-9\-_]+)/gi, (_match, pos) => {
+    const p = pos.toLowerCase();
+    if (lang === 'en') {
+      const posMap: Record<string, string> = {
+        n: 'Noun',
+        v: 'Verb',
+        v1: 'Ichidan Verb',
+        v5: 'Godan Verb',
+        'adj-i': 'I-Adjective',
+        'adj-na': 'Na-Adjective',
+        adv: 'Adverb',
+        conj: 'Conjunction',
+        exp: 'Expression',
+        num: 'Numeric',
+        prt: 'Particle',
+      };
+      return 'Part of speech: ' + (posMap[p] || pos);
+    }
+    if (lang === 'my') {
+      const posMap: Record<string, string> = {
+        n: 'နာမ် (Noun)',
+        v: 'ကြိယာ (Verb)',
+        v1: 'ကြိယာ (Ichidan Verb)',
+        v5: 'ကြိယာ (Godan Verb)',
+        'adj-i': 'နာမဝိသေသန (I-Adj)',
+        'adj-na': 'နာမဝိသေသန (Na-Adj)',
+        adv: 'ကြိယာဝိသေသန (Adverb)',
+        conj: 'စကားစပ် (Conjunction)',
+        exp: 'အသုံးအနှုန်း (Expression)',
+        num: 'ဂဏန်းသင်္ချာ (Numeric)',
+        prt: 'ဝိဘတ် (Particle)',
+      };
+      return 'စကားရပ်အမျိုးအစား- ' + (posMap[p] || pos);
+    }
+    return notes;
+  });
+}
+
 export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
   if (lang === 'id') return k;
 
@@ -5561,7 +5606,8 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
     }
   }
 
-  const localizedNotes = trans?.notes?.[lang] || k.notes;
+  const rawNotes = trans?.notes?.[lang] || k.notes;
+  const localizedNotes = rawNotes ? localizeNotes(rawNotes, lang) : rawNotes;
   const localizedExample = trans?.exampleTranslation?.[lang] || k.example_sentence_meaning;
 
   return {
@@ -5668,6 +5714,86 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
 }
 
 export const DOKKAI_VOCAB_TRANSLATIONS: Record<string, Record<Language, string>> = {
+  "人為的": {
+    "id": "artifisial / buatan manusia",
+    "en": "artificial / man-made",
+    "my": "လူတို့ပြုလုပ်သော / သဘာဝမဟုတ်သော"
+  },
+  "伐採": {
+    "id": "penebangan pohon / deforestasi",
+    "en": "tree felling / logging",
+    "my": "သစ်ပင်ခုတ်လှဲခြင်း / သစ်ခုတ်ခြင်း"
+  },
+  "分節": {
+    "id": "artikulasi / segmentasi konsep",
+    "en": "segmentation / conceptual articulation",
+    "my": "အပိုင်းပိုင်းခွဲခြားသတ်မှတ်ခြင်း / အဓိပ္ပာယ်ခွဲခြမ်းခြင်း"
+  },
+  "希薄化": {
+    "id": "penipisan / pelemahan hubungan",
+    "en": "dilution / weakening of presence",
+    "my": "ပါးလွှာလျော့နည်းသွားခြင်း / အားနည်းသွားခြင်း"
+  },
+  "病理": {
+    "id": "patologi / gejala kerusakan sosial",
+    "en": "pathology / social dysfunction",
+    "my": "ရောဂါသဘောသဘာဝ / လူမှုရေးချို့ယွင်းချက်"
+  },
+  "輪郭": {
+    "id": "garis luar / kontur realitas",
+    "en": "outline / contour of reality",
+    "my": "အပြင်ဘက်အနားသတ် / ပုံကြမ်းလက္ခဏာ"
+  },
+  "間伐": {
+    "id": "penjarangan pohon hutan",
+    "en": "forest thinning / selective cutting",
+    "my": "သစ်တောရှင်းလင်းအပင်ခုတ်ခြင်း"
+  },
+  "切実": {
+    "id": "mendesak / sungguh-sungguh",
+    "en": "urgent / pressing / heartfelt",
+    "my": "အရေးတကြီးဖြစ်သော / လေးနက်သော"
+  },
+  "多元的": {
+    "id": "pluralistik / beragam perspektif",
+    "en": "pluralistic / multidimensional",
+    "my": "ဘက်ပေါင်းစုံ / အမြင်စုံလင်သော"
+  },
+  "対峙": {
+    "id": "konfrontasi / berhadapan langsung",
+    "en": "confrontation / facing directly",
+    "my": "မျက်နှာချင်းဆိုင်ရင်ဆိုင်ခြင်း"
+  },
+  "二者択一": {
+    "id": "dilema dua pilihan / salah satu dari dua",
+    "en": "either-or choice / binary dilemma",
+    "my": "နှစ်ခုအနက်တစ်ခုရွေးချယ်ရခြင်း"
+  },
+  "持続可能": {
+    "id": "berkelanjutan / lestari",
+    "en": "sustainable",
+    "my": "ရေရှည်တည်တံ့နိုင်သော"
+  },
+  "解像度": {
+    "id": "resolusi ketajaman pemahaman",
+    "en": "resolution / cognitive clarity",
+    "my": "ပြတ်သားမှုအတိုင်းအတာ / ရှင်းလင်းမှု"
+  },
+  "捨象": {
+    "id": "abstraksi / mengesampingkan hal sekunder",
+    "en": "abstraction / omission of non-essentials",
+    "my": "အရေးမကြီးသောအချက်များကိုချန်လှပ်ခြင်း"
+  },
+  "肩代わり": {
+    "id": "mengambil alih beban / menanggung gantian",
+    "en": "taking over burdens / assuming proxy",
+    "my": "အစားထိုးတာဝန်ယူပေးခြင်း"
+  },
+  "修練": {
+    "id": "disiplin latihan mendalam",
+    "en": "rigorous training / practice discipline",
+    "my": "လေ့ကျင့်ဆည်းပူးခြင်း / စိတ်ကိုယဉ်ပါးစေခြင်း"
+  },
   "営業時間": {
     "id": "jam operasional / jam buka toko",
     "en": "business hours / opening hours",

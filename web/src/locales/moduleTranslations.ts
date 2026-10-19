@@ -1,4 +1,6 @@
-import { DOKKAI_PASSAGE_TRANSLATIONS } from './dokkaiTranslations';
+import { DOKKAI_PASSAGE_TRANSLATIONS, DOKKAI_QUESTION_TRANSLATIONS } from './dokkaiTranslations';
+import { CHOUKAI_DIALOGUE_TRANSLATIONS } from './choukaiTranslations';
+import { DOKKAI_VOCAB_TRANSLATIONS } from './vocabularyTranslations';
 import type { Language } from './translations';
 import type { ChoukaiQuestion, BunpoUnit, DokkaiPassage } from '@/types/jlptModules';
 
@@ -1348,7 +1350,15 @@ export const DOKKAI_TRANSLATIONS: Record<string, {
 // ─── HELPER FUNCTIONS ───────────────────────────────────────
 export function localizeChoukai(item: ChoukaiQuestion, lang: Language): ChoukaiQuestion {
   const trans = CHOUKAI_TRANSLATIONS[item.id];
-  if (!trans) return item;
+  const dialogueTrans = CHOUKAI_DIALOGUE_TRANSLATIONS[item.id];
+  const translatedDialogue = dialogueTrans?.[lang] || item.translation;
+
+  if (!trans) {
+    return {
+      ...item,
+      translation: translatedDialogue,
+    };
+  }
   return {
     ...item,
     title: trans.title[lang] || item.title,
@@ -1356,6 +1366,7 @@ export function localizeChoukai(item: ChoukaiQuestion, lang: Language): ChoukaiQ
     situation: trans.situation[lang] || item.situation,
     explanation: trans.explanation[lang] || item.explanation,
     keyPoints: trans.keyPoints[lang] || item.keyPoints,
+    translation: translatedDialogue,
   };
 }
 
@@ -1372,12 +1383,40 @@ export function localizeBunpo(item: BunpoUnit, lang: Language): BunpoUnit {
 
 export function localizeDokkai(item: DokkaiPassage, lang: Language): DokkaiPassage {
   const trans = DOKKAI_PASSAGE_TRANSLATIONS[item.id] || (DOKKAI_TRANSLATIONS as any)[item.id];
-  if (!trans) return item;
+
+  const localizedQuestions = item.questions?.map((q) => {
+    const qTrans = DOKKAI_QUESTION_TRANSLATIONS[q.id];
+    if (!qTrans) return q;
+    return {
+      ...q,
+      explanation: qTrans.explanation[lang] || q.explanation,
+    };
+  }) || [];
+
+  const localizedVocabHelp = item.vocabularyHelp?.map((v) => {
+    const vTrans = DOKKAI_VOCAB_TRANSLATIONS[v.word];
+    if (!vTrans) return v;
+    return {
+      ...v,
+      meaning: vTrans[lang] || v.meaning,
+    };
+  }) || [];
+
+  if (!trans) {
+    return {
+      ...item,
+      questions: localizedQuestions,
+      vocabularyHelp: localizedVocabHelp,
+    };
+  }
+
   return {
     ...item,
     title: trans.title?.[lang] || item.title,
     categoryLabel: trans.categoryLabel?.[lang] || item.categoryLabel,
     sourceType: trans.sourceType?.[lang] || item.sourceType,
     translation: trans.translation?.[lang] || item.translation,
+    questions: localizedQuestions,
+    vocabularyHelp: localizedVocabHelp,
   };
 }
