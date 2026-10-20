@@ -553,19 +553,23 @@ export function extractJapaneseSpeechText(rawText: string, isFullDialogue: boole
     let trimmed = line.trim();
     if (!trimmed) continue;
 
+    // Strip list markers, bullets, and numbers
     trimmed = trimmed.replace(/^([>#\u2022\-*]+|\d+[\.\)])\s*/, '').trim();
     if (!trimmed) continue;
 
-    const unwrapped = trimmed.replace(/^(\*\*|`)|(\*\*|`)$/g, '').trim();
+    const unwrapped = trimmed.replace(/^(\**|`)|(\**|`)$/g, '').trim();
 
-    if (/^(Nuansa|Kunci JLPT|Trik Ujian|Tips|Rangkuman|Catatan|Arti|Penjelasan|CONTOH|Nuance|JLPT Key|Exam Tips|Explanation|Correct Answer|Logical Reason|Dokkai Analysis|သဘောသဘာဝ|JLPT အဓိက သော့ချက်|စာမေးပွဲ သော့ချက်|မှန်ကန်သော အဖြေ|ယုတ္တိနည်းကျ)/i.test(unwrapped)) {
+    // Skip section headers in ID, EN, or MY
+    if (/^(Nuansa|Kunci JLPT|Trik Ujian|Tips|Rangkuman|Catatan|Arti|Penjelasan|CONTOH|Nuance|JLPT Key|Exam Tips|Explanation|Correct Answer|Logical Reason|Dokkai Analysis|သဘောသဘာဝ|JLPT အဓိက သော့ချက်|စာမေးပွဲ သော့ချက်|မှန်ကန်သော အဖြေ|ယုတ္တိနည်းကျ|အဓိက ရှင်းလင်းချက်|ဥပမာ စာကြောင်း|စာမေးပွဲ ဖြေဆိုနည်း|အဘယ်ကြောင့်|မှားယွင်းရသောအချက်)/i.test(unwrapped)) {
       continue;
     }
 
-    if (/^\([a-zA-Z0-9\s,.;:'"!?/\–-]+\)$/.test(unwrapped)) {
+    // Skip pure parenthetical translation lines
+    if (/^[\(\（][^\)\）]+[\)\）]$/.test(unwrapped)) {
       continue;
     }
 
+    // Extract title word + reading: e.g. 扇ぐ（あおぐ） or 扇ぐ (あおぐ)
     const titleMatch = unwrapped.match(
       /^([\u4E00-\u9FAF\u3040-\u309F\u30A0-\u30FF]+)\s*[\(\（]([\u3040-\u309F\u30A0-\u30FF]+)[\)\）]/
     );
@@ -574,18 +578,26 @@ export function extractJapaneseSpeechText(rawText: string, isFullDialogue: boole
       continue;
     }
 
-    const withoutTranslation = unwrapped
-      .replace(/[\(\（][a-zA-Z0-9\s,.;:'"!?/\–-]+[\)\）]/g, '')
-      .trim();
+    // Strip speaker labels
+    const strippedSpeaker = unwrapped.replace(/^([^：:\s]+)[：:]\s*/, '').trim();
 
-    const strippedSpeaker = withoutTranslation.replace(/^([^：:\s]+)[：:]\s*/, '').trim();
+    // Strictly skip any line containing Myanmar characters (explanations in Burmese)
+    if (/[\u1000-\u109F]/.test(strippedSpeaker)) {
+      continue;
+    }
 
-    if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(strippedSpeaker)) {
-      const jpChars = (strippedSpeaker.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g) || []).length;
-      const latinChars = (strippedSpeaker.match(/[a-zA-Z]/g) || []).length;
+    // Strip parenthetical text (e.g. embedded translation or remarks)
+    const cleanNoParens = strippedSpeaker.replace(/[\(\（][^\)\）]+[\)\）]/g, '').trim();
 
-      if (jpChars >= 1 && jpChars > latinChars) {
-        const cleanSentence = cleanFuriganaToKanji(strippedSpeaker.replace(/[*_`]/g, '')).trim();
+    if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(cleanNoParens)) {
+      const jpChars = (cleanNoParens.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g) || []).length;
+      const latinChars = (cleanNoParens.match(/[a-zA-Z]/g) || []).length;
+      const meaningfulLen = cleanNoParens.replace(/[\s\d\.\,\(\)\/\"\'\:\：\-\w\*\~\=\+]+/g, '').length;
+      const jpRatio = meaningfulLen > 0 ? jpChars / meaningfulLen : 0;
+
+      // Authentic Japanese sentence must have at least 2 Japanese characters, at most 2 Latin characters, and be >= 70% Japanese
+      if (jpChars >= 2 && latinChars <= 2 && jpRatio >= 0.7) {
+        const cleanSentence = cleanFuriganaToKanji(cleanNoParens.replace(/[*_`]/g, '')).trim();
         if (cleanSentence) {
           const punctuation = /[。\！？\?]$/.test(cleanSentence) ? '' : '。';
           exampleSentences.push(cleanSentence + punctuation);
@@ -599,8 +611,8 @@ export function extractJapaneseSpeechText(rawText: string, isFullDialogue: boole
   }
 
   const combined = [
-    ...vocabularyTitles.slice(0, 2),
-    ...(isFullDialogue ? exampleSentences : exampleSentences.slice(0, 3)),
+    ...vocabularyTitles.slice(0, 1),
+    ...(isFullDialogue ? exampleSentences : exampleSentences.slice(0, 2)),
   ];
   if (combined.length > 0) {
     return combined.join(' ');

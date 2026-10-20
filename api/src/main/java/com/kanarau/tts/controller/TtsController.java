@@ -22,7 +22,43 @@ import java.util.concurrent.TimeUnit;
 public class TtsController {
 
     private static final String CACHE_DIR = "/tmp/kanarau_tts_cache";
-    private static final String SCRIPT_PATH = "/Users/user/Documents/ALUESA/SOLIDPACE/kanarau/api/src/main/resources/scripts/edge_tts_synth.py";
+    private static String getScriptPath() {
+        File localScript = new File("/Users/user/Documents/ALUESA/SOLIDPACE/kanarau/api/src/main/resources/scripts/edge_tts_synth.py");
+        if (localScript.exists()) {
+            return localScript.getAbsolutePath();
+        }
+        File tempScript = new File("/tmp/edge_tts_synth.py");
+        if (!tempScript.exists() || tempScript.length() == 0) {
+            String scriptContent = """
+import sys
+import asyncio
+import edge_tts
+
+async def main():
+    if len(sys.argv) < 5:
+        sys.exit(1)
+
+    voice = sys.argv[1]
+    pitch = sys.argv[2]
+    text = sys.argv[3]
+    output_path = sys.argv[4]
+
+    if not pitch or pitch == "0" or pitch == "default":
+        communicate = edge_tts.Communicate(text, voice)
+    else:
+        communicate = edge_tts.Communicate(text, voice, pitch=pitch)
+
+    await communicate.save(output_path)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+""";
+            try {
+                Files.writeString(tempScript.toPath(), scriptContent, StandardCharsets.UTF_8);
+            } catch (Exception ignored) {}
+        }
+        return tempScript.getAbsolutePath();
+    }
 
     @GetMapping("/tts")
     public ResponseEntity<byte[]> getJapaneseAudio(
@@ -100,7 +136,7 @@ public class TtsController {
 
             ProcessBuilder pb = new ProcessBuilder(
                     "python3",
-                    SCRIPT_PATH,
+                    getScriptPath(),
                     edgeVoice,
                     pitch,
                     text,
