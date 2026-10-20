@@ -5594,14 +5594,23 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
 
   let localizedMeaning = trans?.meaning?.[lang];
   if (!localizedMeaning) {
-    if (lang === 'my' && (k as any).meaning_my) {
-      localizedMeaning = (k as any).meaning_my;
-    } else if (lang === 'en' && (k.meaning_en || (k as any).meaningEn)) {
-      localizedMeaning = k.meaning_en || (k as any).meaningEn;
-    } else if (k.meaning && MEANING_LOOKUP[k.meaning]?.meaning?.[lang]) {
+    if (lang === 'my') {
+      const mMy = (k as any).meaning_my || (k as any).meaningMy;
+      if (mMy && typeof mMy === 'string' && mMy.trim().length > 0) {
+        localizedMeaning = mMy.trim();
+      }
+    } else if (lang === 'en') {
+      const mEn = k.meaning_en || (k as any).meaningEn || (k as any).meaning_en;
+      if (mEn && typeof mEn === 'string' && mEn.trim().length > 0) {
+        localizedMeaning = mEn.trim();
+      }
+    }
+
+    if (!localizedMeaning && k.meaning && MEANING_LOOKUP[k.meaning]?.meaning?.[lang]) {
       const match = MEANING_LOOKUP[k.meaning];
       localizedMeaning = match ? match.meaning[lang] : undefined;
-    } else {
+    }
+    if (!localizedMeaning) {
       localizedMeaning = translateMeaningString(k.meaning, lang);
     }
   }
@@ -5679,7 +5688,7 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
 
   let question = card.question;
   if (isMeaningQuestion) {
-    if (localizedKotoba.meaning && localizedKotoba.meaning !== (card.kotoba as any)?.meaning_id && localizedKotoba.meaning !== (card.kotoba as any)?.meaningId) {
+    if (localizedKotoba.meaning && localizedKotoba.meaning.trim().length > 0) {
       question = localizedKotoba.meaning;
     } else {
       question = translateMeaningString(card.question, lang);
@@ -5688,7 +5697,7 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
 
   let correctAnswer = card.correct_answer;
   if (isMeaningChoices) {
-    if (localizedKotoba.meaning && localizedKotoba.meaning !== (card.kotoba as any)?.meaning_id && localizedKotoba.meaning !== (card.kotoba as any)?.meaningId) {
+    if (localizedKotoba.meaning && localizedKotoba.meaning.trim().length > 0) {
       correctAnswer = localizedKotoba.meaning;
     } else {
       correctAnswer = translateMeaningString(card.correct_answer, lang);
@@ -5697,7 +5706,7 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
 
   const choices = isMeaningChoices
     ? card.choices.map((c) => {
-        if (card.kotoba && (c === (card.kotoba as any)?.meaning_id || c === (card.kotoba as any)?.meaningId)) {
+        if (card.kotoba && (c === card.kotoba.meaning || c === (card.kotoba as any)?.meaning_id || c === (card.kotoba as any)?.meaningId)) {
           return localizedKotoba.meaning || c;
         }
         return translateMeaningString(c, lang);

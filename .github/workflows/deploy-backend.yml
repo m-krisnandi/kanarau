@@ -33,7 +33,7 @@ jobs:
       - name: Compile Backend
         run: |
           cd api
-          chmod +x mvnw && ./mvnw clean test-compile --no-transfer-progress
+          mvn clean test-compile --no-transfer-progress
 
   deploy:
     name: Deploy API to Tencent Cloud VPS
