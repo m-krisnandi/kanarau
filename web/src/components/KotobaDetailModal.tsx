@@ -179,7 +179,7 @@ export const KotobaDetailModal: React.FC<Props> = ({ kotoba, onClose, onViewKanj
   const conjugations = getWordConjugations(
     currentKotoba.kanji,
     currentKotoba.hiragana,
-    currentKotoba.part_of_speech
+    currentKotoba.notes || currentKotoba.part_of_speech
   );
 
   // Get relevant collocation / synonym

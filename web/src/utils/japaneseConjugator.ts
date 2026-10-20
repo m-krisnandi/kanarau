@@ -160,13 +160,26 @@ export function getWordConjugations(
   }
 
   // 3. Verb detection by ending
-  if (pos.includes('kerja') || pos.includes('verb') || ['焦げる', '重なる', '誤る', '求める', '満たす', '歩き出す', '及ぼす'].includes(word)) {
+  const isVerb =
+    pos.includes('kerja') ||
+    pos.includes('verb') ||
+    pos.includes('v1') ||
+    pos.includes('v5') ||
+    pos.includes('ကြိယာ') ||
+    pos.includes('ichidan') ||
+    pos.includes('godan') ||
+    ['焦げる', '重なる', '誤る', '求める', '満たす', '歩き出す', '及ぼす', '憧れる'].includes(word);
+
+  if (isVerb) {
     // Ichidan verbs (ending in -iru or -eru)
     const isIchidan =
       word === '焦げる' ||
       word === '求める' ||
+      word === '憧れる' ||
       pos.includes('ichidan') ||
-      pos.includes('golongan 2');
+      pos.includes('v1') ||
+      pos.includes('golongan 2') ||
+      (kana.endsWith('る') && /[いきしちにひみりえけせてねへめれ]る$/.test(kana));
 
     if (isIchidan) {
       const stem = word.slice(0, -1);

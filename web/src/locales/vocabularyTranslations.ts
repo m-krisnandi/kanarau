@@ -1,4 +1,5 @@
 import ALL_CURRICULUM_MEANINGS from "@/data/allCurriculumMeanings.json";
+import EXAMPLE_SENTENCE_TRANSLATIONS from "@/data/exampleSentenceTranslations.json";
 import { ALL_KANJI_TRANSLATIONS } from './kanjiTranslationsManifest';
 import type { Kotoba, Kanji, QuizCard } from '@/types';
 import type { Language } from '@/locales/translations';
@@ -5618,13 +5619,22 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
 
   const rawNotes = trans?.notes?.[lang] || k.notes;
   const localizedNotes = rawNotes ? localizeNotes(rawNotes, lang) : rawNotes;
-  const localizedExample = trans?.exampleTranslation?.[lang] || k.example_sentence_meaning;
+  
+  let localizedExample = trans?.exampleTranslation?.[lang];
+  if (!localizedExample && k.example_sentence) {
+    const sMap = (EXAMPLE_SENTENCE_TRANSLATIONS as Record<string, Record<string, string>>)[k.example_sentence.trim()];
+    if (sMap && sMap[lang]) {
+      localizedExample = sMap[lang];
+    } else if (lang === 'my' && sMap && sMap.en) {
+      localizedExample = sMap.en;
+    }
+  }
 
   return {
     ...k,
     meaning: localizedMeaning || k.meaning,
     notes: localizedNotes,
-    example_sentence_meaning: localizedExample,
+    example_sentence_meaning: localizedExample || undefined,
   };
 }
 
