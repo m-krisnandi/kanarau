@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { DokkaiPassage, DokkaiQuestionItem } from '@/types/jlptModules';
 import type { JLPTModuleLevel } from '@/types/jlptModules';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
@@ -100,6 +100,12 @@ export const DokkaiPracticeView: React.FC<DokkaiPracticeViewProps> = ({ currentL
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [aiInitialDisplay, setAiInitialDisplay] = useState('');
+
+  const handleCloseAiModal = useCallback(() => {
+    setAiModalOpen(false);
+    setAiInitialPrompt('');
+    setAiInitialDisplay('');
+  }, []);
 
   // Passages filtered by current level
   const levelPassages = useMemo(() => {
@@ -1323,7 +1329,7 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
       {/* Tanya AI Modal */}
       <TanyaAiModal
         isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
+        onClose={handleCloseAiModal}
         initialPrompt={aiInitialPrompt}
         initialDisplayText={aiInitialDisplay}
       />

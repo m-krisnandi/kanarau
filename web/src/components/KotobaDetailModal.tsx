@@ -146,6 +146,16 @@ export const KotobaDetailModal: React.FC<Props> = ({ kotoba, onClose, onViewKanj
     };
   }, []);
 
+  useEffect(() => {
+    if (kotoba) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [kotoba]);
+
   if (!kotoba) return null;
   const currentKotoba = localizeKotoba(kotoba, language);
 

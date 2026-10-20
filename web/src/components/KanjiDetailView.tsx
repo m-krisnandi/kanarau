@@ -37,8 +37,11 @@ export const KanjiDetailView: React.FC<Props> = ({ character, onClose, onSelectK
   };
 
   useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
       stopAllAudio();
+      document.body.style.overflow = original;
     };
   }, []);
 

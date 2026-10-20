@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { BunpoQuestion, BunpoUnit } from '@/types/jlptModules';
 import type { JLPTModuleLevel } from '@/types/jlptModules';
 import { BUNPO_UNITS, BUNPO_QUESTIONS } from '@/data/bunpoData';
@@ -100,6 +100,12 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [aiInitialDisplay, setAiInitialDisplay] = useState('');
+
+  const handleCloseAiModal = useCallback(() => {
+    setAiModalOpen(false);
+    setAiInitialPrompt('');
+    setAiInitialDisplay('');
+  }, []);
 
   // Questions for the active unit
   const activeQuestions = useMemo(() => {
@@ -749,7 +755,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
       {/* Tanya AI Modal */}
       <TanyaAiModal
         isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
+        onClose={handleCloseAiModal}
         initialPrompt={aiInitialPrompt}
         initialDisplayText={aiInitialDisplay}
       />

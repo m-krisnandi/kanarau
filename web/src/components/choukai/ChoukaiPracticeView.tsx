@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ChoukaiQuestion } from '@/types/jlptModules';
 import type { JLPTModuleLevel } from '@/types/jlptModules';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
@@ -108,6 +108,12 @@ export const ChoukaiPracticeView: React.FC<ChoukaiPracticeViewProps> = ({ curren
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [aiInitialDisplay, setAiInitialDisplay] = useState('');
+
+  const handleCloseAiModal = useCallback(() => {
+    setAiModalOpen(false);
+    setAiInitialPrompt('');
+    setAiInitialDisplay('');
+  }, []);
 
   // Questions filtered by current level
   const levelQuestions = useMemo(() => {
@@ -1044,7 +1050,7 @@ INSTRUKSI WAJIB UNTUK AI SENSEI:
       {/* Tanya AI Modal */}
       <TanyaAiModal
         isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
+        onClose={handleCloseAiModal}
         initialPrompt={aiInitialPrompt}
         initialDisplayText={aiInitialDisplay}
       />

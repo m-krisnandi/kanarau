@@ -28,7 +28,7 @@ interface TanyaAiModalProps {
   initialDisplayText?: string;
 }
 
-export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
+const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
   isOpen,
   onClose,
   initialPrompt,
@@ -37,16 +37,23 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = storeLevel || user?.current_level || 'N2';
-  const { getWeakWords } = useMistakesStore();
+  const mistakes = useMistakesStore((state) => state.mistakes);
   const { language, t } = useTranslation();
-  const weakWords = getWeakWords(currentLevel);
+
+  const weakWords = useMemo(() => {
+    const filtered = currentLevel
+      ? mistakes.filter((m) => m.level.toUpperCase() === currentLevel.toUpperCase())
+      : mistakes;
+    return [...filtered].sort((a, b) => b.count - a.count || b.timestamp - a.timestamp);
+  }, [mistakes, currentLevel]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const initialHandledRef = useRef<string | null>(null);
 
   // Stop any active audio when modal closes
   useEffect(() => {
@@ -55,17 +62,33 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
     };
   }, []);
 
+  // Lock body scroll when modal is open to prevent background jumping or flashing
+  useEffect(() => {
+    if (isOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [isOpen]);
+
   // Initialize welcome message tailored to user level
   useEffect(() => {
-    setMessages([
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: t.ai.welcome(currentLevel),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-  }, [currentLevel, t]);
+    setMessages((prev) => {
+      if (prev.length === 0 || prev.every((m) => m.id === 'welcome')) {
+        return [
+          {
+            id: 'welcome',
+            role: 'assistant',
+            content: t.ai.welcome(currentLevel),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ];
+      }
+      return prev;
+    });
+  }, [currentLevel, language, t]);
 
   // Dynamic suggestions tailored to user level and weak kanji mistakes
   const quickPrompts = useMemo(() => {
@@ -76,7 +99,7 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
       weakWords.slice(0, 2).forEach((w) => {
         if (w.wrongAnswer && w.wrongAnswer !== w.kanji) {
           if (language === 'my') {
-            list.push(`မှားတတ်သော ကန်ဂျီ နှိုင်းယှဉ်ချက်: ${w.kanji} နှင့် ${w.wrongAnswer}`);
+            list.push(`မှားတတ်သော ကန်ဂျီနှိုင်းယှဉ်ချက်: ${w.kanji} နှင့် ${w.wrongAnswer}`);
           } else if (language === 'en') {
             list.push(`Compare commonly confused kanji: ${w.kanji} vs ${w.wrongAnswer}`);
           } else {
@@ -147,7 +170,7 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
           'N3 အဓိပ္ပာယ် ကွဲပြားမှု - 〜わけにはいかない vs 〜わけがない',
           'N3 အချိန်ပြသဒ္ဒါ - 〜うちに vs 〜あいだに',
           'N3 သုံးစွဲပုံ ဥပမာ - 〜に対して vs 〜にとって',
-          'N3 စိုးရိမ်ရမှု ဖော်ပြချက် - 〜おそれがある'
+          'N3 စိုးရိမ်မှု ဖော်ပြချက် - 〜おそれがある'
         );
       } else if (language === 'en') {
         list.push(
@@ -216,18 +239,6 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
     return list.slice(0, 5);
   }, [currentLevel, weakWords, language]);
 
-  useEffect(() => {
-    if (initialPrompt && isOpen) {
-      handleSend(initialPrompt, initialDisplayText);
-    }
-  }, [initialPrompt, isOpen]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
-
-  if (!isOpen) return null;
-
   const handleSend = async (textToSend?: string, displayText?: string) => {
     const text = textToSend || input.trim();
     if (!text || loading) return;
@@ -265,6 +276,25 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (initialPrompt && isOpen && initialHandledRef.current !== initialPrompt) {
+      initialHandledRef.current = initialPrompt;
+      handleSend(initialPrompt, initialDisplayText);
+    }
+    if (!isOpen) {
+      initialHandledRef.current = null;
+    }
+  }, [initialPrompt, isOpen, initialDisplayText]);
+
+  // Direct internal scroll inside chat container without moving window/page
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
+
+  if (!isOpen) return null;
+
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -286,63 +316,82 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
   };
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-50 overflow-hidden flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/45 backdrop-blur-[2px] animate-fade-in">
-      <div onClick={(e) => e.stopPropagation()} className="bg-[#FAF8F5] rounded-t-3xl sm:rounded-2xl max-w-lg w-full h-[88vh] flex flex-col overflow-hidden border border-[#EFEAE2] shadow-2xl animate-slide-up">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          stopAudio();
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 overflow-hidden flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs transition-opacity"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#FAF8F5] dark:bg-[#151D2E] rounded-t-3xl sm:rounded-2xl max-w-lg w-full h-[88vh] flex flex-col overflow-hidden border border-[#EFEAE2] dark:border-[#232F46] shadow-2xl"
+      >
         {/* Header */}
-        <div className="p-4 border-b border-[#EFEAE2] bg-white flex items-center justify-between shrink-0">
+        <div className="p-4 border-b border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#121824] flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
               <Sparkles className="w-4 h-4 fill-white" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="font-bold text-sm text-[#1E1B18] font-mincho">
+                <h3 className="font-bold text-sm text-[#1E1B18] dark:text-slate-100 font-mincho">
                   {t.ai.title}
                 </h3>
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
                   Level {currentLevel}
                 </span>
               </div>
-              <p className="text-[11px] text-[#78716C]">
+              <p className="text-[11px] text-[#78716C] dark:text-zinc-400">
                 {t.ai.subtitle}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={() => {
               stopAudio();
               onClose();
             }}
-            className="w-8 h-8 rounded-full bg-[#EFEAE2]/60 hover:bg-[#E2DDD5] text-[#57534E] hover:text-[#1E1B18] flex items-center justify-center text-xs font-bold transition-colors"
+            className="w-8 h-8 rounded-full bg-[#EFEAE2]/60 hover:bg-[#E2DDD5] dark:bg-[#1E293B] dark:hover:bg-[#28354D] text-[#57534E] dark:text-zinc-300 hover:text-[#1E1B18] flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Dynamic Level & Weakness-based Suggestion Chips */}
-        <div className="bg-[#FAF8F5] px-3.5 py-2.5 border-b border-[#EFEAE2] overflow-x-auto no-scrollbar flex items-center space-x-2 shrink-0">
-          <span className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-wider shrink-0 flex items-center space-x-1">
-            <HelpCircle className="w-3 h-3 text-indigo-500" />
+        {/* Dynamic Level & Weakness-based Suggestion Chips - Clean Flex Layout */}
+        <div className="bg-[#FAF8F5] dark:bg-[#151D2E] px-3.5 py-2.5 border-b border-[#EFEAE2] dark:border-[#232F46] shrink-0 space-y-2">
+          <div className="flex items-center space-x-1.5 text-[10px] font-bold text-[#A8A29E] dark:text-zinc-400 uppercase tracking-wider">
+            <HelpCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
             <span>
               {weakWords.length > 0
                 ? t.ai.weakLabel(currentLevel)
                 : t.ai.suggestionLabel(currentLevel)}
             </span>
-          </span>
-          {quickPrompts.map((prompt, i) => (
-            <button
-              key={i}
-              onClick={() => handleSend(prompt)}
-              className="text-[11px] font-medium text-[#44403C] hover:text-indigo-700 bg-white hover:bg-indigo-50/50 border border-[#EFEAE2] hover:border-indigo-200 px-3 py-1 rounded-full whitespace-nowrap shadow-2xs transition-colors shrink-0 cursor-pointer"
-            >
-              {prompt}
-            </button>
-          ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar">
+            {quickPrompts.map((prompt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSend(prompt)}
+                className="text-[11px] font-medium text-[#44403C] dark:text-slate-200 hover:text-indigo-700 dark:hover:text-indigo-300 bg-white dark:bg-[#1E293B] hover:bg-indigo-50/50 dark:hover:bg-indigo-900/40 border border-[#EFEAE2] dark:border-[#28354D] hover:border-indigo-200 dark:hover:border-indigo-600 px-3 py-1 rounded-full text-left shadow-2xs transition-colors cursor-pointer"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Message Container */}
-        <div className="p-4 overflow-y-auto space-y-3.5 flex-1 bg-gradient-to-b from-[#FAF8F5] to-white">
+        <div
+          ref={messagesContainerRef}
+          className="p-4 overflow-y-auto space-y-3.5 flex-1 bg-gradient-to-b from-[#FAF8F5] to-white dark:from-[#151D2E] dark:to-[#121824]"
+        >
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
             const hasJapanese = hasJapaneseText(msg.content);
@@ -358,8 +407,8 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
                 <div
                   className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold shadow-2xs ${
                     isUser
-                      ? 'bg-[#1E1B18] text-white'
-                      : 'bg-indigo-100 text-indigo-700 border border-indigo-200/60'
+                      ? 'bg-[#1E1B18] dark:bg-indigo-600 text-white'
+                      : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800'
                   }`}
                 >
                   {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
@@ -369,24 +418,27 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
                 <div
                   className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-2xs relative group ${
                     isUser
-                      ? 'bg-[#1E1B18] text-white rounded-tr-xs'
-                      : 'bg-white text-[#1E1B18] border border-[#EFEAE2] rounded-tl-xs'
+                      ? 'bg-indigo-600 text-white rounded-tr-xs'
+                      : 'bg-white dark:bg-[#1A2234] border border-[#EFEAE2] dark:border-[#232F46] text-[#292524] dark:text-slate-100 rounded-tl-xs'
                   }`}
                 >
                   {isUser ? (
-                    <div className="whitespace-pre-wrap font-sans font-medium">{msg.content}</div>
+                    <p className="whitespace-pre-line font-medium leading-relaxed font-jp">
+                      {msg.content}
+                    </p>
                   ) : (
                     <MarkdownView content={msg.content} />
                   )}
 
                   {/* Actions for Assistant reply */}
                   {!isUser && (
-                    <div className="pt-2.5 mt-3 border-t border-[#F2ECE3] flex items-center justify-between text-[11px] text-[#A8A29E]">
+                    <div className="pt-2.5 mt-3 border-t border-[#F2ECE3] dark:border-[#28354D] flex items-center justify-between text-[11px] text-[#A8A29E] dark:text-zinc-400">
                       <span>{msg.timestamp}</span>
                       <div className="flex items-center space-x-2">
                         {/* Audio speaker only shown when message contains Japanese text to pronounce */}
                         {hasJapanese && (
                           <button
+                            type="button"
                             onClick={() => handlePlaySpeech(msg.id, msg.content)}
                             title={
                               playingId === msg.id
@@ -396,21 +448,22 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
                             className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                               playingId === msg.id
                                 ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'bg-[#F4F1EA] hover:bg-indigo-50 text-[#57534E] hover:text-indigo-700'
+                                : 'bg-[#F4F1EA] dark:bg-[#232F46] hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-[#57534E] dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300'
                             }`}
                           >
                             <Volume2
                               className={`w-3.5 h-3.5 ${
-                                playingId === msg.id ? 'animate-pulse text-white' : 'text-indigo-600'
+                                playingId === msg.id ? 'animate-pulse text-white' : 'text-indigo-600 dark:text-indigo-400'
                               }`}
                             />
                             <span>{playingId === msg.id ? t.ai.audioPlaying : t.ai.audioListen}</span>
                           </button>
                         )}
                         <button
+                          type="button"
                           onClick={() => handleCopy(msg.id, msg.content)}
                           title="Salin Teks"
-                          className="p-1 hover:bg-[#FAF8F5] rounded-md text-[#78716C] hover:text-indigo-600 transition-colors cursor-pointer"
+                          className="p-1 hover:bg-[#FAF8F5] dark:hover:bg-[#232F46] rounded-md text-[#78716C] dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         >
                           {copiedId === msg.id ? (
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -423,7 +476,7 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
                   )}
 
                   {isUser && (
-                    <span className="text-[9px] text-stone-400 block text-right mt-1">
+                    <span className="text-[9px] text-white/70 block text-right mt-1">
                       {msg.timestamp}
                     </span>
                   )}
@@ -434,20 +487,19 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
 
           {loading && (
             <div className="flex items-start space-x-2.5 animate-pulse">
-              <div className="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
                 <Bot className="w-3.5 h-3.5" />
               </div>
-              <div className="bg-white border border-[#EFEAE2] rounded-2xl rounded-tl-xs p-3.5 text-xs text-[#78716C] shadow-2xs flex items-center space-x-2">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
+              <div className="bg-white dark:bg-[#1A2234] border border-[#EFEAE2] dark:border-[#232F46] rounded-2xl rounded-tl-xs p-3.5 text-xs text-[#78716C] dark:text-zinc-400 shadow-2xs flex items-center space-x-2">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-spin" />
                 <span>{t.common.loading}</span>
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 bg-white border-t border-[#EFEAE2] shrink-0">
+        <div className="p-3 bg-white dark:bg-[#121824] border-t border-[#EFEAE2] dark:border-[#232F46] shrink-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -462,7 +514,7 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
               onChange={(e) => setInput(e.target.value)}
               placeholder={t.ai.placeholder(currentLevel)}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-[#FAF8F5] rounded-xl border border-[#EFEAE2] text-xs sm:text-sm text-[#1E1B18] placeholder:text-[#A8A29E] focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+              className="flex-1 px-4 py-2.5 bg-[#FAF8F5] dark:bg-[#151D2E] rounded-xl border border-[#EFEAE2] dark:border-[#232F46] text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 placeholder:text-[#A8A29E] dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-indigo-500 focus:bg-white dark:focus:bg-[#151D2E] transition-all shadow-inner"
             />
             <button
               type="submit"
@@ -477,3 +529,5 @@ export const TanyaAiModal: React.FC<TanyaAiModalProps> = ({
     </div>
   );
 };
+
+export const TanyaAiModal = React.memo(TanyaAiModalComponent);
