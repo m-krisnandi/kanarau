@@ -3,6 +3,7 @@ import type { BunpoQuestion, BunpoUnit } from '@/types/jlptModules';
 import type { JLPTModuleLevel } from '@/types/jlptModules';
 import { BUNPO_UNITS, BUNPO_QUESTIONS } from '@/data/bunpoData';
 import { localizeBunpo } from '@/locales/moduleTranslations';
+import { localizeBunpoQuestion } from '@/locales/bunpoTranslations';
 import {
   playNaturalJapaneseVoice,
   stopAudio,
@@ -103,8 +104,10 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   // Questions for the active unit
   const activeQuestions = useMemo(() => {
     if (!selectedUnitId) return [];
-    return BUNPO_QUESTIONS.filter((q) => q.unitId === selectedUnitId);
-  }, [selectedUnitId]);
+    return BUNPO_QUESTIONS.filter((q) => q.unitId === selectedUnitId).map((q) =>
+      localizeBunpoQuestion(q, language)
+    );
+  }, [selectedUnitId, language]);
 
   const currentQ: BunpoQuestion | undefined = activeQuestions[currentQuestionIndex];
 
