@@ -110,6 +110,11 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   }, [selectedUnitId, language]);
 
   const currentQ: BunpoQuestion | undefined = activeQuestions[currentQuestionIndex];
+  const localizedQ: BunpoQuestion | undefined = useMemo(() => {
+    if (!currentQ) return undefined;
+    return localizeBunpoQuestion(currentQ, language);
+  }, [currentQ, language]);
+  const activeQ = localizedQ || currentQ;
 
   // Reset question state when moving to next question
   const resetQuestionState = () => {
@@ -203,19 +208,19 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
 
   // AI Question Handler
   const handleAskAiAboutCurrent = () => {
-    if (!currentQ) return;
+    if (!activeQ) return;
     const prompt = language === 'my'
-      ? `ကျွန်ုပ်သည် JLPT ${currentLevel} သဒ္ဒါ "${currentQ.pattern}" ကို လေ့လာနေပါသည်။\n\nမေးခွန်း:\n"${currentQ.prompt}"\n\nမှန်ကန်သော ဝါကျ: "${currentQ.fullSentence}" (${currentQ.translation}).\n\nအောက်ပါတို့ကို တိုတိုရှင်းရှင်း ရှင်းပြပါ:\n1. ${currentQ.pattern} ဝါကျပုံစံ၏ အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ နားလည်မှု\n2. အဘယ်ကြောင့် ဤအဖြေ မှန်ကန်ရခြင်း အဓိကအချက်\n3. JLPT စာမေးပွဲတွင် မကြာခဏ တွေ့ရသော လှည့်ကွက်များ`
+      ? `ကျွန်ုပ်သည် JLPT ${currentLevel} သဒ္ဒါ "${activeQ.pattern}" ကို လေ့လာနေပါသည်။\n\nမေးခွန်း:\n"${activeQ.prompt}"\n\nမှန်ကန်သော ဝါကျ: "${activeQ.fullSentence}" (${activeQ.translation}).\n\nအောက်ပါတို့ကို တိုတိုရှင်းရှင်း ရှင်းပြပါ:\n1. ${activeQ.pattern} ဝါကျပုံစံ၏ အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ နားလည်မှု\n2. အဘယ်ကြောင့် ဤအဖြေ မှန်ကန်ရခြင်း အဓိကအချက်\n3. JLPT စာမေးပွဲတွင် မကြာခဏ တွေ့ရသော လှည့်ကွက်များ`
       : language === 'en'
-      ? `I am studying JLPT ${currentLevel} grammar pattern "${currentQ.pattern}".\n\nQuestion:\n"${currentQ.prompt}"\n\nCorrect sentence: "${currentQ.fullSentence}" (${currentQ.translation}).\n\nExplain concisely and to the point:\n1. Meaning and nuance of pattern ${currentQ.pattern}\n2. Key reasons why this answer is correct\n3. Common traps in the JLPT exam`
-      : `Saya sedang belajar tata bahasa (bunpo) JLPT ${currentLevel} untuk pola "${currentQ.pattern}".\n\nSoal:\n"${currentQ.prompt}"\n\nKalimat benar: "${currentQ.fullSentence}" (${currentQ.translation}).\n\nJelaskan secara ringkas to-the-point:\n1. Makna dan nuansa pola kalimat ${currentQ.pattern}\n2. Kunci mengapa jawaban tersebut tepat\n3. Jebakan yang sering muncul di JLPT`;
+      ? `I am studying JLPT ${currentLevel} grammar pattern "${activeQ.pattern}".\n\nQuestion:\n"${activeQ.prompt}"\n\nCorrect sentence: "${activeQ.fullSentence}" (${activeQ.translation}).\n\nExplain concisely and to the point:\n1. Meaning and nuance of pattern ${activeQ.pattern}\n2. Key reasons why this answer is correct\n3. Common traps in the JLPT exam`
+      : `Saya sedang belajar tata bahasa (bunpo) JLPT ${currentLevel} untuk pola "${activeQ.pattern}".\n\nSoal:\n"${activeQ.prompt}"\n\nKalimat benar: "${activeQ.fullSentence}" (${activeQ.translation}).\n\nJelaskan secara ringkas to-the-point:\n1. Makna dan nuansa pola kalimat ${activeQ.pattern}\n2. Kunci mengapa jawaban tersebut tepat\n3. Jebakan yang sering muncul di JLPT`;
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(
       language === 'my'
-        ? `သဒ္ဒါ ${currentLevel} မေးမြန်းရန်: ${currentQ.pattern}`
+        ? `သဒ္ဒါ ${currentLevel} မေးမြန်းရန်: ${activeQ.pattern}`
         : language === 'en'
-        ? `Ask Bunpo ${currentLevel}: ${currentQ.pattern}`
-        : `Tanya Bunpo ${currentLevel}: ${currentQ.pattern}`
+        ? `Ask Bunpo ${currentLevel}: ${activeQ.pattern}`
+        : `Tanya Bunpo ${currentLevel}: ${activeQ.pattern}`
     );
     setAiModalOpen(true);
   };
@@ -402,7 +407,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   }
 
   // ─── VIEW 2: INTERACTIVE PRACTICE SCREEN ───────────────────────────
-  if (!currentQ) {
+  if (!currentQ || !activeQ) {
     return (
       <div className="text-center py-12 space-y-3">
         <p className="text-xs text-[#78716C]">{language === 'my' ? 'ဤယူနစ်တွင် လေ့ကျင့်ရန် မေးခွန်းများ မရှိသေးပါ။' : language === 'en' ? 'This unit does not have practice questions yet.' : 'Unit ini belum memiliki soal latihan.'}</p>
@@ -677,10 +682,10 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
                 {t.modules.bunpo.fullSentenceLabel}
               </span>
               <p className="font-jp font-bold text-sm sm:text-base text-[#1E1B18] leading-relaxed">
-                {currentQ.fullSentence}
+                {activeQ.fullSentence}
               </p>
               <p className="text-xs text-[#57534E] pt-1">
-                {currentQ.translation}
+                {activeQ.translation}
               </p>
             </div>
 
@@ -690,7 +695,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
                 {t.modules.bunpo.formulaLabel}
               </span>
               <p className="text-xs text-[#44403C] font-semibold pl-1">
-                {currentQ.setsuzoku}
+                {activeQ.setsuzoku}
               </p>
             </div>
 
@@ -700,17 +705,17 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
                 {t.modules.bunpo.keyExplanation}
               </span>
               <p className="text-xs text-[#57534E] leading-relaxed pl-1">
-                {currentQ.nuanceExplanation}
+                {activeQ.nuanceExplanation}
               </p>
             </div>
 
             {/* Trap Notes */}
-            {currentQ.trapNotes && (
+            {activeQ.trapNotes && (
               <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 leading-relaxed flex items-start space-x-2">
                 <Lightbulb className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold block">{t.modules.bunpo.examTrap}</span>
-                  <span>{currentQ.trapNotes}</span>
+                  <span>{activeQ.trapNotes}</span>
                 </div>
               </div>
             )}
