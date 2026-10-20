@@ -1,3 +1,4 @@
+import ALL_CURRICULUM_MEANINGS from "@/data/allCurriculumMeanings.json";
 import { ALL_KANJI_TRANSLATIONS } from './kanjiTranslationsManifest';
 import type { Kotoba, Kanji, QuizCard } from '@/types';
 import type { Language } from '@/locales/translations';
@@ -5659,16 +5660,26 @@ export function localizeKanji(k: Kanji, lang: Language): Kanji {
  */
 export function translateMeaningString(str: string, lang: Language): string {
   if (lang === 'id' || !str) return str;
+  const trimmed = str.trim();
 
-  // Direct exact match
-  if (MEANING_LOOKUP[str]) {
-    return MEANING_LOOKUP[str].meaning[lang] || str;
+  // 1. Check ALL_CURRICULUM_MEANINGS (9,386 comprehensive JLPT curriculum items)
+  const curriculumMatch = (ALL_CURRICULUM_MEANINGS as Record<string, { en: string; my: string }>)[trimmed];
+  if (curriculumMatch) {
+    if (lang === 'en' && curriculumMatch.en) return curriculumMatch.en;
+    if (lang === 'my' && curriculumMatch.my) return curriculumMatch.my;
   }
 
-  // Normalized match (trimmed, semicolon variations)
+  // 2. Direct exact match in MEANING_LOOKUP
+  if (MEANING_LOOKUP[trimmed]) {
+    const val = MEANING_LOOKUP[trimmed].meaning[lang];
+    if (val) return val;
+  }
+
+  // 3. Normalized match
   for (const [idKey, item] of Object.entries(MEANING_LOOKUP)) {
-    if (str.includes(idKey) || idKey.includes(str)) {
-      return item.meaning[lang] || str;
+    if (trimmed.includes(idKey) || idKey.includes(trimmed)) {
+      const val = item.meaning[lang];
+      if (val) return val;
     }
   }
 
