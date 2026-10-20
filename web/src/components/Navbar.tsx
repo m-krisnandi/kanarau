@@ -149,7 +149,7 @@ export const Navbar: React.FC = () => {
                 }`}
               >
                 <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span className="uppercase">{language}</span>
+                <span>{LANGUAGE_OPTIONS.find((o) => o.code === language)?.nativeName || 'Bahasa'}</span>
               </button>
 
               {langMenuOpen && (
@@ -175,11 +175,9 @@ export const Navbar: React.FC = () => {
                               : 'text-[#1E1B18] dark:text-slate-200 hover:bg-stone-50 dark:hover:bg-slate-800/60 font-medium'
                           }`}
                         >
-                          <div className="flex items-center space-x-2">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-slate-300">
-                              {opt.code.toUpperCase()}
-                            </span>
-                            <span>{opt.nativeName}</span>
+                          <div className="flex items-center space-x-2 py-0.5">
+                            <span className="font-semibold text-xs">{opt.nativeName}</span>
+                            <span className="text-[10px] text-stone-400 dark:text-slate-500">({opt.name})</span>
                           </div>
                           {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}
                         </button>

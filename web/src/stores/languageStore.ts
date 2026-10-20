@@ -7,14 +7,28 @@ interface LanguageState {
   setLanguage: (language: Language) => void;
 }
 
+const syncDocumentLang = (lang: Language) => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang === 'my' ? 'my' : (lang === 'en' ? 'en' : 'id');
+  }
+};
+
 export const useLanguageStore = create<LanguageState>()(
   persist(
     (set) => ({
       language: 'id',
-      setLanguage: (language: Language) => set({ language }),
+      setLanguage: (language: Language) => {
+        syncDocumentLang(language);
+        set({ language });
+      },
     }),
     {
       name: 'kanarau-language',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          syncDocumentLang(state.language);
+        }
+      },
     }
   )
 );

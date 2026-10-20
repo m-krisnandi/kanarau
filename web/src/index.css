@@ -4,9 +4,10 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', 'Noto Sans Myanmar', system-ui, -apple-system, sans-serif;
     --font-jp: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
     --font-mincho: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+    --font-myanmar: 'Noto Sans Myanmar', 'Padauk', 'Myanmar Text', sans-serif;
   }
 
   body {
@@ -29,6 +30,15 @@
 
   .font-mincho {
     font-family: var(--font-mincho);
+  }
+
+  .font-myanmar {
+    font-family: var(--font-myanmar);
+  }
+
+  html[lang="my"] body,
+  [lang="my"] {
+    font-family: var(--font-myanmar), var(--font-sans);
   }
 }
 

@@ -213,7 +213,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
     try {
       const res = await authApi.testDiscord(discordInputWebhook.trim() || undefined);
       const isSent = res.data?.sent;
-      const msg = res.data?.message || (language === 'my' ? 'သတိပေးချက် စမ်းသပ်မှု ပြီးစီးပါပြီ။' : language === 'en' ? 'Notification test completed.' : 'Tes notifikasi selesai diproses.');
+      const msg = language === 'my'
+        ? (isSent ? 'Discord သတိပေးချက်ကို အောင်မြင်စွာ ပေးပို့ပြီးပါပြီ။' : 'Discord သတိပေးချက် ပေးပို့ရန် မအောင်မြင်ပါ။ Webhook URL ကို စစ်ဆေးပါ။')
+        : language === 'en'
+        ? (isSent ? 'Discord test notification sent successfully!' : 'Failed to send Discord notification. Please check your Webhook URL.')
+        : (res.data?.message || 'Tes notifikasi Discord selesai diproses.');
       setDiscordFeedback({
         type: isSent ? 'success' : 'error',
         message: msg,
@@ -490,14 +494,13 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                     setLanguage(opt.code);
                     triggerToast(language === 'my' ? `ဘာသာစကား- ${opt.nativeName}` : language === 'en' ? `Language: ${opt.name}` : `Bahasa: ${opt.name}`);
                   }}
-                  className={`py-2 px-1 rounded-lg font-bold text-xs transition-all flex flex-col items-center justify-center cursor-pointer ${
+                  className={`py-2.5 px-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center cursor-pointer text-center ${
                     language === opt.code
                       ? 'bg-white dark:bg-[#151D2E] text-indigo-700 dark:text-indigo-300 shadow-xs border border-indigo-100 dark:border-indigo-900'
-                      : 'text-stone-500 hover:text-stone-800 dark:text-slate-400'
+                      : 'text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200 hover:bg-stone-200/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
-                  <span className="text-[10px] font-mono text-[#78716C] dark:text-slate-400">[{opt.flagCode}]</span>
-                  <span className="text-xs truncate">{opt.nativeName}</span>
+                  <span className="text-xs font-bold truncate">{opt.nativeName}</span>
                 </button>
               ))}
             </div>
@@ -586,7 +589,12 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
 
       {/* 1. DISCORD MODAL */}
       {activeSubModal === 'discord' && (
-        <div onClick={(e) => { if (e.target === e.currentTarget) setActiveSubModal(null); }} className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setActiveSubModal(null); }}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in notranslate"
+          lang={language}
+          translate="no"
+        >
           <div className="bg-white dark:bg-[#151D2E] rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl border border-[#EFEAE2] dark:border-[#1E293B] animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#EFEAE2] dark:border-[#1E293B] pb-3">
               <div className="flex items-center space-x-2">
@@ -597,7 +605,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-[#1E1B18] dark:text-slate-100">{t.settings.discordIntegration}</h3>
-                  <p className="text-[11px] text-[#78716C] dark:text-slate-400">Sinkronisasi komunitas & pengingat</p>
+                  <p className="text-[11px] text-[#78716C] dark:text-slate-400">{t.settings.discordSubtitle}</p>
                 </div>
               </div>
               <button
@@ -648,13 +656,13 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                 <>
                   <p className="font-bold text-sm text-[#1E1B18] dark:text-slate-100">{user?.discord_username}</p>
                   <p className="text-[11px] text-[#57534E] dark:text-slate-300">
-                    Peran Komunitas:{' '}
+                    {t.settings.communityRoleLabel}{' '}
                     <span className="font-bold text-[#5865F2]">
                       JLPT {currentLevel} {currentLevel === 'N1' ? 'Master' : 'Challenger'}
                     </span>
                   </p>
                   <p className="text-[11px] text-[#57534E] dark:text-slate-300">
-                    Notifikasi Sesi:{' '}
+                    {t.settings.sessionNotifLabel}{' '}
                     <span className="font-bold text-emerald-700 dark:text-emerald-400">
                       {user?.discord_notifications_enabled ? (language === 'my' ? 'ဖွင့်ထားသည် (နံနက် ၀၇:၀၀ နှင့် ည ၂၀:၀၀)' : language === 'en' ? 'Active (Morning 07:00 & Night 20:00)' : 'Aktif (Pagi 07:00 & Malam 20:00)') : (language === 'my' ? 'ပိတ်ထားသည်' : language === 'en' ? 'Disabled' : 'Nonaktif')}
                     </span>
@@ -716,7 +724,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
               <div className="flex items-center justify-between p-3 bg-stone-50 dark:bg-[#0B0F19] rounded-xl border border-stone-200 dark:border-slate-700">
                 <div>
                   <span className="font-bold text-[#1E1B18] dark:text-slate-100 block">{t.settings.sendReminders}</span>
-                  <span className="text-[10px] text-stone-500 dark:text-slate-400">Pagi (07:00) & Malam (20:00)</span>
+                  <span className="text-[10px] text-stone-500 dark:text-slate-400">{t.settings.morningNightSchedule}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -970,7 +978,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
             {/* Section 2: Nama Tampilan & Email */}
             <form onSubmit={handleSaveProfile} className="space-y-3 pt-2 border-t border-[#EFEAE2] dark:border-[#1E293B] text-xs">
               <p className="text-[11px] text-stone-400 dark:text-slate-500">
-                Nama ini yang dilihat gurumu & muncul di leaderboard.
+                {t.settings.namePublicNote}
               </p>
 
               <div>
@@ -1114,9 +1122,9 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
               </div>
 
               <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 rounded-xl border border-amber-200/80 dark:border-amber-800/60">
-                <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px]">Format Kurikulum:</span>
+                <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px]">{t.settings.curriculumFormat}</span>
                 <p className="text-[11px] text-amber-900 dark:text-amber-300 mt-0.5">
-                  {(t.settings as any).studyRoutineActiveBadge || "Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit (Aktif)"}
+                  {t.settings.curriculumDesc}
                 </p>
               </div>
             </div>
@@ -1131,7 +1139,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                 type="submit"
                 className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs cursor-pointer active:scale-98"
               >
-                Simpan Pengaturan
+                {t.settings.saveSettings}
               </button>
             </div>
           </form>

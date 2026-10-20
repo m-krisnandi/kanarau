@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
                   }`}
                   title={opt.name}
                 >
-                  {opt.flagCode === 'MM' ? 'MM' : opt.flagCode}
+                  {opt.nativeName}
                 </button>
               ))}
             </div>

@@ -124,7 +124,7 @@ export const LoginPage: React.FC = () => {
                 }`}
                 title={opt.name}
               >
-                {opt.flagCode === 'MM' ? 'MM' : opt.flagCode}
+                {opt.nativeName}
               </button>
             ))}
           </div>
