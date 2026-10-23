@@ -178,12 +178,12 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-1.5 sm:space-y-2 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] max-w-md mx-auto w-full">
+      <div className="space-y-2 sm:space-y-2.5 pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] max-w-md mx-auto w-full">
         {/* Authentic Welcoming Dashboard Header */}
-        <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
+        <div className="card-washi rounded-2xl p-3 sm:p-3.5 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-100/80">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full border border-indigo-100/80">
                 Level {level}
               </span>
               <span className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
@@ -193,13 +193,13 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <div className="text-right">
-              <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2 sm:px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
+              <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
                 {t.dashboard.countdown(countdownDays)}
               </span>
             </div>
           </div>
 
-          <div className="mt-1.5 flex items-baseline justify-between">
+          <div className="mt-2 flex items-baseline justify-between">
             <h1 className="text-sm sm:text-base font-bold font-mincho text-[#1E1B18] dark:text-slate-100 tracking-tight truncate">
               {t.dashboard.greeting((user?.name || (user?.email ? user.email.split('@')[0] : '')) || 'Pembelajar')}
             </h1>
@@ -227,9 +227,9 @@ export const DashboardPage: React.FC = () => {
         {/* Tanya AI Card */}
         <div
           onClick={() => setAiModalOpen(true)}
-          className="card-washi rounded-2xl px-3 py-2 sm:py-2.5 border border-indigo-100/90 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/70 via-white to-amber-50/30 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-purple-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group active:scale-98"
+          className="card-washi rounded-2xl px-3.5 py-2.5 sm:py-3 border border-indigo-100/90 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/70 via-white to-amber-50/30 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-purple-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group active:scale-98"
         >
-          <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="flex items-center space-x-3 min-w-0">
             <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shadow-xs shrink-0">
               <Sparkles className="w-3.5 h-3.5 fill-white" />
             </div>
@@ -246,7 +246,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit Card */}
-        <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-1.5">
+        <div className="card-washi rounded-2xl p-3 sm:p-3.5 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 min-w-0">
               <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
@@ -266,9 +266,9 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 pt-0.5">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
             {/* BLOK 1: SESI PAGI (Input Materi Baru) */}
-            <div className="p-1.5 sm:p-2 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-1 flex flex-col justify-between">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-1 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1 text-amber-900 dark:text-amber-300 font-bold text-[10px] sm:text-xs min-w-0">
                   <Sun className="w-3 h-3 text-amber-600 dark:text-amber-400 fill-amber-500 shrink-0" />
@@ -282,7 +282,7 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1">
                 <div
                   onClick={() => navigate('/belajar?tab=goi')}
-                  className="p-1 sm:p-1.5 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0">
@@ -302,7 +302,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div
                   onClick={() => navigate('/belajar?tab=bunpo')}
-                  className="p-1 sm:p-1.5 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0">
@@ -323,7 +323,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* BLOK 2: SESI MALAM (Aplikasi & Review) */}
-            <div className="p-1.5 sm:p-2 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-800/40 space-y-1 flex flex-col justify-between">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-800/40 space-y-1 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1 text-indigo-900 dark:text-indigo-300 font-bold text-[10px] sm:text-xs min-w-0">
                   <Moon className="w-3 h-3 text-indigo-600 dark:text-indigo-400 fill-indigo-500 shrink-0" />
@@ -337,7 +337,7 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1">
                 <div
                   onClick={() => navigate(dokkaiDone ? '/belajar?tab=choukai' : '/belajar?tab=dokkai')}
-                  className={`p-1 sm:p-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     dokkaiDone || choukaiDone
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
@@ -373,7 +373,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div
                   onClick={() => navigate('/review')}
-                  className={`p-1 sm:p-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     pendingCount > 0
                       ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/70 ring-1 ring-amber-200 dark:ring-amber-800/40'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
@@ -413,23 +413,23 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 4 Pilar Ujian JLPT Strip (Quick Category Launcher) */}
-        <div className="card-washi rounded-2xl p-2 sm:p-2.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5">
+        <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5">
           <div className="flex items-center justify-between px-0.5">
-            <span className="text-[10px] font-bold text-[#A8A29E] dark:text-slate-400 uppercase tracking-wider font-mincho">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[#A8A29E] dark:text-slate-400 uppercase tracking-wider font-mincho">
               {t.dashboard.pillarsTitle(level)}
             </span>
-            <span className="text-[8px] sm:text-[9px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2 py-0.5 rounded-full border border-indigo-100">
+            <span className="text-[8px] sm:text-[9px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full border border-indigo-100">
               {t.dashboard.pillarsBadge}
             </span>
           </div>
 
-          <div className="grid grid-cols-4 gap-1 sm:gap-1.5 pt-0.5">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-0.5">
             <button
               onClick={() => navigate('/belajar?tab=goi')}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                <BookOpen className="w-3 h-3" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </div>
               <span className="text-[9px] sm:text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarGoi}
@@ -438,10 +438,10 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/belajar?tab=bunpo')}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                <Layers className="w-3 h-3" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </div>
               <span className="text-[9px] sm:text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarBunpo}
@@ -450,10 +450,10 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/belajar?tab=dokkai')}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <FileText className="w-3 h-3" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </div>
               <span className="text-[9px] sm:text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarDokkai}
@@ -462,10 +462,10 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/belajar?tab=choukai')}
-              className="p-1.5 sm:p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-violet-50/60 dark:hover:bg-violet-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-violet-50/60 dark:hover:bg-violet-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
             >
-              <div className="w-6 h-6 rounded-lg bg-violet-50 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-                <Headphones className="w-3 h-3" />
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-violet-50 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <Headphones className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </div>
               <span className="text-[9px] sm:text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarChoukai}
@@ -477,7 +477,7 @@ export const DashboardPage: React.FC = () => {
         {/* 5. Aktivitas Belajar Minggu Ini & Ringkasan Progres */}
         <div
           onClick={() => navigate('/progress')}
-          className="card-washi rounded-2xl p-2 sm:p-2.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"
+          className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"
         >
           <div className="flex items-center justify-between px-0.5">
             <div className="flex items-center space-x-1.5">
@@ -499,7 +499,7 @@ export const DashboardPage: React.FC = () => {
             {weekDays.map((day) => (
               <div
                 key={day.dateYMD}
-                className={`flex flex-col items-center py-1 px-0.5 rounded-xl border text-center transition-all ${
+                className={`flex flex-col items-center py-1.5 px-0.5 rounded-xl border text-center transition-all ${
                   day.isToday
                     ? day.hasStudied
                       ? 'ring-1.5 ring-amber-500 border-amber-400 bg-amber-50/80 dark:bg-amber-950/60 font-bold'
@@ -540,19 +540,19 @@ export const DashboardPage: React.FC = () => {
 
           {/* Mini Stats Summary Pill Strip */}
           <div className="grid grid-cols-3 gap-1 pt-1 border-t border-[#F2ECE3] dark:border-[#232F46]/80 text-center">
-            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-0.5 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
               <div className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">{t.dashboard.statsWordsLearned}</div>
               <div className="text-[11px] sm:text-xs font-bold text-indigo-700 dark:text-indigo-400 font-sans leading-tight">
                 {overallStats?.total_cards_learned ?? 0}
               </div>
             </div>
-            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-0.5 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
               <div className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">{t.dashboard.statsAvgAccuracy}</div>
               <div className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 font-sans leading-tight">
                 {Math.round(overallStats?.average_accuracy ?? 0)}%
               </div>
             </div>
-            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-0.5 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1 rounded-lg border border-stone-100 dark:border-slate-800/80">
               <div className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">{t.dashboard.statsStudyTime}</div>
               <div className="text-[11px] sm:text-xs font-bold text-amber-600 dark:text-amber-400 font-sans leading-tight">
                 {overallStats?.total_study_time_minutes ?? 0} <span className="text-[8px] sm:text-[9px] font-normal">{t.dashboard.unitMinutes}</span>
