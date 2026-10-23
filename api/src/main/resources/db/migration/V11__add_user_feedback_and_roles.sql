@@ -36,10 +36,10 @@ VALUES
 
 -- Seed sample study sessions dynamically linking to real user IDs
 INSERT INTO study_sessions (user_id, deck_id, started_at, finished_at, cards_studied, cards_correct)
-SELECT u.id, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 20, 19 FROM users u WHERE u.email = 'muhamad.krisnandi.22@gmail.com';
+SELECT u.id, 1, CURRENT_TIMESTAMP - INTERVAL '1' DAY, CURRENT_TIMESTAMP - INTERVAL '1' DAY, 20, 19 FROM users u WHERE u.email = 'muhamad.krisnandi.22@gmail.com';
 
 INSERT INTO study_sessions (user_id, deck_id, started_at, finished_at, cards_studied, cards_correct)
-SELECT u.id, 2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 15, 14 FROM users u WHERE u.email = 'muhamad.krisnandi.22@gmail.com';
+SELECT u.id, 2, CURRENT_TIMESTAMP - INTERVAL '2' DAY, CURRENT_TIMESTAMP - INTERVAL '2' DAY, 15, 14 FROM users u WHERE u.email = 'muhamad.krisnandi.22@gmail.com';
 
 INSERT INTO study_sessions (user_id, deck_id, started_at, finished_at, cards_studied, cards_correct)
 SELECT u.id, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 25, 22 FROM users u WHERE u.email = 'budi.santoso@gmail.com';

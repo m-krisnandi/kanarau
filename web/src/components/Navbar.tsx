@@ -56,8 +56,8 @@ export const Navbar: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 glass-nav border-b border-[#EFEAE2] dark:border-[#1E293B]">
-        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="sticky top-0 z-30 glass-nav border-b border-[#EFEAE2] dark:border-[#1E293B] pt-[env(safe-area-inset-top,0px)]">
+        <div className="max-w-md mx-auto px-3 sm:px-4 h-13 sm:h-14 flex items-center justify-between">
           {/* Brand (Clickable to Home) & Level Switcher Dropdown */}
           <div className="flex items-center space-x-2">
             <button

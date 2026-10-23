@@ -23,9 +23,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isWide = location.pathname.startsWith('/admin') || isLandingPage;
 
   return (
-    <div className="min-h-screen bg-warm-50 dark:bg-[#0B0F19] text-warm-800 dark:text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen min-h-[100dvh] bg-warm-50 dark:bg-[#0B0F19] text-warm-800 dark:text-slate-100 flex flex-col font-sans">
       {!hideNav && <Navbar />}
-      <main className={`flex-1 mx-auto w-full ${isLandingPage ? 'p-0 max-w-none' : isWide ? 'px-4 pt-4 max-w-3xl' : 'px-4 pt-4 max-w-md'}`}>
+      <main className={`flex-1 mx-auto w-full ${isLandingPage ? 'p-0 max-w-none' : isWide ? 'px-4 pt-4 max-w-3xl' : 'px-3 sm:px-4 pt-2 sm:pt-2.5 max-w-md'}`}>
         {children}
       </main>
       {!hideNav && <BottomNav />}

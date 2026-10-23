@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sun,
@@ -11,14 +11,17 @@ import {
   Layers,
   FileText,
   Headphones,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useReviewStore } from '@/stores/reviewStore';
 import { useTranslation } from '@/stores/languageStore';
 import { reviewApi, progressApi } from '@/services/api';
+import type { OverallStats, DayStats } from '@/types';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
+import { formatLocalYMD } from '@/utils';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +32,8 @@ export const DashboardPage: React.FC = () => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [dokkaiDone, setDokkaiDone] = useState(false);
   const [choukaiDone, setChoukaiDone] = useState(false);
+  const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
+  const [calendarDays, setCalendarDays] = useState<DayStats[]>([]);
 
   const level = currentLevel;
   const [activeDay, setActiveDay] = useState(1);
@@ -79,7 +84,7 @@ export const DashboardPage: React.FC = () => {
   // Level-specific progress evaluation for Dokkai & Choukai (user-isolated & completed today)
   useEffect(() => {
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = formatLocalYMD();
       const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
 
       let isDokkaiDone = false;
@@ -116,64 +121,105 @@ export const DashboardPage: React.FC = () => {
   }, [level, user]);
 
   useEffect(() => {
-    async function loadData() {
+    async function loadStatsData() {
       try {
-        const statsRes = await reviewApi.getStats();
-        setPendingCount(statsRes.data.pending_count);
+        const now = new Date();
+        const [statsRes, calRes] = await Promise.all([
+          progressApi.getOverallStats(),
+          progressApi.getCalendar(now.getFullYear(), now.getMonth() + 1),
+        ]);
+        if (statsRes?.data) {
+          setOverallStats(statsRes.data);
+        }
+        if (calRes?.data?.days) {
+          setCalendarDays(calRes.data.days);
+        }
       } catch (err) {
-        console.error('Error loading dashboard data', err);
+        console.warn('Could not load weekly stats:', err);
       }
     }
-    loadData();
-  }, [setPendingCount]);
+    loadStatsData();
+  }, [user]);
+
+  const weekDays = useMemo(() => {
+    const today = new Date();
+    const todayYMD = formatLocalYMD(today);
+
+    const dayOfWeek = today.getDay(); // 0 is Sunday
+    const mondayDiff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayDiff);
+
+    const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateYMD = formatLocalYMD(d);
+      const isToday = dateYMD === todayYMD;
+      const isPast = dateYMD < todayYMD;
+      const isFuture = dateYMD > todayYMD;
+
+      const statDay = calendarDays.find((cd) => cd.date === dateYMD);
+      // Strictly prevent future dates from showing studied = true
+      const hasStudied = !isFuture && Boolean(statDay?.studied);
+
+      return {
+        label: labels[i],
+        dayNum: d.getDate(),
+        dateYMD,
+        isToday,
+        isPast,
+        isFuture,
+        hasStudied,
+      };
+    });
+  }, [calendarDays]);
 
   return (
     <>
-      <div className="space-y-3 pb-16 max-w-md mx-auto">
+      <div className="space-y-2 sm:space-y-2.5 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] max-w-md mx-auto w-full">
         {/* Authentic Welcoming Dashboard Header */}
-        <div className="card-washi rounded-2xl p-4 sm:p-5 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 py-0.5 rounded-full border border-indigo-100/80">
-                  Level {level}
-                </span>
-                <span className="text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
-                  <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                  <span>{t.dashboard.streak(user?.streak ?? 0)}</span>
-                </span>
-              </div>
-              <h1 className="text-base sm:text-lg font-bold font-mincho text-[#1E1B18] dark:text-slate-100 tracking-tight">
-                {t.dashboard.greeting((user?.name || (user?.email ? user.email.split('@')[0] : '')) || 'Pembelajar')}
-              </h1>
-              <p className="text-xs text-[#78716C] dark:text-slate-400 leading-relaxed">
-                {t.dashboard.focusPrefix}
-                <span className="font-bold text-[#1E1B18] dark:text-slate-100">
-                  DAY {activeDay} {level}
-                </span>{' '}
-                {t.dashboard.focusSuffix}
-              </p>
+        <div className="card-washi rounded-2xl p-3 sm:p-3.5 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full border border-indigo-100/80">
+                Level {level}
+              </span>
+              <span className="text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>{t.dashboard.streak(user?.streak ?? 0)}</span>
+              </span>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2 py-1 rounded-lg border border-amber-200 block shadow-2xs">
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
                 {t.dashboard.countdown(countdownDays)}
               </span>
             </div>
           </div>
 
-          {/* Quick Launch Button to Today's Deck */}
-          <div className="mt-3 pt-3 border-t border-[#F2ECE3] dark:border-[#232F46] flex items-center justify-between">
+          <div className="mt-2 flex items-baseline justify-between">
+            <h1 className="text-sm sm:text-base font-bold font-mincho text-[#1E1B18] dark:text-slate-100 tracking-tight truncate">
+              {t.dashboard.greeting((user?.name || (user?.email ? user.email.split('@')[0] : '')) || 'Pembelajar')}
+            </h1>
+            <p className="text-xs text-[#78716C] dark:text-slate-400 shrink-0 ml-2">
+              {t.dashboard.focusPrefix} <strong className="text-[#1E1B18] dark:text-slate-100 font-bold">DAY {activeDay} {level}</strong>
+            </p>
+          </div>
+
+          {/* Quick Launch Strip */}
+          <div className="mt-2.5 pt-2.5 border-t border-[#F2ECE3] dark:border-[#232F46] flex items-center justify-between">
             <div className="flex items-center space-x-2 text-xs text-[#57534E] dark:text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{t.dashboard.todayTarget(targetWordsCount)}</span>
             </div>
             <button
               onClick={() => navigate('/belajar')}
-              className="flex items-center space-x-1 text-xs font-bold text-indigo-700 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+              className="flex items-center space-x-1 text-xs font-bold text-indigo-700 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer active:scale-95 py-0.5"
             >
               <span>{t.dashboard.startDay(activeDay)}</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -181,197 +227,185 @@ export const DashboardPage: React.FC = () => {
         {/* Tanya AI Card */}
         <div
           onClick={() => setAiModalOpen(true)}
-          className="card-washi rounded-2xl p-3 border border-indigo-100/90 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/70 via-white to-amber-50/30 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-purple-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group"
+          className="card-washi rounded-2xl px-3.5 py-2.5 sm:py-3 border border-indigo-100/90 dark:border-indigo-900/50 bg-gradient-to-r from-indigo-50/70 via-white to-amber-50/30 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-purple-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group active:scale-98"
         >
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shadow-xs">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shadow-xs shrink-0">
               <Sparkles className="w-4 h-4 fill-white" />
             </div>
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <h4 className="font-bold text-xs text-[#1E1B18] dark:text-slate-100 font-mincho">
-                  {t.dashboard.tanyaAiTitle}
-                </h4>
-              </div>
-              <p className="text-[11px] text-[#78716C] dark:text-slate-400">
+            <div className="min-w-0">
+              <h4 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight">
+                {t.dashboard.tanyaAiTitle}
+              </h4>
+              <p className="text-[11px] text-[#78716C] dark:text-slate-400 truncate mt-0.5">
                 {t.dashboard.tanyaAiDesc}
               </p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
+          <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
         </div>
 
         {/* Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit Card */}
-        <div className="card-washi rounded-2xl p-4 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-3">
+        <div className="card-washi rounded-2xl p-3 sm:p-3.5 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                <Target className="w-4 h-4 fill-white" />
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Target className="w-3.5 h-3.5 fill-white" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-[#1E1B18] dark:text-slate-100 font-mincho">
+                <h3 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight">
                   {t.dashboard.routineTitle}
                 </h3>
-                <p className="text-[11px] text-[#78716C] dark:text-slate-400">
-                  {t.dashboard.routineSub(level)}
+                <p className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 leading-tight">
+                  2 × 15 Mnt = 30 Mnt/Hari · Optimal {level}
                 </p>
               </div>
             </div>
-            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-1 rounded-full border border-indigo-200">
+            <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full border border-indigo-200">
               {t.dashboard.routineBadge}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
-            {/* BLOK 1: SESI PAGI (Input Materi Baru - Otak Segar) */}
-            <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
+            {/* BLOK 1: SESI PAGI (Input Materi Baru) */}
+            <div className="p-2 sm:p-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-1.5 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-amber-900 dark:text-amber-300 font-bold text-xs">
-                  <Sun className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 fill-amber-500" />
-                  <span>{t.dashboard.morningTitle}</span>
+                <div className="flex items-center space-x-1.5 text-amber-900 dark:text-amber-300 font-bold text-[11px] sm:text-xs">
+                  <Sun className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 fill-amber-500 shrink-0" />
+                  <span className="truncate">Pagi (~15m)</span>
                 </div>
-                <span className="text-[9px] font-bold text-amber-800 bg-white dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/60 px-1.5 py-0.5 rounded border border-amber-200">
-                  {t.dashboard.morningBadge}
+                <span className="text-[8px] sm:text-[9px] font-bold text-amber-800 bg-white dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/60 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
+                  Input
                 </span>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 <div
                   onClick={() => navigate('/belajar?tab=goi')}
-                  className="p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[10px] font-bold flex items-center justify-center">
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">
                       1
                     </span>
-                    <div>
-                      <p className="font-bold text-xs text-[#1E1B18] dark:text-slate-100">
-                        {t.dashboard.goiItem(activeDay)}
+                    <div className="min-w-0">
+                      <p className="font-bold text-[11px] sm:text-xs text-[#1E1B18] dark:text-slate-100 truncate">
+                        語彙 Goi: D{activeDay}
                       </p>
-                      <p className="text-[10px] text-[#78716C] dark:text-slate-400">
-                        {t.dashboard.goiDesc(targetWordsCount)}
+                      <p className="text-[9px] sm:text-[10px] text-[#78716C] dark:text-slate-400 truncate">
+                        {targetWordsCount} kata (~10m)
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors" />
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors shrink-0" />
                 </div>
 
                 <div
                   onClick={() => navigate('/belajar?tab=bunpo')}
-                  className="p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
-                  <div className="flex items-center space-x-2">
-                    <span className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[10px] font-bold flex items-center justify-center">
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">
                       2
                     </span>
-                    <div>
-                      <p className="font-bold text-xs text-[#1E1B18] dark:text-slate-100">
-                        {t.dashboard.bunpoItem(level === 'N1' ? '1 N1' : '1')}
+                    <div className="min-w-0">
+                      <p className="font-bold text-[11px] sm:text-xs text-[#1E1B18] dark:text-slate-100 truncate">
+                        文法 Bunpo ★
                       </p>
-                      <p className="text-[10px] text-[#78716C] dark:text-slate-400">
-                        {level === 'N1' ? t.dashboard.bunpoDescN1 : t.dashboard.bunpoDescN2}
+                      <p className="text-[9px] sm:text-[10px] text-[#78716C] dark:text-slate-400 truncate">
+                        {level === 'N1' ? 'Unit 1 N1' : 'Unit 1'} (~5m)
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors" />
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors shrink-0" />
                 </div>
               </div>
             </div>
 
-            {/* BLOK 2: SESI MALAM (Aplikasi & Review Sebelum Tidur) */}
-            <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-800/40 space-y-2">
+            {/* BLOK 2: SESI MALAM (Aplikasi & Review) */}
+            <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-800/40 space-y-1.5 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-indigo-900 dark:text-indigo-300 font-bold text-xs">
-                  <Moon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 fill-indigo-500" />
-                  <span>{t.dashboard.nightTitle}</span>
+                <div className="flex items-center space-x-1.5 text-indigo-900 dark:text-indigo-300 font-bold text-[11px] sm:text-xs">
+                  <Moon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 fill-indigo-500 shrink-0" />
+                  <span className="truncate">Malam (~15m)</span>
                 </div>
-                <span className="text-[9px] font-bold text-indigo-800 bg-white dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-1.5 py-0.5 rounded border border-indigo-200">
-                  {t.dashboard.nightBadge}
+                <span className="text-[8px] sm:text-[9px] font-bold text-indigo-800 bg-white dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-1.5 py-0.2 rounded border border-indigo-200 shrink-0">
+                  Memori
                 </span>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 <div
                   onClick={() => navigate(dokkaiDone ? '/belajar?tab=choukai' : '/belajar?tab=dokkai')}
-                  className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     dokkaiDone || choukaiDone
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
                   }`}
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5 min-w-0">
                     <span
-                      className={`w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${
+                      className={`w-4 h-4 sm:w-5 sm:h-5 rounded text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0 ${
                         dokkaiDone || choukaiDone
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-400 text-indigo-800'
+                          : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-400'
                       }`}
                     >
                       {dokkaiDone || choukaiDone ? '✓' : '3'}
                     </span>
-                    <div>
+                    <div className="min-w-0">
                       <p
-                        className={`font-bold text-xs ${
+                        className={`font-bold text-[11px] sm:text-xs truncate ${
                           dokkaiDone || choukaiDone
                             ? 'text-emerald-900 dark:text-emerald-200'
                             : 'text-[#1E1B18] dark:text-slate-100'
                         }`}
                       >
-                        {t.dashboard.practiceItem(level)}
+                        読解 / 聴解
                       </p>
-                      <p
-                        className={`text-[10px] ${
-                          dokkaiDone || choukaiDone
-                            ? 'text-emerald-700 dark:text-emerald-300/80'
-                            : 'text-[#78716C] dark:text-slate-400'
-                        }`}
-                      >
-                        {dokkaiDone || choukaiDone
-                          ? t.dashboard.practiceDone
-                          : t.dashboard.practicePending(level)}
+                      <p className="text-[9px] sm:text-[10px] text-[#78716C] dark:text-slate-400 truncate">
+                        {dokkaiDone || choukaiDone ? 'Selesai hari ini' : `1 Latihan ${level}`}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors" />
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors shrink-0" />
                 </div>
 
                 <div
                   onClick={() => navigate('/review')}
-                  className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     pendingCount > 0
                       ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/70 ring-1 ring-amber-200 dark:ring-amber-800/40'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
                   }`}
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5 min-w-0">
                     <span
-                      className={`w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center ${
+                      className={`w-4 h-4 sm:w-5 sm:h-5 rounded text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0 ${
                         pendingCount > 0
                           ? 'bg-amber-500 text-white animate-pulse'
-                          : 'bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-400 text-indigo-800'
+                          : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-400'
                       }`}
                     >
                       4
                     </span>
-                    <div>
-                      <div className="flex items-center space-x-1.5">
-                        <p className="font-bold text-xs text-[#1E1B18] dark:text-slate-100">
-                          {t.dashboard.srsItem}
+                    <div className="min-w-0">
+                      <div className="flex items-center space-x-1">
+                        <p className="font-bold text-[11px] sm:text-xs text-[#1E1B18] dark:text-slate-100 truncate">
+                          Review SRS
                         </p>
                         {pendingCount > 0 && (
-                          <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-900/80 dark:text-amber-200 px-1.5 py-0.2 rounded-full border border-amber-300">
-                            {(t.dashboard as any).reviewDueTag ? (t.dashboard as any).reviewDueTag(pendingCount) : `${pendingCount} perlu review`}
+                          <span className="text-[8px] sm:text-[9px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-900/80 dark:text-amber-200 px-1.5 rounded-full border border-amber-300 shrink-0">
+                            {pendingCount}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-[#78716C] dark:text-slate-400">
-                        {pendingCount > 0
-                          ? ((t.dashboard as any).reviewPriorityHint || 'Selesaikan antrean review sebelum menambah materi baru.')
-                          : t.dashboard.srsDesc}
+                      <p className="text-[9px] sm:text-[10px] text-[#78716C] dark:text-slate-400 truncate">
+                        {pendingCount > 0 ? `${pendingCount} perlu review` : 'SRS Up to date'}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors" />
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors shrink-0" />
                 </div>
               </div>
             </div>
@@ -379,64 +413,151 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 4 Pilar Ujian JLPT Strip (Quick Category Launcher) */}
-        <div className="card-washi rounded-2xl p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] font-bold text-[#A8A29E] dark:text-slate-400 uppercase tracking-wider font-mincho">
+        <div className="card-washi rounded-2xl p-3 sm:p-3.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-2">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[#A8A29E] dark:text-slate-400 uppercase tracking-wider font-mincho">
               {t.dashboard.pillarsTitle(level)}
             </span>
-            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2 py-0.5 rounded-full border border-indigo-100">
+            <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full border border-indigo-100">
               {t.dashboard.pillarsBadge}
             </span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 pt-0.5">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 pt-0.5">
             <button
               onClick={() => navigate('/belajar?tab=goi')}
-              className="p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1.5 active:scale-95 shadow-2xs cursor-pointer"
             >
               <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                 <BookOpen className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
+              <span className="text-[10px] sm:text-[11px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarGoi}
               </span>
             </button>
 
             <button
               onClick={() => navigate('/belajar?tab=bunpo')}
-              className="p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1.5 active:scale-95 shadow-2xs cursor-pointer"
             >
               <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                 <Layers className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
+              <span className="text-[10px] sm:text-[11px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarBunpo}
               </span>
             </button>
 
             <button
               onClick={() => navigate('/belajar?tab=dokkai')}
-              className="p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1.5 active:scale-95 shadow-2xs cursor-pointer"
             >
               <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <FileText className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
+              <span className="text-[10px] sm:text-[11px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarDokkai}
               </span>
             </button>
 
             <button
               onClick={() => navigate('/belajar?tab=choukai')}
-              className="p-2 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-violet-50/60 dark:hover:bg-violet-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1 active:scale-95 shadow-2xs cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-[#FAF8F5] dark:bg-[#0B0F19] hover:bg-violet-50/60 dark:hover:bg-violet-950/30 border border-[#EFEAE2] dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all text-center flex flex-col items-center justify-center space-y-1.5 active:scale-95 shadow-2xs cursor-pointer"
             >
               <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center">
                 <Headphones className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
+              <span className="text-[10px] sm:text-[11px] font-bold text-[#1E1B18] dark:text-slate-200 tracking-tight">
                 {t.dashboard.pillarChoukai}
               </span>
             </button>
+          </div>
+        </div>
+
+        {/* 5. Aktivitas Belajar Minggu Ini & Ringkasan Progres */}
+        <div
+          onClick={() => navigate('/progress')}
+          className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-2 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"
+        >
+          <div className="flex items-center justify-between px-0.5">
+            <div className="flex items-center space-x-1.5">
+              <div className="w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              </div>
+              <span className="text-[11px] font-bold text-[#1E1B18] dark:text-slate-100 font-mincho">
+                Aktivitas Belajar Minggu Ini
+              </span>
+            </div>
+            <div className="flex items-center space-x-0.5 text-[10px] text-indigo-600 dark:text-indigo-400 font-bold group-hover:translate-x-0.5 transition-transform">
+              <span>Detail</span>
+              <ChevronRight className="w-3 h-3" />
+            </div>
+          </div>
+
+          {/* 7-Day Streak Pills */}
+          <div className="grid grid-cols-7 gap-1.5 pt-0.5">
+            {weekDays.map((day) => (
+              <div
+                key={day.dateYMD}
+                className={`flex flex-col items-center py-1.5 px-0.5 rounded-xl border text-center transition-all ${
+                  day.isToday
+                    ? day.hasStudied
+                      ? 'ring-1.5 ring-amber-500 border-amber-400 bg-amber-50/80 dark:bg-amber-950/60 font-bold'
+                      : 'ring-1.5 ring-indigo-500 border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/50 font-bold'
+                    : day.hasStudied
+                    ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/50'
+                    : 'bg-stone-50/60 dark:bg-[#0B0F19] border-stone-200/60 dark:border-slate-800 opacity-70'
+                }`}
+              >
+                <span className="text-[9px] font-medium text-stone-500 dark:text-slate-400">
+                  {day.label}
+                </span>
+                <div className="my-0.5 flex items-center justify-center h-4">
+                  {day.hasStudied ? (
+                    <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                  ) : day.isToday ? (
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                  ) : (
+                    <span className={`w-1.5 h-1.5 rounded-full ${day.isFuture ? 'bg-stone-200 dark:bg-slate-700' : 'bg-stone-300 dark:bg-slate-600'}`} />
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] font-bold ${
+                    day.isToday
+                      ? day.hasStudied
+                        ? 'text-amber-800 dark:text-amber-300'
+                        : 'text-indigo-600 dark:text-indigo-400'
+                      : day.hasStudied
+                      ? 'text-amber-800 dark:text-amber-300'
+                      : 'text-stone-400 dark:text-slate-500'
+                  }`}
+                >
+                  {day.dayNum}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Mini Stats Summary Pill Strip */}
+          <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-[#F2ECE3] dark:border-[#232F46]/80 text-center">
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1.5 rounded-lg border border-stone-100 dark:border-slate-800/80">
+              <div className="text-[9px] text-[#78716C] dark:text-slate-400">Kotoba Dihafal</div>
+              <div className="text-xs font-bold text-indigo-700 dark:text-indigo-400 font-sans">
+                {overallStats?.total_cards_learned ?? 0}
+              </div>
+            </div>
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1.5 rounded-lg border border-stone-100 dark:border-slate-800/80">
+              <div className="text-[9px] text-[#78716C] dark:text-slate-400">Akurasi Rata-rata</div>
+              <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-sans">
+                {Math.round(overallStats?.average_accuracy ?? 0)}%
+              </div>
+            </div>
+            <div className="bg-[#FAF8F5] dark:bg-[#0B0F19] py-1 px-1.5 rounded-lg border border-stone-100 dark:border-slate-800/80">
+              <div className="text-[9px] text-[#78716C] dark:text-slate-400">Waktu Belajar</div>
+              <div className="text-xs font-bold text-amber-600 dark:text-amber-400 font-sans">
+                {overallStats?.total_study_time_minutes ?? 0} <span className="text-[9px] font-normal">mnt</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

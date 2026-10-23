@@ -43,8 +43,8 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-[#EFEAE2] dark:border-[#1E293B] pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-md mx-auto grid grid-cols-4 px-2 py-1.5">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-[#EFEAE2] dark:border-[#1E293B] pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="max-w-md mx-auto grid grid-cols-4 px-2 py-1 sm:py-1.5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = item.isActive;
