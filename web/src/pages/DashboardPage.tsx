@@ -178,7 +178,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-1.5 sm:space-y-2 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] max-w-md mx-auto w-full">
+      <div className="space-y-2 sm:space-y-2.5 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] max-w-md mx-auto w-full">
         {/* Authentic Welcoming Dashboard Header */}
         <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
           <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1">
                 <div
                   onClick={() => navigate('/belajar?tab=goi')}
-                  className="p-1 sm:p-1.5 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0">
@@ -302,7 +302,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div
                   onClick={() => navigate('/belajar?tab=bunpo')}
-                  className="p-1 sm:p-1.5 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
+                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
                 >
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0">
@@ -337,7 +337,7 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1">
                 <div
                   onClick={() => navigate(dokkaiDone ? '/belajar?tab=choukai' : '/belajar?tab=dokkai')}
-                  className={`p-1 sm:p-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     dokkaiDone || choukaiDone
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
@@ -373,7 +373,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div
                   onClick={() => navigate('/review')}
-                  className={`p-1 sm:p-1.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     pendingCount > 0
                       ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/70 ring-1 ring-amber-200 dark:ring-amber-800/40'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
@@ -413,7 +413,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 4 Pilar Ujian JLPT Strip (Quick Category Launcher) */}
-        <div className="card-washi rounded-2xl p-2 sm:p-2.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1">
+        <div className="card-washi rounded-2xl p-2 sm:p-2.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5">
           <div className="flex items-center justify-between px-0.5">
             <span className="text-[10px] sm:text-[11px] font-bold text-[#A8A29E] dark:text-slate-400 uppercase tracking-wider font-mincho">
               {t.dashboard.pillarsTitle(level)}
@@ -477,7 +477,7 @@ export const DashboardPage: React.FC = () => {
         {/* 5. Aktivitas Belajar Minggu Ini & Ringkasan Progres */}
         <div
           onClick={() => navigate('/progress')}
-          className="card-washi rounded-2xl p-2 sm:p-2.5 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"
+          className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"
         >
           <div className="flex items-center justify-between px-0.5">
             <div className="flex items-center space-x-1.5">
@@ -499,7 +499,7 @@ export const DashboardPage: React.FC = () => {
             {weekDays.map((day) => (
               <div
                 key={day.dateYMD}
-                className={`flex flex-col items-center py-1 px-0.5 rounded-xl border text-center transition-all ${
+                className={`flex flex-col items-center py-1.5 px-0.5 rounded-xl border text-center transition-all ${
                   day.isToday
                     ? day.hasStudied
                       ? 'ring-1.5 ring-amber-500 border-amber-400 bg-amber-50/80 dark:bg-amber-950/60 font-bold'
