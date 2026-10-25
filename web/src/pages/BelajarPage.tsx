@@ -79,10 +79,21 @@ export const BelajarPage: React.FC = () => {
         }
 
         const rawDecks: Deck[] = (decksRes.status === 'fulfilled' && decksRes.value?.data) ? decksRes.value.data : [];
+        const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
+        let localSaved: Record<string, any> = {};
+        try {
+          const localKey = `kanarau_local_progress_${userKey}`;
+          localSaved = JSON.parse(localStorage.getItem(localKey) || '{}');
+        } catch {}
+
         const enriched = rawDecks.map((d) => {
-          const prog = progressMap.has(String(d.id))
+          let prog = progressMap.has(String(d.id))
             ? progressMap.get(String(d.id))!
             : (d.progress_percent ?? 0);
+          const local = localSaved[d.id];
+          if (local && local.percent > prog) {
+            prog = local.percent;
+          }
           return {
             ...d,
             progress_percent: prog,

@@ -15,9 +15,11 @@ import java.util.Map;
 public class StudyController {
 
     private final StudyService studyService;
+    private final com.kanarau.auth.repository.UserRepository userRepository;
 
-    public StudyController(StudyService studyService) {
+    public StudyController(StudyService studyService, com.kanarau.auth.repository.UserRepository userRepository) {
         this.studyService = studyService;
+        this.userRepository = userRepository;
     }
 
     private Long getUserId(Authentication auth) {
@@ -28,7 +30,9 @@ public class StudyController {
         try {
             return Long.parseLong(principal.toString());
         } catch (NumberFormatException ignored) {
-            return null;
+            return userRepository.findByEmailIgnoreCase(principal.toString())
+                    .map(com.kanarau.auth.entity.User::getId)
+                    .orElse(null);
         }
     }
 

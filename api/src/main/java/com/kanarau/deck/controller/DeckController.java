@@ -16,9 +16,11 @@ import java.util.List;
 public class DeckController {
 
     private final DeckService deckService;
+    private final com.kanarau.auth.repository.UserRepository userRepository;
 
-    public DeckController(DeckService deckService) {
+    public DeckController(DeckService deckService, com.kanarau.auth.repository.UserRepository userRepository) {
         this.deckService = deckService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -50,6 +52,15 @@ public class DeckController {
         return ResponseEntity.ok(ApiResponse.ok(cards));
     }
 
+    @GetMapping("/{deckId}/kotoba")
+    public ResponseEntity<ApiResponse<List<com.kanarau.kotoba.dto.KotobaResponse>>> getKotobas(
+            @PathVariable Long deckId,
+            @RequestParam(required = false, defaultValue = "id") String lang
+    ) {
+        List<com.kanarau.kotoba.dto.KotobaResponse> kotobas = deckService.getKotobasForDeck(deckId, lang);
+        return ResponseEntity.ok(ApiResponse.ok(kotobas));
+    }
+
     private Long getUserId(Authentication auth) {
         if (auth == null || auth.getPrincipal() == null) return null;
         Object principal = auth.getPrincipal();
@@ -58,7 +69,9 @@ public class DeckController {
         try {
             return Long.parseLong(principal.toString());
         } catch (NumberFormatException ignored) {
-            return null;
+            return userRepository.findByEmailIgnoreCase(principal.toString())
+                    .map(com.kanarau.auth.entity.User::getId)
+                    .orElse(null);
         }
     }
 }

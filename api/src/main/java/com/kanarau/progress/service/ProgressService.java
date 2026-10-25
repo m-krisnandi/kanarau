@@ -163,7 +163,9 @@ public class ProgressService {
             List<Long> kotobaIds = deckKotobaRepository.findByDeckIdOrderBySortOrder(deck.getId())
                     .stream().map(DeckKotoba::getKotobaId).toList();
 
-            int total = deck.getKotobaCount();
+            int total = (deck.getKotobaCount() != null && deck.getKotobaCount() > 0)
+                    ? deck.getKotobaCount()
+                    : kotobaIds.size();
             int learned = 0;
             int reviewing = 0;
             int mastered = 0;
@@ -171,13 +173,21 @@ public class ProgressService {
 
             if (userId != null && !kotobaIds.isEmpty()) {
                 List<UserProgress> upList = userProgressRepository.findByUserIdAndKotobaIds(userId, kotobaIds);
+                Map<Long, ProgressStatus> bestStatusByKotoba = new HashMap<>();
                 for (UserProgress up : upList) {
-                    if (up.getStatus() == ProgressStatus.LEARNING) learned++;
-                    else if (up.getStatus() == ProgressStatus.REVIEW) reviewing++;
-                    else if (up.getStatus() == ProgressStatus.MASTERED) mastered++;
+                    ProgressStatus current = bestStatusByKotoba.get(up.getKotobaId());
+                    if (current == null || up.getStatus().ordinal() > current.ordinal()) {
+                        bestStatusByKotoba.put(up.getKotobaId(), up.getStatus());
+                    }
                 }
 
-                long distinctLearnedInDeck = upList.stream().map(UserProgress::getKotobaId).distinct().count();
+                for (ProgressStatus st : bestStatusByKotoba.values()) {
+                    if (st == ProgressStatus.LEARNING) learned++;
+                    else if (st == ProgressStatus.REVIEW) reviewing++;
+                    else if (st == ProgressStatus.MASTERED) mastered++;
+                }
+
+                long distinctLearnedInDeck = bestStatusByKotoba.size();
                 percent = total > 0 ? (int) Math.min(100, Math.round(((double) distinctLearnedInDeck / total) * 100)) : 0;
             }
 

@@ -285,7 +285,7 @@ export const KotobaDetailModal: React.FC<Props> = ({ kotoba, onClose, onViewKanj
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-[80] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}

@@ -18,9 +18,11 @@ import java.util.List;
 public class ProgressController {
 
     private final ProgressService progressService;
+    private final com.kanarau.auth.repository.UserRepository userRepository;
 
-    public ProgressController(ProgressService progressService) {
+    public ProgressController(ProgressService progressService, com.kanarau.auth.repository.UserRepository userRepository) {
         this.progressService = progressService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/stats")
@@ -64,7 +66,9 @@ public class ProgressController {
         try {
             return Long.parseLong(principal.toString());
         } catch (NumberFormatException ignored) {
-            return null;
+            return userRepository.findByEmailIgnoreCase(principal.toString())
+                    .map(com.kanarau.auth.entity.User::getId)
+                    .orElse(null);
         }
     }
 }

@@ -308,6 +308,10 @@ export const translations = {
       targetAchieved: 'Target Tercapai',
       targetNotAchieved: 'Target Belum Tercapai',
       sectionalCutoffTitle: 'Batas Minimal Lulus Seksi (19 Poin)',
+      deckWordsDetailTitle: (name: string) => `Rincian Kosakata - ${name}`,
+      deckWordsDetailSub: (count: number, pct: number) => `${count} Kosakata · ${pct}% Selesai`,
+      studyThisDeck: 'Pelajari / Ulangi Deck Ini',
+      clickForDetail: 'Klik kosakata untuk melihat detail lengkap & konjugasi',
     },
     studySession: {
       loading: 'Menyiapkan kartu latihan...',
@@ -1023,6 +1027,10 @@ export const translations = {
       targetAchieved: 'Target Qualified',
       targetNotAchieved: 'Target In Progress',
       sectionalCutoffTitle: 'Minimum Passing Threshold (19 Points)',
+      deckWordsDetailTitle: (name: string) => `Vocabulary Details - ${name}`,
+      deckWordsDetailSub: (count: number, pct: number) => `${count} Vocabulary · ${pct}% Completed`,
+      studyThisDeck: 'Study / Review This Deck',
+      clickForDetail: 'Click a word to view full details & conjugations',
     },
     studySession: {
       loading: 'Preparing study cards...',
@@ -1738,6 +1746,10 @@ export const translations = {
       targetAchieved: 'ပန်းတိုင် ပြည့်မီသည်',
       targetNotAchieved: 'ပန်းတိုင် မပြည့်မီသေးပါ',
       sectionalCutoffTitle: 'အပိုင်းလိုက် အနည်းဆုံး အောင်မှတ် (၁၉ မှတ်)',
+      deckWordsDetailTitle: (name: string) => `ဝေါဟာရ အသေးစိတ် - ${name}`,
+      deckWordsDetailSub: (count: number, pct: number) => `ဝေါဟာရ ${count} လုံး · ${pct}% ပြီးစီး`,
+      studyThisDeck: 'ဤဒက်ခ်ကို လေ့လာပါ / ပြန်လည်လေ့ကျင့်ပါ',
+      clickForDetail: 'အသေးစိတ်နှင့် ကြိယာပုံစံများကြည့်ရန် ဝေါဟာရကိုနှိပ်ပါ',
     },
     studySession: {
       loading: 'လေ့ကျင့်ရေးကတ်များ ပြင်ဆင်နေသည်...',

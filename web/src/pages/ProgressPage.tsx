@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { progressApi } from '@/services/api';
-import type { OverallStats, DeckProgress, MonthlyCalendar, JLPTCountdown, JLPTLevel } from '@/types';
+import { useNavigate } from 'react-router-dom';
+import { progressApi, deckApi } from '@/services/api';
+import type { OverallStats, DeckProgress, MonthlyCalendar, JLPTCountdown, JLPTLevel, Kotoba } from '@/types';
 import { StudyCalendar } from '@/components/StudyCalendar';
-import { Flame, Clock, Award, CheckCircle, ShieldCheck, AlertTriangle, BookOpen, FileText, Headphones, Trophy, ChevronRight } from 'lucide-react';
+import { Flame, Clock, Award, CheckCircle, ShieldCheck, AlertTriangle, BookOpen, FileText, Headphones, Trophy, ChevronRight, Play, X, Volume2 } from 'lucide-react';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
+import { KotobaDetailModal } from '@/components/KotobaDetailModal';
+import { KanjiDetailView } from '@/components/KanjiDetailView';
+import { localizeKotoba } from '@/locales/vocabularyTranslations';
 import { calculateUserLevel } from '@/utils/levelHelper';
 
 export const ProgressPage: React.FC = () => {
+  const navigate = useNavigate();
   const { t, language } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
@@ -22,11 +27,22 @@ export const ProgressPage: React.FC = () => {
   const [countdown, setCountdown] = useState<JLPTCountdown | null>(null);
   const [calendar, setCalendar] = useState<MonthlyCalendar | null>(null);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+
+  // Deck Kotobas Detail Modal State
+  const [selectedDeckForDetail, setSelectedDeckForDetail] = useState<DeckProgress | null>(null);
+  const [deckKotobas, setDeckKotobas] = useState<Kotoba[]>([]);
+  const [loadingDeckKotobas, setLoadingDeckKotobas] = useState(false);
+  const [activeKotobaForDetail, setActiveKotobaForDetail] = useState<Kotoba | null>(null);
+  const [activeKanjiForDetail, setActiveKanjiForDetail] = useState<string | null>(null);
+
   const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
   const initialDate = new Date();
   const [year, setYear] = useState(initialDate.getFullYear());
   const [month, setMonth] = useState(initialDate.getMonth() + 1);
   const [loading, setLoading] = useState(true);
+
+  // User storage key for local completion tracking
+  const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
 
   // Sync selectedLevel if user changes currentLevel in settings/store
   useEffect(() => {
@@ -42,8 +58,42 @@ export const ProgressPage: React.FC = () => {
           progressApi.getJLPTCountdown(),
           progressApi.getCalendar(year, month),
         ]);
-        setStats(statsRes.data);
-        setDeckProgress(decksRes.data || []);
+
+        const rawDecks: DeckProgress[] = decksRes.data || [];
+        let mergedDecks = rawDecks;
+        let mergedStats = statsRes.data;
+
+        // Check local progress cache for immediate update if backend has delay
+        try {
+          const localKey = `kanarau_local_progress_${userKey}`;
+          const localSaved = JSON.parse(localStorage.getItem(localKey) || '{}');
+          if (localSaved && Object.keys(localSaved).length > 0) {
+            mergedDecks = rawDecks.map((d) => {
+              const local = localSaved[d.deck_id];
+              if (local && local.percent > (d.progress_percent || 0)) {
+                return {
+                  ...d,
+                  progress_percent: local.percent,
+                  mastered: Math.max(d.mastered || 0, local.learned || 0),
+                };
+              }
+              return d;
+            });
+
+            if (mergedStats) {
+              const localLearned = Object.values(localSaved).reduce((acc: number, item: any) => acc + (item.learned || 0), 0);
+              if (localLearned > mergedStats.total_cards_learned) {
+                mergedStats = {
+                  ...mergedStats,
+                  total_cards_learned: localLearned,
+                };
+              }
+            }
+          }
+        } catch {}
+
+        setStats(mergedStats);
+        setDeckProgress(mergedDecks);
         setCountdown(countRes.data);
         setCalendar(calRes.data);
       } catch (err) {
@@ -53,15 +103,26 @@ export const ProgressPage: React.FC = () => {
       }
     }
     loadData();
-  }, [year, month]);
+  }, [year, month, userKey]);
+
+  const handleOpenDeckDetail = async (dp: DeckProgress) => {
+    setSelectedDeckForDetail(dp);
+    setLoadingDeckKotobas(true);
+    try {
+      const res = await deckApi.getKotoba(dp.deck_id);
+      setDeckKotobas(res.data || []);
+    } catch (err) {
+      console.error('Error loading deck kotobas in progress', err);
+      setDeckKotobas([]);
+    } finally {
+      setLoadingDeckKotobas(false);
+    }
+  };
 
   const totalMinutes = stats?.total_study_time_minutes ?? 0;
   const hours = Math.floor(totalMinutes / 60);
   const mins = totalMinutes % 60;
 
-
-  // User storage key for local dokkai/choukai completion tracking
-  const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
 
   // 1. Seksi Pengetahuan Bahasa (Goi & Bunpo): max 60
   const levelDecks = deckProgress.filter((d) => d.jlpt_level === selectedLevel);
@@ -498,18 +559,22 @@ export const ProgressPage: React.FC = () => {
               return (
                 <div
                   key={dp.deck_id}
-                  className="card-washi rounded-xl p-3.5 border border-[#EFEAE2] space-y-2.5"
+                  onClick={() => handleOpenDeckDetail(dp)}
+                  className="card-washi card-washi-hover rounded-xl p-3.5 border border-[#EFEAE2] hover:border-indigo-300 dark:hover:border-indigo-600 transition-all cursor-pointer space-y-2.5 group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-xs text-[#1E1B18]">{dp.deck_name}</span>
+                      <span className="font-bold text-xs text-[#1E1B18] group-hover:text-indigo-600 transition-colors">{dp.deck_name}</span>
                       <span className="text-[10px] text-[#78716C]">
                         {t.progress.totalWordsTag(total)}
                       </span>
                     </div>
-                    <span className="text-xs font-bold text-indigo-700 font-mono">
-                      {(dp.progress_percent ?? 0).toFixed(0)}%
-                    </span>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-xs font-bold text-indigo-700 font-mono">
+                        {(dp.progress_percent ?? 0).toFixed(0)}%
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+                    </div>
                   </div>
 
                   {/* Multi-segment SRS Progress Bar */}
@@ -549,6 +614,116 @@ export const ProgressPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Deck Words Detail Modal */}
+      {selectedDeckForDetail && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedDeckForDetail(null);
+          }}
+          className="fixed inset-0 z-50 overflow-hidden flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#FAF8F5] dark:bg-[#121824] rounded-t-3xl sm:rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden border border-[#EFEAE2] dark:border-[#232F46] shadow-2xl animate-slide-up"
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-[#EFEAE2] dark:border-[#232F46] flex items-center justify-between bg-white dark:bg-[#151D2E]">
+              <div>
+                <h3 className="font-bold text-base font-mincho text-[#1E1B18] dark:text-white">
+                  {t.progress.deckWordsDetailTitle
+                    ? t.progress.deckWordsDetailTitle(selectedDeckForDetail.deck_name)
+                    : `Rincian Kosakata - ${selectedDeckForDetail.deck_name}`}
+                </h3>
+                <p className="text-xs text-[#78716C] dark:text-slate-400 mt-0.5">
+                  {t.progress.deckWordsDetailSub
+                    ? t.progress.deckWordsDetailSub(deckKotobas.length, Math.round(selectedDeckForDetail.progress_percent || 0))
+                    : `${deckKotobas.length} Kosakata · ${Math.round(selectedDeckForDetail.progress_percent || 0)}% Selesai`}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    navigate(`/study-session/${selectedDeckForDetail.deck_id}`);
+                  }}
+                  className="px-3 py-1.5 bg-[#1E1B18] dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-sm cursor-pointer active:scale-95 transition-all"
+                >
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>{t.progress.studyThisDeck || 'Pelajari Deck Ini'}</span>
+                </button>
+                <button
+                  onClick={() => setSelectedDeckForDetail(null)}
+                  className="w-8 h-8 rounded-full bg-[#EFEAE2]/70 dark:bg-[#1E293B] hover:bg-[#E2DDD5] dark:hover:bg-[#28354D] text-[#57534E] dark:text-slate-300 flex items-center justify-center text-xs font-bold cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Instruction Tip */}
+            <div className="px-4 py-2 bg-indigo-50/70 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 text-[11px] text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+              <span>{t.progress.clickForDetail || 'Klik kosakata untuk melihat detail lengkap & konjugasi'}</span>
+            </div>
+
+            {/* Word List */}
+            <div className="p-4 overflow-y-auto space-y-2 flex-1">
+              {loadingDeckKotobas ? (
+                <div className="text-center py-12 text-xs text-[#78716C] dark:text-slate-400">
+                  {t.belajar.previewModal.loading}
+                </div>
+              ) : deckKotobas.length === 0 ? (
+                <div className="text-center py-12 text-xs text-[#78716C] dark:text-slate-400">
+                  {t.belajar.previewModal.empty}
+                </div>
+              ) : (
+                deckKotobas.map((rawK) => {
+                  const k = localizeKotoba(rawK, language);
+                  return (
+                    <div
+                      key={k.id}
+                      onClick={() => setActiveKotobaForDetail(k)}
+                      className="card-washi rounded-xl p-3 border border-[#EFEAE2] dark:border-[#232F46] hover:border-indigo-300 dark:hover:border-indigo-600 cursor-pointer flex items-center justify-between transition-all group active:scale-[0.99]"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-baseline space-x-2">
+                          <span className="font-bold font-jp text-base text-[#1E1B18] dark:text-white group-hover:text-indigo-600 transition-colors">
+                            {k.kanji || k.hiragana}
+                          </span>
+                          {k.kanji && (
+                            <span className="text-xs font-jp text-indigo-600 dark:text-indigo-400 font-semibold">
+                              {k.hiragana}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#57534E] dark:text-slate-300 line-clamp-1 mt-0.5">{k.meaning}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#A8A29E] group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kotoba Detail & Kanji Breakdown Modals */}
+      <KotobaDetailModal
+        kotoba={activeKotobaForDetail}
+        onClose={() => setActiveKotobaForDetail(null)}
+        onViewKanji={(char) => {
+          setActiveKotobaForDetail(null);
+          setActiveKanjiForDetail(char);
+        }}
+      />
+
+      {activeKanjiForDetail && (
+        <KanjiDetailView
+          character={activeKanjiForDetail}
+          onClose={() => setActiveKanjiForDetail(null)}
+        />
+      )}
 
       {/* Leaderboard Modal */}
       <LeaderboardModal

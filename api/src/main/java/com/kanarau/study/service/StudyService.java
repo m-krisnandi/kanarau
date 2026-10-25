@@ -83,8 +83,8 @@ public class StudyService {
 
         StudyDirection dir = StudyDirection.KANJI_TO_MEANING;
         if (a.cardId() != null) {
-            if (a.cardId().endsWith("_kh")) dir = StudyDirection.KANJI_TO_HIRAGANA;
-            else if (a.cardId().endsWith("_mk")) dir = StudyDirection.MEANING_TO_KANJI;
+            if (a.cardId().contains("_kh")) dir = StudyDirection.KANJI_TO_HIRAGANA;
+            else if (a.cardId().contains("_mk")) dir = StudyDirection.MEANING_TO_KANJI;
         }
 
         final StudyDirection direction = dir;

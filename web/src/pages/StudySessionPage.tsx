@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { deckApi, studyApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, SessionResult } from '@/types';
@@ -44,6 +44,7 @@ export const StudySessionPage: React.FC = () => {
   const [retryKotobaIds, setRetryKotobaIds] = useState<Set<number | string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+  const answersRef = useRef<QuizAnswer[]>([]);
   const [cardStartTime, setCardStartTime] = useState<number>(Date.now());
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -85,6 +86,7 @@ export const StudySessionPage: React.FC = () => {
           setCards(sessionCards);
           setInitialCards(sessionCards);
           setRetryKotobaIds(new Set());
+          answersRef.current = [];
           setCardStartTime(Date.now());
         }
         if (deckRes.status === 'fulfilled' && deckRes.value.data?.name) {
@@ -149,6 +151,7 @@ export const StudySessionPage: React.FC = () => {
 
     setSelectedChoice(choice);
     setIsAnswered(true);
+    answersRef.current.push(answer);
     setAnswers((prev) => [...prev, answer]);
   };
 
@@ -171,15 +174,18 @@ export const StudySessionPage: React.FC = () => {
       };
     });
 
-    const totalTimeMs = sessionAnswers.reduce((sum, a) => sum + a.response_time_ms, 0);
-    const numericDeckId = deckId ? Number(deckId) : 1;
+    const effectiveAnswers = answersRef.current.length > 0
+      ? answersRef.current
+      : (sessionAnswers.length > 0 ? sessionAnswers : answers);
+    const totalTimeMs = effectiveAnswers.reduce((sum, a) => sum + (a.response_time_ms || 3000), 0);
+    const numericDeckId = (deckId && !isNaN(Number(deckId))) ? Number(deckId) : 1;
 
     // Filter to best/completed answer per unique kotoba for SRS submission
     const uniqueKotobaAnswers: QuizAnswer[] = [];
     const seenKotobas = new Set<number | string>();
-    for (let i = sessionAnswers.length - 1; i >= 0; i--) {
-      const ans = sessionAnswers[i]!;
-      if (!seenKotobas.has(ans.kotoba_id)) {
+    for (let i = effectiveAnswers.length - 1; i >= 0; i--) {
+      const ans = effectiveAnswers[i]!;
+      if (ans.kotoba_id && !seenKotobas.has(ans.kotoba_id)) {
         seenKotobas.add(ans.kotoba_id);
         uniqueKotobaAnswers.unshift({
           ...ans,
@@ -188,6 +194,8 @@ export const StudySessionPage: React.FC = () => {
       }
     }
 
+    const finalAnswers = uniqueKotobaAnswers.length > 0 ? uniqueKotobaAnswers : effectiveAnswers;
+
     const result: SessionResult = {
       deck_id: numericDeckId,
       total_cards: totalUniqueCards,
@@ -195,8 +203,24 @@ export const StudySessionPage: React.FC = () => {
       accuracy_percent: accuracy,
       total_time_ms: totalTimeMs,
       xp_gained: xpGained,
-      answers: uniqueKotobaAnswers.length > 0 ? uniqueKotobaAnswers : sessionAnswers,
+      answers: finalAnswers,
     };
+
+    // Save immediate local progress so progress never shows 0%
+    try {
+      const localUser = useAuthStore.getState().user;
+      const userKey = localUser?.id ? String(localUser.id) : (localUser?.email || 'guest');
+      const localKey = `kanarau_local_progress_${userKey}`;
+      const existing = JSON.parse(localStorage.getItem(localKey) || '{}');
+      existing[numericDeckId] = {
+        deck_id: numericDeckId,
+        percent: 100,
+        learned: totalUniqueCards,
+        total: totalUniqueCards,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(localKey, JSON.stringify(existing));
+    } catch {}
 
     try {
       await studyApi.submitSession(result);

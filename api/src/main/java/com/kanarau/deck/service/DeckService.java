@@ -44,13 +44,16 @@ public class DeckService {
 
         return decks.stream().map(deck -> {
             int progressPercent = 0;
-            if (userId != null && deck.getKotobaCount() > 0) {
+            if (userId != null) {
                 List<Long> kotobaIds = deckKotobaRepository.findByDeckIdOrderBySortOrder(deck.getId())
                         .stream().map(DeckKotoba::getKotobaId).toList();
                 if (!kotobaIds.isEmpty()) {
                     long distinctLearned = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds)
                             .stream().map(com.kanarau.review.entity.UserProgress::getKotobaId).distinct().count();
-                    progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / kotobaIds.size()) * 100));
+                    int totalWords = (deck.getKotobaCount() != null && deck.getKotobaCount() > 0)
+                            ? deck.getKotobaCount()
+                            : kotobaIds.size();
+                    progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / totalWords) * 100));
                 }
             }
             return DeckResponse.from(deck, progressPercent);
@@ -61,16 +64,34 @@ public class DeckService {
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Deck tidak ditemukan"));
         int progressPercent = 0;
-        if (userId != null && deck.getKotobaCount() > 0) {
+        if (userId != null) {
             List<Long> kotobaIds = deckKotobaRepository.findByDeckIdOrderBySortOrder(deck.getId())
                     .stream().map(DeckKotoba::getKotobaId).toList();
             if (!kotobaIds.isEmpty()) {
                 long distinctLearned = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds)
                         .stream().map(com.kanarau.review.entity.UserProgress::getKotobaId).distinct().count();
-                progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / kotobaIds.size()) * 100));
+                int totalWords = (deck.getKotobaCount() != null && deck.getKotobaCount() > 0)
+                        ? deck.getKotobaCount()
+                        : kotobaIds.size();
+                progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / totalWords) * 100));
             }
         }
         return DeckResponse.from(deck, progressPercent);
+    }
+
+    public List<KotobaResponse> getKotobasForDeck(Long deckId, String lang) {
+        List<DeckKotoba> deckKotobas = deckKotobaRepository.findByDeckIdOrderBySortOrder(deckId);
+        if (deckKotobas.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> kotobaIds = deckKotobas.stream().map(DeckKotoba::getKotobaId).toList();
+        List<Kotoba> kotobas = kotobaRepository.findAllById(kotobaIds);
+        Map<Long, Kotoba> map = kotobas.stream().collect(java.util.stream.Collectors.toMap(Kotoba::getId, k -> k, (a, b) -> a));
+        return kotobaIds.stream()
+                .map(map::get)
+                .filter(Objects::nonNull)
+                .map(k -> KotobaResponse.from(k, lang != null ? lang : "id"))
+                .toList();
     }
 
     public List<QuizCardResponse> generateCardsForDeck(Long deckId) {
