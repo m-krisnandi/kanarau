@@ -421,11 +421,16 @@ export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckP
     return decks.map((d) => {
       const local = localSaved[String(d.deck_id)];
       if (local && (local.percent > (d.progress_percent || 0) || (local.learned || 0) > (d.learned || 0))) {
+        const isComplete = local.percent >= 100;
+        const totalWords = d.total_kotoba || 30;
+        const effectiveLearned = isComplete
+          ? Math.max(d.learned || 0, local.learned || 0, totalWords - (d.mastered || 0) - (d.reviewing || 0))
+          : Math.max(d.learned || 0, local.learned || 0);
+
         return {
           ...d,
           progress_percent: Math.max(d.progress_percent || 0, local.percent),
-          // In SRS, cards newly studied in a daily session start in "Belajar" (Learning), NOT "Mastered"!
-          learned: Math.max(d.learned || 0, local.learned || 0),
+          learned: effectiveLearned,
         };
       }
       return d;
