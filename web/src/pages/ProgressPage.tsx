@@ -13,6 +13,12 @@ import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { localizeKotoba } from '@/locales/vocabularyTranslations';
 import { calculateUserLevel } from '@/utils/levelHelper';
+import {
+  getUserKey,
+  mergeDeckProgress,
+  mergeOverallStats,
+  mergeCalendarDays,
+} from '@/utils/userProgressHelper';
 
 export const ProgressPage: React.FC = () => {
   const navigate = useNavigate();
@@ -60,49 +66,35 @@ export const ProgressPage: React.FC = () => {
         ]);
 
         const rawDecks: DeckProgress[] = decksRes.data || [];
-        let mergedDecks = rawDecks;
-        let mergedStats = statsRes.data;
+        const mergedDecks = mergeDeckProgress(rawDecks, userKey);
+        const mergedStats = mergeOverallStats(statsRes.data || null, userKey);
 
-        // Check local progress cache for immediate update if backend has delay
-        try {
-          const localKey = `kanarau_local_progress_${userKey}`;
-          const localSaved = JSON.parse(localStorage.getItem(localKey) || '{}');
-          if (localSaved && Object.keys(localSaved).length > 0) {
-            mergedDecks = rawDecks.map((d) => {
-              const local = localSaved[d.deck_id];
-              if (local && local.percent > (d.progress_percent || 0)) {
-                return {
-                  ...d,
-                  progress_percent: local.percent,
-                  mastered: Math.max(d.mastered || 0, local.learned || 0),
-                };
-              }
-              return d;
-            });
-
-            if (mergedStats) {
-              const localLearned = Object.values(localSaved).reduce((acc: number, item: any) => acc + (item.learned || 0), 0);
-              if (localLearned > mergedStats.total_cards_learned) {
-                mergedStats = {
-                  ...mergedStats,
-                  total_cards_learned: localLearned,
-                };
-              }
+        const rawCalDays = calRes?.data?.days || [];
+        const mergedCalDays = mergeCalendarDays(rawCalDays, userKey);
+        const mergedCalendar = calRes?.data
+          ? {
+              ...calRes.data,
+              days: mergedCalDays,
             }
-          }
-        } catch {}
+          : null;
 
         setStats(mergedStats);
         setDeckProgress(mergedDecks);
         setCountdown(countRes.data);
-        setCalendar(calRes.data);
+        setCalendar(mergedCalendar);
       } catch (err) {
         console.error('Error loading progress stats', err);
+        const fallbackStats = mergeOverallStats(null, userKey);
+        setStats(fallbackStats);
       } finally {
         setLoading(false);
       }
     }
     loadData();
+
+    const handleProgressUpdate = () => void loadData();
+    window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
+    return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
   }, [year, month, userKey]);
 
   const handleOpenDeckDetail = async (dp: DeckProgress) => {

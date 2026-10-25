@@ -9,6 +9,7 @@ import type { Language } from '@/locales/translations';
 import type { JLPTLevel } from '@/types';
 import { SettingsDrawer } from './SettingsDrawer';
 import { progressApi } from '@/services/api';
+import { getUserKey, computeLocalStreak } from '@/utils/userProgressHelper';
 
 const JLPT_LEVEL_OPTIONS: { level: JLPTLevel; label: Record<Language, string> }[] = [
   { level: 'N5', label: { id: 'N5 - Pemula (Beginner)', en: 'N5 - Beginner', my: 'N5 - အခြေခံအဆင့်' } },
@@ -32,19 +33,22 @@ export const Navbar: React.FC = () => {
   const [streak, setStreak] = useState<number>(user?.streak ?? 0);
 
   useEffect(() => {
+    const userKey = getUserKey(user);
     async function loadRealStreak() {
       try {
         const res = await progressApi.getOverallStats();
-        if (res?.data?.current_streak !== undefined) {
-          setStreak(res.data.current_streak);
-        } else {
-          setStreak(user?.streak ?? 0);
-        }
+        const effectiveStreak = computeLocalStreak(userKey, res?.data?.current_streak ?? user?.streak);
+        setStreak(effectiveStreak);
       } catch {
-        setStreak(user?.streak ?? 0);
+        const effectiveStreak = computeLocalStreak(userKey, user?.streak);
+        setStreak(effectiveStreak);
       }
     }
     loadRealStreak();
+
+    const handleProgressUpdate = () => void loadRealStreak();
+    window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
+    return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
   }, [user]);
 
   const handleSelectLevel = (lvl: JLPTLevel) => {

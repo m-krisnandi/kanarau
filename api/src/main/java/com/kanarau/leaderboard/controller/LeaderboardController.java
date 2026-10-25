@@ -14,9 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class LeaderboardController {
 
     private final LeaderboardService leaderboardService;
+    private final com.kanarau.auth.repository.UserRepository userRepository;
 
-    public LeaderboardController(LeaderboardService leaderboardService) {
+    public LeaderboardController(
+            LeaderboardService leaderboardService,
+            com.kanarau.auth.repository.UserRepository userRepository
+    ) {
         this.leaderboardService = leaderboardService;
+        this.userRepository = userRepository;
     }
 
     private Long getUserId(Authentication auth) {
@@ -27,7 +32,9 @@ public class LeaderboardController {
         try {
             return Long.parseLong(principal.toString());
         } catch (NumberFormatException ignored) {
-            return null;
+            return userRepository.findByEmailIgnoreCase(principal.toString())
+                    .map(com.kanarau.auth.entity.User::getId)
+                    .orElse(null);
         }
     }
 

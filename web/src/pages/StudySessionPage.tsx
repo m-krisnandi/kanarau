@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { calculateUserLevel } from '@/utils/levelHelper';
+import { recordLocalStudySession, getUserKey } from '@/utils/userProgressHelper';
 
 export const StudySessionPage: React.FC = () => {
   const { deckId } = useParams<{ deckId: string }>();
@@ -71,7 +72,6 @@ export const StudySessionPage: React.FC = () => {
           deckApi.get(id),
         ]);
         if (cardsRes.status === 'fulfilled' && cardsRes.value.data && cardsRes.value.data.length > 0) {
-          const maxCards = studyMode === 'exam' ? 30 : studyMode === 'diagnostic' ? 20 : 15;
           const sanitizedCards = cardsRes.value.data.filter((card) => {
             if (!card || !card.question || !card.correct_answer) return false;
             const q = card.question.trim().toLowerCase();
@@ -82,7 +82,25 @@ export const StudySessionPage: React.FC = () => {
             }
             return true;
           });
-          const sessionCards = sanitizedCards.slice(0, maxCards);
+
+          const deckWordCount = (deckRes.status === 'fulfilled' && deckRes.value.data?.kotoba_count)
+            ? deckRes.value.data.kotoba_count
+            : 30;
+          const maxCards = studyMode === 'exam' ? 30 : studyMode === 'diagnostic' ? 20 : deckWordCount;
+
+          // Pick 1 card per unique kotoba first to ensure complete deck coverage
+          const uniqueKotobaCards: typeof sanitizedCards = [];
+          const seenKotobaIds = new Set<string | number>();
+          for (const c of sanitizedCards) {
+            const kId = c.kotoba.id;
+            if (kId && !seenKotobaIds.has(kId)) {
+              seenKotobaIds.add(kId);
+              uniqueKotobaCards.push(c);
+              if (uniqueKotobaCards.length >= maxCards) break;
+            }
+          }
+
+          const sessionCards = uniqueKotobaCards.length > 0 ? uniqueKotobaCards : sanitizedCards.slice(0, maxCards);
           setCards(sessionCards);
           setInitialCards(sessionCards);
           setRetryKotobaIds(new Set());
@@ -206,20 +224,18 @@ export const StudySessionPage: React.FC = () => {
       answers: finalAnswers,
     };
 
-    // Save immediate local progress so progress never shows 0%
+    // Save immediate local progress & daily activity so streak & stats never show 0%
     try {
       const localUser = useAuthStore.getState().user;
-      const userKey = localUser?.id ? String(localUser.id) : (localUser?.email || 'guest');
-      const localKey = `kanarau_local_progress_${userKey}`;
-      const existing = JSON.parse(localStorage.getItem(localKey) || '{}');
-      existing[numericDeckId] = {
-        deck_id: numericDeckId,
-        percent: 100,
-        learned: totalUniqueCards,
-        total: totalUniqueCards,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(localKey, JSON.stringify(existing));
+      const userKey = getUserKey(localUser);
+      recordLocalStudySession(
+        userKey,
+        numericDeckId,
+        totalUniqueCards,
+        totalUniqueCards,
+        totalTimeMs,
+        accuracy
+      );
     } catch {}
 
     try {

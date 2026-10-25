@@ -13,6 +13,7 @@ import {
   Headphones,
   TrendingUp,
   Trophy,
+  Check,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useReviewStore } from '@/stores/reviewStore';
@@ -25,6 +26,14 @@ import { calculateUserLevel } from '@/utils/levelHelper';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
 import { formatLocalYMD } from '@/utils';
+import {
+  getUserKey,
+  mergeDeckProgress,
+  mergeOverallStats,
+  mergeCalendarDays,
+  computeLocalStreak,
+  getLocalDailyActivity,
+} from '@/utils/userProgressHelper';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,13 +71,17 @@ export const DashboardPage: React.FC = () => {
     loadCountdown();
   }, []);
 
+  const userKey = getUserKey(user);
+
   useEffect(() => {
     async function loadDeckProgress() {
       try {
         const res = await progressApi.getDeckProgress();
-        if (res?.data && res.data.length > 0) {
-          const levelDecks = res.data.filter((d) => d.jlpt_level === level);
-          const firstIncomplete = levelDecks.find((d) => d.progress_percent < 100);
+        const rawDecks = res?.data || [];
+        const mergedDecks = mergeDeckProgress(rawDecks, userKey);
+        if (mergedDecks.length > 0) {
+          const levelDecks = mergedDecks.filter((d) => d.jlpt_level === level);
+          const firstIncomplete = levelDecks.find((d) => (d.progress_percent || 0) < 100);
           if (firstIncomplete) {
             setActiveDay(firstIncomplete.day_number);
             setTargetWordsCount(firstIncomplete.total_kotoba || 30);
@@ -84,13 +97,16 @@ export const DashboardPage: React.FC = () => {
       }
     }
     loadDeckProgress();
-  }, [level, user]);
+
+    const handleProgressUpdate = () => void loadDeckProgress();
+    window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
+    return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
+  }, [level, user, userKey]);
 
   // Level-specific progress evaluation for Dokkai & Choukai (user-isolated & completed today)
   useEffect(() => {
     try {
       const todayStr = formatLocalYMD();
-      const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
 
       let isDokkaiDone = false;
       const dSaved = localStorage.getItem(`kanarau_dokkai_results_${userKey}`);
@@ -123,7 +139,7 @@ export const DashboardPage: React.FC = () => {
       setDokkaiDone(false);
       setChoukaiDone(false);
     }
-  }, [level, user]);
+  }, [level, user, userKey]);
 
   useEffect(() => {
     async function loadStatsData() {
@@ -133,18 +149,35 @@ export const DashboardPage: React.FC = () => {
           progressApi.getOverallStats(),
           progressApi.getCalendar(now.getFullYear(), now.getMonth() + 1),
         ]);
-        if (statsRes?.data) {
-          setOverallStats(statsRes.data);
-        }
-        if (calRes?.data?.days) {
-          setCalendarDays(calRes.data.days);
-        }
+        const mergedStats = mergeOverallStats(statsRes?.data || null, userKey);
+        setOverallStats(mergedStats);
+
+        const rawCalDays = calRes?.data?.days || [];
+        const mergedCalDays = mergeCalendarDays(rawCalDays, userKey);
+        setCalendarDays(mergedCalDays);
       } catch (err) {
         console.warn('Could not load weekly stats:', err);
+        const fallbackStats = mergeOverallStats(null, userKey);
+        setOverallStats(fallbackStats);
+        const fallbackCalDays = mergeCalendarDays([], userKey);
+        setCalendarDays(fallbackCalDays);
       }
     }
     loadStatsData();
-  }, [user]);
+
+    const handleProgressUpdate = () => void loadStatsData();
+    window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
+    return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
+  }, [user, userKey]);
+
+  const todayStr = formatLocalYMD();
+  const dailyActivities = getLocalDailyActivity(userKey);
+  const currentStreak = computeLocalStreak(userKey, overallStats?.current_streak ?? user?.streak);
+  const isGoiDoneToday = Boolean(
+    dailyActivities[todayStr]?.goiCompleted ||
+    (activeDay > 1) ||
+    (calendarDays.find((d) => d.date === todayStr)?.studied)
+  );
 
   const weekDays = useMemo(() => {
     const today = new Date();
@@ -193,7 +226,7 @@ export const DashboardPage: React.FC = () => {
               </span>
               <span className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                <span>{t.dashboard.streak(user?.streak ?? 0)}</span>
+                <span>{t.dashboard.streak(currentStreak)}</span>
               </span>
               {/* Gamification User Level Badge */}
               <button
@@ -324,22 +357,51 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1">
                 <div
                   onClick={() => navigate('/belajar?tab=goi')}
-                  className="p-1.5 sm:p-2 rounded-lg bg-white dark:bg-[#0B0F19] border border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50 cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95"
+                  className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
+                    isGoiDoneToday
+                      ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
+                      : 'bg-white dark:bg-[#0B0F19] border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50'
+                  }`}
                 >
                   <div className="flex items-center space-x-1.5 min-w-0">
-                    <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800 text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0">
-                      1
+                    <span
+                      className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                        isGoiDoneToday
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800'
+                      }`}
+                    >
+                      {isGoiDoneToday ? '✓' : '1'}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-bold text-[10px] sm:text-[11px] text-[#1E1B18] dark:text-slate-100 truncate">
-                        語彙 Goi: D{activeDay}
-                      </p>
+                      <div className="flex items-center space-x-1">
+                        <p
+                          className={`font-bold text-[10px] sm:text-[11px] truncate ${
+                            isGoiDoneToday
+                              ? 'text-emerald-900 dark:text-emerald-200'
+                              : 'text-[#1E1B18] dark:text-slate-100'
+                          }`}
+                        >
+                          語彙 Goi: D{isGoiDoneToday ? (activeDay > 1 ? activeDay - 1 : activeDay) : activeDay}
+                        </p>
+                        {isGoiDoneToday && (
+                          <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
+                            ✓ {t.dashboard.practiceDoneShort || 'Selesai'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
-                        {t.dashboard.goiDescShort(targetWordsCount)}
+                        {isGoiDoneToday ? t.dashboard.practiceDoneShort : t.dashboard.goiDescShort(targetWordsCount)}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3 h-3 text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors shrink-0" />
+                  <ChevronRight
+                    className={`w-3 h-3 shrink-0 transition-colors ${
+                      isGoiDoneToday
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400'
+                    }`}
+                  />
                 </div>
 
                 <div
@@ -418,6 +480,8 @@ export const DashboardPage: React.FC = () => {
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     pendingCount > 0
                       ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/70 ring-1 ring-amber-200 dark:ring-amber-800/40'
+                      : isGoiDoneToday
+                      ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
                   }`}
                 >
@@ -426,28 +490,46 @@ export const DashboardPage: React.FC = () => {
                       className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
                         pendingCount > 0
                           ? 'bg-amber-500 text-white animate-pulse'
+                          : isGoiDoneToday
+                          ? 'bg-emerald-600 text-white'
                           : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-400'
                       }`}
                     >
-                      4
+                      {pendingCount === 0 && isGoiDoneToday ? '✓' : '4'}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1">
-                        <p className="font-bold text-[10px] sm:text-[11px] text-[#1E1B18] dark:text-slate-100 truncate">
-                           {t.common.reviewSrs}
+                        <p
+                          className={`font-bold text-[10px] sm:text-[11px] truncate ${
+                            pendingCount === 0 && isGoiDoneToday
+                              ? 'text-emerald-900 dark:text-emerald-200'
+                              : 'text-[#1E1B18] dark:text-slate-100'
+                          }`}
+                        >
+                          {t.common.reviewSrs}
                         </p>
-                        {pendingCount > 0 && (
+                        {pendingCount > 0 ? (
                           <span className="text-[8px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-900/80 dark:text-amber-200 px-1 rounded-full border border-amber-300 shrink-0">
                             {pendingCount}
                           </span>
-                        )}
+                        ) : isGoiDoneToday ? (
+                          <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
+                            ✓ {t.dashboard.srsUpToDateShort}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
                         {pendingCount > 0 ? t.dashboard.srsPendingShort(pendingCount) : t.dashboard.srsUpToDateShort}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3 h-3 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors shrink-0" />
+                  <ChevronRight
+                    className={`w-3 h-3 shrink-0 transition-colors ${
+                      pendingCount === 0 && isGoiDoneToday
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400'
+                    }`}
+                  />
                 </div>
               </div>
             </div>

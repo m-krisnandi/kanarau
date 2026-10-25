@@ -3,6 +3,7 @@ import { Trophy, Medal, Flame, Zap, X, Crown, Sparkles, TrendingUp, Users } from
 import { leaderboardApi } from '@/services/api';
 import type { LeaderboardData, LeaderboardEntry } from '@/types';
 import { useTranslation } from '@/stores/languageStore';
+import { useAuthStore } from '@/stores/authStore';
 import { calculateUserLevel } from '@/utils/levelHelper';
 
 interface LeaderboardModalProps {
@@ -12,6 +13,7 @@ interface LeaderboardModalProps {
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onClose }) => {
   const { t, language } = useTranslation();
+  const user = useAuthStore((state) => state.user);
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,16 +43,67 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  const topUsers = data?.top_users || [];
+  const effectiveUserXp = user?.total_xp ?? 0;
+
+  const topUsers = (data?.top_users || []).map((u) => {
+    const myName = (user?.displayName || user?.name || '').trim().toLowerCase();
+    const isMe = Boolean(
+      u.is_current_user ||
+      (user?.id && String(u.user_id) === String(user.id)) ||
+      (myName && u.display_name.trim().toLowerCase() === myName)
+    );
+    if (isMe) {
+      return {
+        ...u,
+        is_current_user: true,
+        total_xp: Math.max(u.total_xp, effectiveUserXp),
+      };
+    }
+    return u;
+  });
+
+  // Re-sort in case local XP moved current user higher up
+  topUsers.sort((a, b) => b.total_xp - a.total_xp);
+  topUsers.forEach((u, idx) => {
+    u.rank = idx + 1;
+  });
+
   const top1 = topUsers[0];
   const top2 = topUsers[1];
   const top3 = topUsers[2];
   const remainingUsers = topUsers.slice(3);
-  const myEntry = data?.current_user_entry;
+
+  const rawMyEntry = data?.current_user_entry;
+  const myEntry = rawMyEntry
+    ? {
+        ...rawMyEntry,
+        total_xp: Math.max(rawMyEntry.total_xp, effectiveUserXp),
+      }
+    : user
+    ? {
+        rank: topUsers.find((u) => u.is_current_user)?.rank || (topUsers.length + 1),
+        user_id: user.id || 0,
+        display_name: user.displayName || user.name || 'Murid Kanarau',
+        total_xp: effectiveUserXp,
+        streak: user.streak || 1,
+        jlpt_level: user.current_level || 'N2',
+        is_current_user: true,
+      }
+    : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-[#FAF8F5] dark:bg-[#121826] rounded-3xl shadow-2xl border border-stone-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-[#FAF8F5] dark:bg-[#121826] rounded-3xl shadow-2xl border border-stone-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden cursor-default"
+      >
         {/* Header */}
         <div className="px-5 py-4 border-b border-stone-200 dark:border-slate-800 flex items-center justify-between bg-white/70 dark:bg-[#151D2E]/80 backdrop-blur-md">
           <div className="flex items-center space-x-2.5">

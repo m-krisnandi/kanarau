@@ -102,26 +102,20 @@ export const BelajarPage: React.FC = () => {
 
         setDecks(enriched);
 
-        // Calculate current calendar target day from JLPT countdown
-        let calendarTargetDay = 1;
-        if (countdownRes.status === 'fulfilled' && countdownRes.value?.data?.days_remaining !== undefined) {
-          const daysRem = countdownRes.value.data.days_remaining;
-          calendarTargetDay = Math.max(1, Math.min(60, 60 - daysRem));
-        }
-
-        // All days up to calendar target day are unlocked to let learners catch up,
-        // and whenever a day is completed, the next day is unlocked.
+        // Only unlock sequential days:
+        // Day 1 is always unlocked.
+        // Day N is unlocked ONLY if Day N-1 is completed (100%).
         const highestCompleted = enriched
           .filter((d) => (d.progress_percent || 0) >= 100)
           .reduce((max, d) => Math.max(max, d.day_number), 0);
 
-        const unlockedDayLimit = Math.max(calendarTargetDay, highestCompleted + 1);
+        const unlockedDayLimit = Math.max(1, highestCompleted + 1);
         setMaxUnlockedDay(unlockedDayLimit);
 
-        // Find active day: the first incomplete day (or calendarTargetDay)
+        // Find active day: the first incomplete day
         const sorted = [...enriched].sort((a, b) => a.day_number - b.day_number);
         const firstIncomplete = sorted.find((d) => (d.progress_percent || 0) < 100);
-        const activeDay = firstIncomplete ? firstIncomplete.day_number : (calendarTargetDay || 1);
+        const activeDay = firstIncomplete ? firstIncomplete.day_number : (highestCompleted || 1);
         setCurrentTodayDay(activeDay);
 
         const activeWeek = Math.max(1, Math.ceil(activeDay / 7));
@@ -134,7 +128,11 @@ export const BelajarPage: React.FC = () => {
     }
 
     loadCurriculum();
-  }, [currentLevel]);
+
+    const handleProgressUpdate = () => void loadCurriculum();
+    window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
+    return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
+  }, [currentLevel, user]);
 
   const handleOpenDeck = (deck: Deck) => {
     if (deck.day_number > maxUnlockedDay && deck.day_number < 90) {
