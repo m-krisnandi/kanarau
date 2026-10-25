@@ -341,7 +341,7 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
                   {t.ai.title}
                 </h3>
                 <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
-                  Level {currentLevel}
+                   {t.common.level} {currentLevel}
                 </span>
               </div>
               <p className="text-[11px] text-[#78716C] dark:text-zinc-400">
@@ -357,7 +357,7 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
               onClose();
             }}
             className="w-8 h-8 rounded-full bg-[#EFEAE2]/60 hover:bg-[#E2DDD5] dark:bg-[#1E293B] dark:hover:bg-[#28354D] text-[#57534E] dark:text-zinc-300 hover:text-[#1E1B18] flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
-            aria-label="Close"
+             aria-label={t.common.close}
           >
             <X className="w-4 h-4" />
           </button>
@@ -462,7 +462,7 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleCopy(msg.id, msg.content)}
-                          title="Salin Teks"
+                           title={t.common.copyText}
                           className="p-1 hover:bg-[#FAF8F5] dark:hover:bg-[#232F46] rounded-md text-[#78716C] dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         >
                           {copiedId === msg.id ? (

@@ -18,6 +18,10 @@ spring:
 
 # JWT & CORS Configuration
 kanarau:
+  jlpt:
+    exam-date: ${JLPT_EXAM_DATE:2026-12-06}
+    exam-level: ${JLPT_EXAM_LEVEL:N2}
+    timezone: ${JLPT_TIMEZONE:Asia/Jakarta}
   jwt:
     secret: ${JWT_SECRET:kanarau-dev-secret-key-that-is-at-least-256-bits-long-for-hs256-signing}
     expiration-ms: 86400000  # 24 hours

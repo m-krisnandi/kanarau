@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { deckApi, studyApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, SessionResult } from '@/types';
 import { rateByTime } from '@/utils';
@@ -27,10 +27,13 @@ import {
 export const StudySessionPage: React.FC = () => {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t, language } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = storeLevel || user?.current_level || 'N2';
+  const studyMode = searchParams.get('mode');
+  const isExamMode = studyMode === 'exam' || studyMode === 'diagnostic';
 
   const [cards, setCards] = useState<QuizCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -59,7 +62,8 @@ export const StudySessionPage: React.FC = () => {
           deckApi.get(id),
         ]);
         if (cardsRes.status === 'fulfilled' && cardsRes.value.data && cardsRes.value.data.length > 0) {
-          const sessionCards = cardsRes.value.data.slice(0, 15);
+          const maxCards = studyMode === 'exam' ? 30 : studyMode === 'diagnostic' ? 20 : 15;
+          const sessionCards = cardsRes.value.data.slice(0, maxCards);
           setCards(sessionCards);
           setCardStartTime(Date.now());
         }
@@ -75,7 +79,7 @@ export const StudySessionPage: React.FC = () => {
       }
     }
     loadCards();
-  }, [deckId, language]);
+  }, [deckId, language, studyMode]);
 
   const rawCurrentCard = cards[currentIndex];
   const currentCard = rawCurrentCard ? localizeQuizCard(rawCurrentCard, language) : null;
@@ -116,6 +120,30 @@ export const StudySessionPage: React.FC = () => {
     setAnswers((prev) => [...prev, answer]);
   };
 
+  const finishSession = useCallback(async (sessionAnswers: QuizAnswer[] = answers) => {
+    setIsFinished(true);
+    const correctCount = sessionAnswers.filter((a) => a.is_correct).length;
+    const totalTimeMs = sessionAnswers.reduce((sum, a) => sum + a.response_time_ms, 0);
+    const accuracy = cards.length > 0 ? Math.round((correctCount / cards.length) * 100) : 0;
+    const xpGained = correctCount * 10 + 20;
+
+    const result: SessionResult = {
+      deck_id: deckId,
+      total_cards: cards.length,
+      correct_count: correctCount,
+      accuracy_percent: accuracy,
+      total_time_ms: totalTimeMs,
+      xp_gained: xpGained,
+      answers: sessionAnswers,
+    };
+
+    try {
+      await studyApi.submitSession(result);
+    } catch (err) {
+      console.error('Failed to submit session to backend', err);
+    }
+  }, [answers, cards.length, deckId]);
+
   const handleNext = useCallback(() => {
     if (currentIndex < cards.length - 1) {
       setCurrentIndex((prev) => prev + 1);
@@ -124,9 +152,9 @@ export const StudySessionPage: React.FC = () => {
       setShowHint(false);
       setCardStartTime(Date.now());
     } else {
-      finishSession();
+      void finishSession();
     }
-  }, [currentIndex, cards.length]);
+  }, [currentIndex, cards.length, finishSession]);
 
   // Keyboard shortcut: Press Enter or Space to go Next when answered
   useEffect(() => {
@@ -139,30 +167,6 @@ export const StudySessionPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAnswered, handleNext]);
-
-  const finishSession = async () => {
-    setIsFinished(true);
-    const correctCount = answers.filter((a) => a.is_correct).length;
-    const totalTimeMs = answers.reduce((sum, a) => sum + a.response_time_ms, 0);
-    const accuracy = cards.length > 0 ? Math.round((correctCount / cards.length) * 100) : 0;
-    const xpGained = correctCount * 10 + 20;
-
-    const result: SessionResult = {
-      deck_id: deckId,
-      total_cards: cards.length,
-      correct_count: correctCount,
-      accuracy_percent: accuracy,
-      total_time_ms: totalTimeMs,
-      xp_gained: xpGained,
-      answers,
-    };
-
-    try {
-      await studyApi.submitSession(result);
-    } catch (err) {
-      console.error('Failed to submit session to backend', err);
-    }
-  };
 
   const handleAskAiAboutCurrent = () => {
     if (!currentCard) return;
@@ -252,7 +256,7 @@ export const StudySessionPage: React.FC = () => {
             </span>
             <span className="text-xs font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 flex items-center space-x-1">
               <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-              <span>+30 EXP</span>
+               <span>+30 {t.common.exp}</span>
             </span>
           </div>
         </div>
@@ -357,8 +361,8 @@ export const StudySessionPage: React.FC = () => {
             <span className="font-mincho text-sm">{t.common.back}</span>
           </button>
 
-          <span className="text-base font-bold font-mincho text-[#1E1B18]">
-            {t.studySession.pageTitle}
+           <span className="text-base font-bold font-mincho text-[#1E1B18]">
+             {studyMode === 'exam' ? t.studySession.examMode : studyMode === 'diagnostic' ? t.studySession.diagnosticMode : t.studySession.pageTitle}
           </span>
 
           {/* Progress percent & deck tag */}
@@ -402,7 +406,7 @@ export const StudySessionPage: React.FC = () => {
           </div>
 
           {/* Hint & Tanya AI Action Buttons */}
-          <div className="flex items-center justify-center space-x-2">
+           {!isExamMode && <div className="flex items-center justify-center space-x-2">
             <button
               onClick={() => setShowHint(!showHint)}
               className="inline-flex items-center space-x-1.5 text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-full border border-amber-200 transition-colors shadow-2xs cursor-pointer"
@@ -418,10 +422,10 @@ export const StudySessionPage: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
               <span>{t.studySession.askAi}</span>
             </button>
-          </div>
+           </div>}
 
           {/* Expanded Soft Amber Hint Box */}
-          {showHint && (
+           {showHint && !isExamMode && (
             <div className="mt-3 p-3.5 bg-[#FFF9ED] border border-[#FDE68A] rounded-xl text-left text-xs text-[#92400E] leading-relaxed shadow-2xs animate-fade-in whitespace-pre-line font-jp">
               {hintContent}
             </div>
@@ -437,7 +441,7 @@ export const StudySessionPage: React.FC = () => {
             const isWrongSelected = isAnswered && isSelected && !isCorrectAnswer;
             const isHighlightedCorrect = isAnswered && isCorrectAnswer;
 
-            return (
+             return (
               <button
                 key={choice + i}
                 disabled={isAnswered}
@@ -531,11 +535,11 @@ export const StudySessionPage: React.FC = () => {
               <p className="text-[11px] text-[#57534E] leading-relaxed">
                 {t.studySession.meaningLabel} <span className="font-semibold">{currentCard.kotoba.meaning}</span>
               </p>
-              {currentCard.kotoba.notes && (
-                <p className="text-[11px] text-[#78716C] font-jp bg-white/70 p-2 rounded-xl border border-rose-100">
-                  {currentCard.kotoba.notes}
-                </p>
-              )}
+               {localizedCardNotes && (
+                 <p className="text-[11px] text-[#78716C] font-jp bg-white/70 p-2 rounded-xl border border-rose-100">
+                   {localizedCardNotes}
+                 </p>
+               )}
             </div>
           </div>
         )}

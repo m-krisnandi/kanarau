@@ -80,8 +80,16 @@ export const ProgressPage: React.FC = () => {
       let correctCount = 0;
       levelPassages.forEach((p) => {
         const res = dMap[p.id];
-        if (res && res.score > 0) {
-          correctCount += (res.score / (p.questions?.length || 1));
+        const storedCorrect = typeof res?.correctCount === 'number'
+          ? res.correctCount
+          : typeof res?.score === 'number'
+          ? res.score
+          : null;
+        const storedTotal = typeof res?.totalCount === 'number'
+          ? res.totalCount
+          : p.questions?.length || 0;
+        if (storedCorrect !== null && storedTotal > 0) {
+          correctCount += (storedCorrect / storedTotal);
         }
       });
       dokkaiScore = Math.min(60, Math.round((correctCount / levelPassages.length) * 60));

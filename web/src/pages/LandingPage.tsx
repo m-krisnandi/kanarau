@@ -193,7 +193,7 @@ export const LandingPage: React.FC = () => {
                 <button
                   onClick={() => handlePlaySampleAudio('知能')}
                   className="w-10 h-10 rounded-2xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                  title="Dengar Audio"
+                   title={t.common.audioListen}
                 >
                   <Volume2 className="w-5 h-5" />
                 </button>
@@ -406,14 +406,14 @@ export const LandingPage: React.FC = () => {
       {/* ─── Footer ─── */}
       <footer className="mt-auto py-6 border-t border-stone-200 dark:border-[#1E293B] px-4 text-xs text-stone-500 dark:text-zinc-500 text-center space-y-2">
         <div className="flex items-center justify-center space-x-4">
-          <span>Kanarau JLPT System</span>
+           <span>{t.landing.footerSystem}</span>
           <span>·</span>
-          <span>Spaced Repetition</span>
+           <span>SRS</span>
           <span>·</span>
           <span>v1.0.0</span>
         </div>
         <p className="text-[11px] opacity-75">
-          Tokyo Pronunciation Audio · OpenJLPT Curriculum
+           {t.landing.footerTagline}
         </p>
       </footer>
     </div>

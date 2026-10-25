@@ -38,7 +38,16 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {(() => {
-              const lang = typeof window !== 'undefined' ? (localStorage.getItem('kanarau_language') || 'id') : 'id';
+              const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('kanarau-language') : null;
+              let lang = 'id';
+              try {
+                const parsed = storedLanguage ? JSON.parse(storedLanguage) : null;
+                if (parsed?.state?.language === 'en' || parsed?.state?.language === 'my' || parsed?.state?.language === 'id') {
+                  lang = parsed.state.language;
+                }
+              } catch {
+                lang = 'id';
+              }
               const title = lang === 'my' ? 'စာမျက်နှာ ဖော်ပြရာတွင် အခက်အခဲရှိနေသည်' : lang === 'en' ? 'Unable to Load View' : 'Terjadi Kendala Memuat Tampilan';
               const sub = lang === 'my' ? 'ဤစာမျက်နှာကို တင်ယူရာတွင် ယာယီ ချို့ယွင်းချက် ဖြစ်ပေါ်နေပါသည်။ အောက်ပါခလုတ်ကို နှိပ်၍ ပြန်လည်စတင်ပါ။' : lang === 'en' ? 'The application encountered a temporary issue while loading this view. Click below to reload the session.' : 'Aplikasi mengalami gangguan sementara saat memuat rute. Klik tombol di bawah untuk menyegarkan sesi.';
               const btn = lang === 'my' ? 'စာမျက်နှာ ပြန်ဖွင့်ပါ' : lang === 'en' ? 'Reload Page' : 'Muat Ulang Halaman';

@@ -184,7 +184,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-100/80">
-                Level {level}
+                 {t.common.level} {level}
               </span>
               <span className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -392,7 +392,7 @@ export const DashboardPage: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1">
                         <p className="font-bold text-[10px] sm:text-[11px] text-[#1E1B18] dark:text-slate-100 truncate">
-                          Review SRS
+                           {t.common.reviewSrs}
                         </p>
                         {pendingCount > 0 && (
                           <span className="text-[8px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-900/80 dark:text-amber-200 px-1 rounded-full border border-amber-300 shrink-0">

@@ -25,6 +25,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 const BASE_URL = `${API_BASE}/api/v1`;
 
 let inMemoryToken: string | null = null;
+const PENDING_STUDY_SESSIONS_KEY = 'kanarau-pending-study-sessions';
+const PENDING_REVIEWS_KEY = 'kanarau-pending-reviews';
 
 export const setAuthToken = (token: string | null) => {
   inMemoryToken = token;
@@ -46,6 +48,63 @@ export function getToken(): string | null {
     // ignore
   }
   return null;
+}
+
+function readQueue<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function enqueue<T>(key: string, payload: T) {
+  try {
+    const queue = readQueue<T>(key);
+    queue.push(payload);
+    localStorage.setItem(key, JSON.stringify(queue.slice(-20)));
+  } catch {
+    // Offline persistence is best-effort and must never block the study flow.
+  }
+}
+
+export async function flushPendingStudyData() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+  const sessions = readQueue<SessionResult>(PENDING_STUDY_SESSIONS_KEY);
+  const reviews = readQueue<QuizAnswer[]>(PENDING_REVIEWS_KEY);
+
+  for (const session of sessions) {
+    try {
+      await request<ApiResponse<{ xp_gained: number }>>('/study/submit', {
+        method: 'POST',
+        body: JSON.stringify(session),
+      });
+      sessions.shift();
+      localStorage.setItem(PENDING_STUDY_SESSIONS_KEY, JSON.stringify(sessions));
+    } catch {
+      break;
+    }
+  }
+
+  for (const review of reviews) {
+    try {
+      await request<ApiResponse<{ xp_gained: number }>>('/review/submit', {
+        method: 'POST',
+        body: JSON.stringify({ answers: review }),
+      });
+      reviews.shift();
+      localStorage.setItem(PENDING_REVIEWS_KEY, JSON.stringify(reviews));
+    } catch {
+      break;
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => void flushPendingStudyData());
 }
 
 async function request<T>(
@@ -172,11 +231,18 @@ export const deckApi = {
 
 // ─── Study ───────────────────────────────────────────────────────────
 export const studyApi = {
-  submitSession(result: SessionResult) {
-    return request<ApiResponse<{ xp_gained: number }>>('/study/submit', {
-      method: 'POST',
-      body: JSON.stringify(result),
-    });
+  async submitSession(result: SessionResult) {
+    try {
+      return await request<ApiResponse<{ xp_gained: number }>>('/study/submit', {
+        method: 'POST',
+        body: JSON.stringify(result),
+      });
+    } catch (err) {
+      if ((typeof navigator !== 'undefined' && !navigator.onLine) || err instanceof TypeError) {
+        enqueue(PENDING_STUDY_SESSIONS_KEY, result);
+      }
+      throw err;
+    }
   },
 
   submitAnswer(answer: QuizAnswer) {
@@ -198,11 +264,18 @@ export const reviewApi = {
     return request<ApiResponse<QuizCard[]>>(`/review/queue${query}`);
   },
 
-  submitReview(answers: QuizAnswer[]) {
-    return request<ApiResponse<{ xp_gained: number }>>('/review/submit', {
-      method: 'POST',
-      body: JSON.stringify({ answers }),
-    });
+  async submitReview(answers: QuizAnswer[]) {
+    try {
+      return await request<ApiResponse<{ xp_gained: number }>>('/review/submit', {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      });
+    } catch (err) {
+      if ((typeof navigator !== 'undefined' && !navigator.onLine) || err instanceof TypeError) {
+        enqueue(PENDING_REVIEWS_KEY, answers);
+      }
+      throw err;
+    }
   },
 };
 

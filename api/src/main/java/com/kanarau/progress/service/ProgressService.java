@@ -15,6 +15,7 @@ import com.kanarau.review.repository.UserProgressRepository;
 import com.kanarau.study.entity.StudySession;
 import com.kanarau.study.repository.StudySessionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.*;
 import java.time.temporal.ChronoUnit;
@@ -28,17 +29,26 @@ public class ProgressService {
     private final DeckKotobaRepository deckKotobaRepository;
     private final UserProgressRepository userProgressRepository;
     private final StudySessionRepository studySessionRepository;
+    private final LocalDate examDate;
+    private final JlptLevel examLevel;
+    private final ZoneId studyZone;
 
     public ProgressService(
             DeckRepository deckRepository,
             DeckKotobaRepository deckKotobaRepository,
             UserProgressRepository userProgressRepository,
-            StudySessionRepository studySessionRepository
+            StudySessionRepository studySessionRepository,
+            @Value("${kanarau.jlpt.exam-date:2026-12-06}") String examDate,
+            @Value("${kanarau.jlpt.exam-level:N2}") String examLevel,
+            @Value("${kanarau.jlpt.timezone:Asia/Jakarta}") String timezone
     ) {
         this.deckRepository = deckRepository;
         this.deckKotobaRepository = deckKotobaRepository;
         this.userProgressRepository = userProgressRepository;
         this.studySessionRepository = studySessionRepository;
+        this.examDate = LocalDate.parse(examDate);
+        this.examLevel = JlptLevel.valueOf(examLevel.toUpperCase(Locale.ROOT));
+        this.studyZone = ZoneId.of(timezone);
     }
 
     public OverallStatsResponse getOverallStats(Long userId) {
@@ -69,7 +79,7 @@ public class ProgressService {
 
         int totalStudyDays = (int) sessions.stream()
                 .filter(s -> s.getStartedAt() != null)
-                .map(s -> s.getStartedAt().atZone(ZoneId.systemDefault()).toLocalDate())
+                .map(s -> s.getStartedAt().atZone(studyZone).toLocalDate())
                 .distinct()
                 .count();
 
@@ -91,8 +101,8 @@ public class ProgressService {
         int daysInMonth = ym.lengthOfMonth();
         List<MonthlyCalendarResponse.DayStatsDto> dayList = new ArrayList<>();
 
-        Instant start = ym.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = ym.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
+        Instant start = ym.atDay(1).atStartOfDay(studyZone).toInstant();
+        Instant end = ym.atEndOfMonth().atTime(23, 59, 59).atZone(studyZone).toInstant();
 
         List<StudySession> sessions = (userId != null)
                 ? studySessionRepository.findByUserIdAndDateRange(userId, start, end)
@@ -100,7 +110,7 @@ public class ProgressService {
 
         Map<Integer, List<StudySession>> sessionsByDay = sessions.stream()
                 .filter(s -> s.getStartedAt() != null)
-                .collect(Collectors.groupingBy(s -> s.getStartedAt().atZone(ZoneId.systemDefault()).getDayOfMonth()));
+                .collect(Collectors.groupingBy(s -> s.getStartedAt().atZone(studyZone).getDayOfMonth()));
 
         for (int d = 1; d <= daysInMonth; d++) {
             LocalDate date = ym.atDay(d);
@@ -184,14 +194,13 @@ public class ProgressService {
     }
 
     public JlptCountdownResponse getCountdown() {
-        LocalDate today = LocalDate.now();
-        LocalDate nextExam = LocalDate.of(2026, 12, 6);
-        long days = ChronoUnit.DAYS.between(today, nextExam);
+        LocalDate today = LocalDate.now(studyZone);
+        long days = ChronoUnit.DAYS.between(today, examDate);
         int daysRemaining = (int) Math.max(0, days);
 
         return new JlptCountdownResponse(
-                JlptLevel.N2,
-                "2026-12-06",
+                examLevel,
+                examDate.toString(),
                 daysRemaining
         );
     }
@@ -202,10 +211,10 @@ public class ProgressService {
 
         Set<LocalDate> dates = sessions.stream()
                 .filter(s -> s.getStartedAt() != null)
-                .map(s -> s.getStartedAt().atZone(ZoneId.systemDefault()).toLocalDate())
+                .map(s -> s.getStartedAt().atZone(studyZone).toLocalDate())
                 .collect(Collectors.toSet());
 
-        LocalDate checkDate = LocalDate.now();
+        LocalDate checkDate = LocalDate.now(studyZone);
         int streak = 0;
 
         if (!dates.contains(checkDate)) {

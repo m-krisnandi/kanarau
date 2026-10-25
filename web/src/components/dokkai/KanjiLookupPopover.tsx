@@ -19,7 +19,7 @@ export const KanjiLookupPopover: React.FC<KanjiLookupPopoverProps> = ({
   onAskAi,
   position,
 }) => {
-  const { language } = useTranslation();
+  const { language, t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -85,7 +85,7 @@ export const KanjiLookupPopover: React.FC<KanjiLookupPopoverProps> = ({
                   ? 'bg-blue-600 text-white border-blue-600 animate-pulse'
                   : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
               }`}
-              title="Dengar pengucapan native"
+              title={t.common.audioListen}
             >
               <Volume2 className="w-4 h-4" />
             </button>
@@ -94,7 +94,7 @@ export const KanjiLookupPopover: React.FC<KanjiLookupPopoverProps> = ({
             <button
               onClick={handleCopy}
               className="w-8 h-8 rounded-full bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 flex items-center justify-center transition-all cursor-pointer"
-              title="Salin kata"
+              title={t.common.copyText}
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             </button>
@@ -132,12 +132,12 @@ export const KanjiLookupPopover: React.FC<KanjiLookupPopoverProps> = ({
             </div>
             {entry.kanjiInfo.onReadings && entry.kanjiInfo.onReadings.length > 0 && (
               <p className="text-stone-600 dark:text-slate-300">
-                On: <span className="font-jp font-semibold text-blue-700 dark:text-blue-400">{entry.kanjiInfo.onReadings.join(', ')}</span>
+                {t.common.onReading} <span className="font-jp font-semibold text-blue-700 dark:text-blue-400">{entry.kanjiInfo.onReadings.join(', ')}</span>
               </p>
             )}
             {entry.kanjiInfo.kunReadings && entry.kanjiInfo.kunReadings.length > 0 && (
               <p className="text-stone-600 dark:text-slate-300">
-                Kun: <span className="font-jp font-semibold text-emerald-700 dark:text-emerald-400">{entry.kanjiInfo.kunReadings.join(', ')}</span>
+                {t.common.kunReading} <span className="font-jp font-semibold text-emerald-700 dark:text-emerald-400">{entry.kanjiInfo.kunReadings.join(', ')}</span>
               </p>
             )}
           </div>

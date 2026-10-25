@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { reviewApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, ReviewStats, Kotoba } from '@/types';
 import { rateByTime } from '@/utils';
@@ -8,10 +8,13 @@ import { useTranslation } from '@/stores/languageStore';
 import { localizeQuizCard, localizeKotoba } from '@/locales/vocabularyTranslations';
 import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
+import { useMistakesStore } from '@/stores/mistakesStore';
+import { useAuthStore } from '@/stores/authStore';
 
 export const ReviewPage: React.FC = () => {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
+  const currentLevel = useAuthStore((state) => state.currentLevel || state.user?.current_level || 'N2');
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [queue, setQueue] = useState<QuizCard[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -26,6 +29,11 @@ export const ReviewPage: React.FC = () => {
   // Detail Modal State
   const [activeKotoba, setActiveKotoba] = useState<Kotoba | null>(null);
   const [activeKanjiChar, setActiveKanjiChar] = useState<string | null>(null);
+  const mistakes = useMistakesStore((state) => state.mistakes);
+  const weakWords = useMemo(
+    () => [...mistakes].sort((a, b) => b.count - a.count || b.timestamp - a.timestamp).slice(0, 5),
+    [mistakes]
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -87,9 +95,10 @@ export const ReviewPage: React.FC = () => {
       setIsAnswered(false);
       setCardStartTime(Date.now());
     } else {
+      const finalAnswers = answers;
       setIsFinished(true);
       try {
-        await reviewApi.submitReview(answers);
+        await reviewApi.submitReview(finalAnswers);
       } catch (err) {
         console.error('Failed to submit reviews', err);
       }
@@ -122,7 +131,7 @@ export const ReviewPage: React.FC = () => {
             {currentIndex + 1} / {queue.length}
           </span>
           <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
-            SRS Spaced Review
+             {t.common.spacedReview}
           </span>
         </div>
 
@@ -298,7 +307,7 @@ export const ReviewPage: React.FC = () => {
         </div>
         <div className="card-washi rounded-2xl p-3.5 text-center border border-[#EFEAE2]">
           <span className="text-base font-bold text-amber-700">
-            {stats?.due_tomorrow ?? 4}
+             {stats?.due_tomorrow ?? 0}
           </span>
           <p className="text-[10px] text-[#78716C] mt-0.5">{t.review.tomorrow}</p>
         </div>
@@ -309,6 +318,37 @@ export const ReviewPage: React.FC = () => {
           <p className="text-[10px] text-[#78716C] mt-0.5">{t.review.overdue}</p>
         </div>
       </div>
+
+      {weakWords.length > 0 && (
+        <div className="card-washi rounded-2xl p-4 border border-rose-100 bg-rose-50/30 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xs font-bold text-rose-900">{t.ai.weakLabel(currentLevel)}</h2>
+              <p className="text-[10px] text-rose-700/80">{t.ai.weakDesc}</p>
+            </div>
+            <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">{weakWords.length}</span>
+          </div>
+          <div className="space-y-1.5">
+            {weakWords.map((mistake) => (
+              <div key={mistake.id} className="flex items-center justify-between rounded-xl bg-white/80 border border-rose-100 px-3 py-2">
+                <div className="min-w-0">
+                  <span className="font-jp font-bold text-sm text-stone-900">{mistake.kanji}</span>
+                  <span className="ml-2 text-[10px] text-indigo-600 font-jp">{mistake.hiragana}</span>
+                  <p className="text-[10px] text-stone-500 truncate">{localizeKotoba({
+                    id: mistake.id,
+                    kanji: mistake.kanji,
+                    hiragana: mistake.hiragana,
+                    meaning: mistake.meaning,
+                    jlpt_level: mistake.level as any,
+                    part_of_speech: '',
+                  }, language).meaning}</p>
+                </div>
+                <span className="text-[10px] font-bold text-rose-700 shrink-0">×{mistake.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

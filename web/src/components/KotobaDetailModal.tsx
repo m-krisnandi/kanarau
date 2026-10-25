@@ -307,7 +307,7 @@ export const KotobaDetailModal: React.FC<Props> = ({ kotoba, onClose, onViewKanj
               onClose();
             }}
             className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-[#1E293B] dark:hover:bg-[#28354D] text-stone-500 hover:text-stone-800 dark:text-zinc-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-            aria-label="Close"
+             aria-label={t.common.close}
           >
             <X className="w-3.5 h-3.5" />
           </button>

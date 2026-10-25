@@ -310,7 +310,7 @@ export const KanjiDetailView: React.FC<Props> = ({ character, onClose, onSelectK
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs scale-105 ring-2 ring-indigo-300'
                                   : 'bg-white dark:bg-[#1E293B] text-stone-800 dark:text-zinc-200 border-stone-200 dark:border-stone-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                               }`}
-                              title={`Dengarkan bacaan On: ${r}`}
+                              title={`${t.common.audioListen} ${t.common.onReading} ${r}`}
                             >
                               <span>{r}</span>
                               <Volume2 className={`w-3.5 h-3.5 ${isCurrentlyPlaying ? 'text-white animate-pulse' : 'text-indigo-500 opacity-70'}`} />
@@ -341,7 +341,7 @@ export const KanjiDetailView: React.FC<Props> = ({ character, onClose, onSelectK
                                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs scale-105 ring-2 ring-emerald-300'
                                   : 'bg-white dark:bg-[#1E293B] text-stone-800 dark:text-zinc-200 border-stone-200 dark:border-stone-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:text-emerald-400'
                               }`}
-                              title={`Dengarkan bacaan Kun: ${r}`}
+                              title={`${t.common.audioListen} ${t.common.kunReading} ${r}`}
                             >
                               <span>{r}</span>
                               <Volume2 className={`w-3.5 h-3.5 ${isCurrentlyPlaying ? 'text-white animate-pulse' : 'text-emerald-500 opacity-70'}`} />

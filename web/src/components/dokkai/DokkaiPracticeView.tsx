@@ -922,7 +922,7 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
                     ? 'တိုကျို မူရင်းအသံဖြင့် နားထောင်ရန်'
                     : language === 'en'
                     ? 'Listen to Native Tokyo Audio Narration'
-                    : 'Dengar Audio Narasi Asli Tokyo'}
+                     : t.common.audioListen}
                 </span>
               </div>
 

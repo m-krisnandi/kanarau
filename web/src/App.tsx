@@ -1,18 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { LandingPage } from '@/pages/LandingPage';
-import { BelajarPage } from '@/pages/BelajarPage';
-import { StudySessionPage } from '@/pages/StudySessionPage';
-import { ReviewPage } from '@/pages/ReviewPage';
-import { JishoPage } from '@/pages/JishoPage';
-import { ProgressPage } from '@/pages/ProgressPage';
-import { LoginPage } from '@/pages/LoginPage';
-import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
+import { flushPendingStudyData } from '@/services/api';
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const BelajarPage = lazy(() => import('@/pages/BelajarPage').then((m) => ({ default: m.BelajarPage })));
+const StudySessionPage = lazy(() => import('@/pages/StudySessionPage').then((m) => ({ default: m.StudySessionPage })));
+const ReviewPage = lazy(() => import('@/pages/ReviewPage').then((m) => ({ default: m.ReviewPage })));
+const JishoPage = lazy(() => import('@/pages/JishoPage').then((m) => ({ default: m.JishoPage })));
+const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
+const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const AdminDashboardPage = lazy(() => import('@/pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -69,64 +70,28 @@ export const App: React.FC = () => {
     }
   }, [token, user, fetchUser]);
 
+  useEffect(() => {
+    void flushPendingStudyData();
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <Layout>
-          <Routes>
-            <Route path="/" element={<RootRoute />} />
-            <Route path="/landing" element={<LandingPage />} />
-            <Route
-              path="/belajar"
-              element={
-                <ProtectedRoute>
-                  <BelajarPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/study-session/:deckId"
-              element={
-                <ProtectedRoute>
-                  <StudySessionPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/review"
-              element={
-                <ProtectedRoute>
-                  <ReviewPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jisho"
-              element={
-                <ProtectedRoute>
-                  <JishoPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/progress"
-              element={
-                <ProtectedRoute>
-                  <ProgressPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminRoute>
-                  <AdminDashboardPage />
-                </AdminRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-xs text-stone-500">Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<RootRoute />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/belajar" element={<ProtectedRoute><BelajarPage /></ProtectedRoute>} />
+              <Route path="/study-session/:deckId" element={<ProtectedRoute><StudySessionPage /></ProtectedRoute>} />
+              <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
+              <Route path="/jisho" element={<ProtectedRoute><JishoPage /></ProtectedRoute>} />
+              <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </Layout>
       </BrowserRouter>
     </ErrorBoundary>

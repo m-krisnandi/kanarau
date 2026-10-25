@@ -537,7 +537,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
                     >
                       <span className="text-[9px] font-bold text-[#A8A29E] flex items-center space-x-0.5">
                         {isStarSlot && <Star className="w-3 h-3 text-amber-500 fill-amber-500 inline mr-0.5" />}
-                        <span>Slot {slotIdx + 1}</span>
+                         <span>{t.common.slot} {slotIdx + 1}</span>
                       </span>
 
                       {hasWord ? (

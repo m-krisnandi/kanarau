@@ -1488,7 +1488,7 @@ export const AdminDashboardPage: React.FC = () => {
                     type="text"
                     value={newAdminName}
                     onChange={(e) => setNewAdminName(e.target.value)}
-                    placeholder="Nama Lengkap Admin"
+                    placeholder={(t.admin as any).addAdmin?.namePlaceholder || t.common.level}
                     className="w-full px-3 py-2 bg-stone-50 dark:bg-[#0B0F19] border border-stone-200 dark:border-[#232F46] rounded-xl text-xs text-stone-900 dark:text-white focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>

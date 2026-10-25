@@ -401,18 +401,42 @@ export const BelajarPage: React.FC = () => {
       {activeTab === 'goi' && (
         <div className="space-y-4">
           {/* Header Action: Sort order */}
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-[#78716C] uppercase tracking-wider font-mono">
-              {t.belajar.curriculumTitle(currentLevel)}
-            </span>
-            <button
-              onClick={() => setSortAsc(!sortAsc)}
-              className="flex items-center space-x-1 text-xs text-[#78716C] hover:text-[#1E1B18] transition-colors cursor-pointer"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              <span>{sortAsc ? t.belajar.sortOldest : t.belajar.sortNewest}</span>
-            </button>
-          </div>
+           <div className="flex items-center justify-between px-1 gap-2">
+             <span className="text-xs font-bold text-[#78716C] uppercase tracking-wider font-mono">
+               {t.belajar.curriculumTitle(currentLevel)}
+             </span>
+             <div className="flex items-center gap-2 shrink-0">
+               {standardDecks.length > 0 && (
+                 <>
+                   <button
+                     onClick={() => {
+                       const firstDeck = standardDecks.find((d) => d.day_number === currentTodayDay) || standardDecks[0];
+                       if (firstDeck) navigate(`/study-session/${firstDeck.id}?mode=diagnostic`);
+                     }}
+                     className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg cursor-pointer"
+                   >
+                     {t.studySession.diagnosticMode}
+                   </button>
+                   <button
+                     onClick={() => {
+                       const firstDeck = standardDecks.find((d) => d.day_number === currentTodayDay) || standardDecks[0];
+                       if (firstDeck) navigate(`/study-session/${firstDeck.id}?mode=exam`);
+                     }}
+                     className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-1 rounded-lg cursor-pointer"
+                   >
+                     {t.studySession.examMode}
+                   </button>
+                 </>
+               )}
+               <button
+                 onClick={() => setSortAsc(!sortAsc)}
+                 className="flex items-center space-x-1 text-xs text-[#78716C] hover:text-[#1E1B18] transition-colors cursor-pointer"
+               >
+                 <ArrowUpDown className="w-3.5 h-3.5" />
+                 <span>{sortAsc ? t.belajar.sortOldest : t.belajar.sortNewest}</span>
+               </button>
+             </div>
+           </div>
 
           {loading ? (
             <div className="text-center py-12 text-[#78716C] text-sm font-mincho">
@@ -448,7 +472,7 @@ export const BelajarPage: React.FC = () => {
                             )}
                           </span>
                           <span className="font-bold text-sm text-[#1E1B18] font-mincho">
-                            {`Week ${wg.weekNum} · DAY ${wg.startDay}–${wg.endDay}`}
+                             {`${t.common.week} ${wg.weekNum} · ${t.common.day} ${wg.startDay}–${wg.endDay}`}
                           </span>
                         </div>
                         <span

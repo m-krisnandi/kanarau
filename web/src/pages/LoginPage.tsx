@@ -208,7 +208,7 @@ export const LoginPage: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-[#232F46] bg-white dark:bg-[#0B0F19] text-stone-900 dark:text-white text-sm focus:outline-hidden focus:border-indigo-500 transition-colors"
-                  placeholder="Nama Lengkap"
+                  placeholder={t.login.fullName}
                 />
               </div>
             )}

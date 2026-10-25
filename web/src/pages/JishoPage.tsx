@@ -267,7 +267,7 @@ export const JishoPage: React.FC = () => {
                         {k.meanings.join(', ')}
                       </h3>
                       <p className="text-[11px] text-[#78716C] font-jp">
-                        On: {k.on_readings.join(', ') || '-'} &bull; Kun: {k.kun_readings.join(', ') || '-'}
+                         {t.common.onReading} {k.on_readings.join(', ') || '-'} &bull; {t.common.kunReading} {k.kun_readings.join(', ') || '-'}
                       </p>
                     </div>
                   </div>
@@ -297,7 +297,7 @@ export const JishoPage: React.FC = () => {
             <span>
               {t.jisho.loadMore
                 ? t.jisho.loadMore(remainingCount)
-                : `Tampilkan ${remainingCount} hasil lainnya`}
+                 : t.common.showMoreResults(remainingCount)}
             </span>
           </button>
         </div>

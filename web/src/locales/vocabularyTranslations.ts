@@ -5547,7 +5547,7 @@ export function localizeNotes(notes: string | null | undefined, lang: Language):
   if (!notes) return '';
   if (lang === 'id') return notes;
 
-  return notes.replace(/Kelas kata:\s*([a-zA-Z0-9\-_]+)/gi, (_match, pos) => {
+  const translated = notes.replace(/Kelas kata:\s*([a-zA-Z0-9\-_]+)/gi, (_match, pos) => {
     const p = pos.toLowerCase();
     if (lang === 'en') {
       const posMap: Record<string, string> = {
@@ -5583,6 +5583,12 @@ export function localizeNotes(notes: string | null | undefined, lang: Language):
     }
     return notes;
   });
+
+  const likelyIndonesian = /\b(dipakai|berbeda|kesalahan|digunakan|mencegah|bagian|bentuk|kelas|contoh|jika|sangat|tidak|untuk|dengan|yang|dan|atau|dari|pada)\b/i.test(translated);
+  if (likelyIndonesian) {
+    return lang === 'my' ? 'မှတ်ချက် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable';
+  }
+  return translated;
 }
 
 export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
@@ -5625,14 +5631,14 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
     const sMap = (EXAMPLE_SENTENCE_TRANSLATIONS as Record<string, Record<string, string>>)[k.example_sentence.trim()];
     if (sMap && sMap[lang]) {
       localizedExample = sMap[lang];
-    } else if (lang === 'my' && sMap && sMap.en) {
-      localizedExample = sMap.en;
+    } else if (lang === 'my' && sMap && sMap.my) {
+      localizedExample = sMap.my;
     }
   }
 
   return {
     ...k,
-    meaning: localizedMeaning || k.meaning,
+    meaning: localizedMeaning || (lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable'),
     notes: localizedNotes,
     example_sentence_meaning: localizedExample || undefined,
   };
@@ -5662,7 +5668,10 @@ export function localizeKanji(k: Kanji, lang: Language): Kanji {
     return { ...k, meanings: list };
   }
 
-  return k;
+  return {
+    ...k,
+    meanings: [lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable'],
+  };
 }
 
 /**
@@ -5693,7 +5702,7 @@ export function translateMeaningString(str: string, lang: Language): string {
     }
   }
 
-  return str;
+  return lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable';
 }
 
 /**
