@@ -63,7 +63,17 @@ export const StudySessionPage: React.FC = () => {
         ]);
         if (cardsRes.status === 'fulfilled' && cardsRes.value.data && cardsRes.value.data.length > 0) {
           const maxCards = studyMode === 'exam' ? 30 : studyMode === 'diagnostic' ? 20 : 15;
-          const sessionCards = cardsRes.value.data.slice(0, maxCards);
+          const sanitizedCards = cardsRes.value.data.filter((card) => {
+            if (!card || !card.question || !card.correct_answer) return false;
+            const q = card.question.trim().toLowerCase();
+            const a = card.correct_answer.trim().toLowerCase();
+            if (q === a) return false;
+            if (card.direction === 'kanji_to_hiragana' && !/[\u4e00-\u9faf]/.test(card.question)) {
+              return false;
+            }
+            return true;
+          });
+          const sessionCards = sanitizedCards.slice(0, maxCards);
           setCards(sessionCards);
           setCardStartTime(Date.now());
         }
@@ -341,12 +351,16 @@ export const StudySessionPage: React.FC = () => {
           ? 'Observe the kanji pattern and radicals to recall the meaning of this word.'
           : 'Perhatikan pola kanji dan radikal pembentuknya untuk mengingat makna kata ini.'));
 
+  const hasKanji = (text?: string) => !!text && /[\u4e00-\u9faf]/.test(text);
+
   const directionLabel =
     currentCard?.direction === 'kanji_to_hiragana'
       ? t.studySession.pickHiragana
       : currentCard?.direction === 'kanji_to_meaning'
       ? t.studySession.pickMeaning
-      : t.studySession.pickKanji;
+      : hasKanji(currentCard?.correct_answer)
+      ? t.studySession.pickKanji
+      : t.studySession.pickWord;
 
   return (
     <>
@@ -434,7 +448,12 @@ export const StudySessionPage: React.FC = () => {
 
         {/* Numbered Choices List 1, 2, 3, 4 */}
         <div className="space-y-2.5">
-          {currentCard?.choices.map((choice, i) => {
+          {currentCard?.choices
+            .filter((choice) => {
+              if (choice === currentCard.correct_answer) return true;
+              return choice.trim().toLowerCase() !== currentCard.question.trim().toLowerCase();
+            })
+            .map((choice, i) => {
             const choiceNumber = i + 1;
             const isSelected = selectedChoice === choice;
             const isCorrectAnswer = choice === currentCard.correct_answer;

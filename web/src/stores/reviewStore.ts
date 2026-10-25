@@ -31,8 +31,11 @@ export const useReviewStore = create<ReviewState>()((set, get) => ({
   pendingCount: 0,
 
   startReview: (cards) => {
+    const sanitizedQueue = (cards || []).filter(
+      (c) => c && c.question && c.correct_answer && c.question.trim().toLowerCase() !== c.correct_answer.trim().toLowerCase()
+    );
     set({
-      queue: cards,
+      queue: sanitizedQueue,
       currentIndex: 0,
       answers: [],
       sessionResult: null,

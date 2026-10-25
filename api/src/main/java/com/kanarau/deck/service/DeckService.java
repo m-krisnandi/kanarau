@@ -93,33 +93,58 @@ public class DeckService {
         List<String> allMeaningsPool = kotobas.stream()
                 .map(item -> getMeaningForLang(item, lang))
                 .filter(m -> m != null && !m.isBlank())
+                .map(String::trim)
+                .toList();
+
+        List<String> allHiraganasPool = kotobas.stream()
+                .map(Kotoba::getHiragana)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
+
+        List<String> allJapaneseWordsPool = kotobas.stream()
+                .map(item -> (item.getKanji() != null && !item.getKanji().isBlank())
+                        ? item.getKanji().trim()
+                        : (item.getHiragana() != null ? item.getHiragana().trim() : ""))
+                .filter(s -> !s.isBlank())
                 .toList();
 
         for (Kotoba k : kotobas) {
             KotobaResponse kDto = KotobaResponse.from(k, lang);
             String localizedMeaning = getMeaningForLang(k, lang);
+            String kanji = k.getKanji() != null ? k.getKanji().trim() : "";
+            String hiragana = k.getHiragana() != null ? k.getHiragana().trim() : "";
+            String primaryJapanese = !kanji.isBlank() ? kanji : hiragana;
+            String cleanMeaning = localizedMeaning != null ? localizedMeaning.trim() : "";
 
-            // 1. Kanji to Meaning
-            List<String> meaningChoices = generateChoices(
-                    localizedMeaning,
-                    allMeaningsPool,
-                    random,
-                    lang
-            );
-            cards.add(new QuizCardResponse(
-                    "card_" + k.getId() + "_km",
-                    kDto,
-                    "kanji_to_meaning",
-                    k.getKanji() != null && !k.getKanji().isBlank() ? k.getKanji() : k.getHiragana(),
-                    localizedMeaning,
-                    meaningChoices
-            ));
+            // 1. Kanji / Japanese to Meaning
+            if (!primaryJapanese.isBlank() && !cleanMeaning.isBlank()
+                    && !primaryJapanese.equalsIgnoreCase(cleanMeaning)) {
+                List<String> meaningChoices = generateChoices(
+                        cleanMeaning,
+                        primaryJapanese,
+                        allMeaningsPool,
+                        random,
+                        lang
+                );
+                cards.add(new QuizCardResponse(
+                        "card_" + k.getId() + "_km",
+                        kDto,
+                        "kanji_to_meaning",
+                        primaryJapanese,
+                        cleanMeaning,
+                        meaningChoices
+                ));
+            }
 
-            // 2. Kanji to Hiragana
-            if (k.getKanji() != null && !k.getKanji().isBlank()) {
+            // 2. Kanji to Hiragana (Reading Quiz)
+            // MUST only be generated if the word actually contains Kanji characters and the reading is different from the kanji text
+            if (hasKanji(kanji) && !hiragana.isBlank() && !kanji.equalsIgnoreCase(hiragana)) {
                 List<String> readingChoices = generateChoices(
-                        k.getHiragana(),
-                        kotobas.stream().map(Kotoba::getHiragana).toList(),
+                        hiragana,
+                        kanji,
+                        allHiraganasPool,
                         random,
                         lang
                 );
@@ -127,32 +152,45 @@ public class DeckService {
                         "card_" + k.getId() + "_kh",
                         kDto,
                         "kanji_to_hiragana",
-                        k.getKanji(),
-                        k.getHiragana(),
+                        kanji,
+                        hiragana,
                         readingChoices
                 ));
             }
 
-            // 3. Meaning to Kanji
-            String correctTarget = k.getKanji() != null && !k.getKanji().isBlank() ? k.getKanji() : k.getHiragana();
-            List<String> kanjiChoices = generateChoices(
-                    correctTarget,
-                    kotobas.stream().map(item -> item.getKanji() != null && !item.getKanji().isBlank() ? item.getKanji() : item.getHiragana()).toList(),
-                    random,
-                    lang
-            );
-            cards.add(new QuizCardResponse(
-                    "card_" + k.getId() + "_mk",
-                    kDto,
-                    "meaning_to_kanji",
-                    localizedMeaning,
-                    correctTarget,
-                    kanjiChoices
-            ));
+            // 3. Meaning to Kanji / Japanese word
+            if (!cleanMeaning.isBlank() && !primaryJapanese.isBlank()
+                    && !cleanMeaning.equalsIgnoreCase(primaryJapanese)) {
+                List<String> kanjiChoices = generateChoices(
+                        primaryJapanese,
+                        cleanMeaning,
+                        allJapaneseWordsPool,
+                        random,
+                        lang
+                );
+                cards.add(new QuizCardResponse(
+                        "card_" + k.getId() + "_mk",
+                        kDto,
+                        "meaning_to_kanji",
+                        cleanMeaning,
+                        primaryJapanese,
+                        kanjiChoices
+                ));
+            }
         }
+
+        // Post-generation invariant: Remove any cards where question equals answer or either is blank
+        cards.removeIf(card -> card.question() == null || card.correctAnswer() == null
+                || card.question().trim().isBlank() || card.correctAnswer().trim().isBlank()
+                || card.question().trim().equalsIgnoreCase(card.correctAnswer().trim()));
 
         Collections.shuffle(cards, new Random(System.currentTimeMillis()));
         return cards;
+    }
+
+    private boolean hasKanji(String text) {
+        if (text == null || text.isBlank()) return false;
+        return text.codePoints().anyMatch(cp -> Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN);
     }
 
     private String getMeaningForLang(Kotoba k, String lang) {
@@ -172,18 +210,23 @@ public class DeckService {
         return k.getMeaningId() != null ? k.getMeaningId() : "";
     }
 
-    private List<String> generateChoices(String correct, List<String> allPool, Random random, String lang) {
+    private List<String> generateChoices(String correct, String questionToExclude, List<String> allPool, Random random, String lang) {
         Set<String> choices = new LinkedHashSet<>();
-        choices.add(correct);
+        if (correct != null && !correct.isBlank()) {
+            choices.add(correct.trim());
+        }
 
         List<String> pool = new ArrayList<>(allPool);
-        pool.remove(correct);
+        pool.removeIf(item -> item == null || item.isBlank()
+                || item.trim().equalsIgnoreCase(correct.trim())
+                || (questionToExclude != null && item.trim().equalsIgnoreCase(questionToExclude.trim())));
         Collections.shuffle(pool, random);
 
         for (String item : pool) {
-            if (item != null && !item.isBlank() && !choices.contains(item)) {
-                choices.add(item);
-                if (choices.size() == 4) break;
+            String trimmed = item.trim();
+            if (!choices.contains(trimmed)) {
+                choices.add(trimmed);
+                if (choices.size() >= 4) break;
             }
         }
 
@@ -197,12 +240,15 @@ public class DeckService {
                 fallbacks = List.of("tidak ada", "lainnya", "belum tahu", "tidak tercantum");
             }
             for (String f : fallbacks) {
-                if (choices.size() < 4) choices.add(f);
+                if (!choices.contains(f) && (questionToExclude == null || !f.equalsIgnoreCase(questionToExclude.trim()))) {
+                    choices.add(f);
+                    if (choices.size() >= 4) break;
+                }
             }
         }
 
         List<String> result = new ArrayList<>(choices);
-        Collections.shuffle(result);
+        Collections.shuffle(result, random);
         return result;
     }
 }

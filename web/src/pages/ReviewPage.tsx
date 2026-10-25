@@ -42,8 +42,12 @@ export const ReviewPage: React.FC = () => {
           reviewApi.getStats(),
           reviewApi.getQueue(language),
         ]);
-        setStats(statsRes.data);
-        setQueue(queueRes.data || []);
+        const rawQueue = queueRes.data || [];
+        const sanitizedQueue = rawQueue.filter((card) => {
+          if (!card || !card.question || !card.correct_answer) return false;
+          return card.question.trim().toLowerCase() !== card.correct_answer.trim().toLowerCase();
+        });
+        setQueue(sanitizedQueue);
       } catch (err) {
         console.error('Error loading review queue', err);
       } finally {
@@ -157,7 +161,12 @@ export const ReviewPage: React.FC = () => {
         </div>
 
         <div className="space-y-2.5">
-          {currentCard?.choices.map((choice, i) => {
+          {currentCard?.choices
+            .filter((choice) => {
+              if (choice === currentCard.correct_answer) return true;
+              return choice.trim().toLowerCase() !== currentCard.question.trim().toLowerCase();
+            })
+            .map((choice, i) => {
             const isSelected = selectedChoice === choice;
             const isCorrectAnswer = isAnswered && choice === currentCard.correct_answer;
             const isWrongSelected = isAnswered && isSelected && !isCorrectAnswer;

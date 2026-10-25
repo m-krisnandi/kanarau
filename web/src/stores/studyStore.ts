@@ -33,9 +33,12 @@ export const useStudyStore = create<StudyState>()((set, get) => ({
   isSessionActive: false,
 
   startSession: (deck, cards) => {
+    const sanitizedCards = (cards || []).filter(
+      (c) => c && c.question && c.correct_answer && c.question.trim().toLowerCase() !== c.correct_answer.trim().toLowerCase()
+    );
     set({
       currentDeck: deck,
-      cards,
+      cards: sanitizedCards,
       currentIndex: 0,
       answers: [],
       sessionResult: null,

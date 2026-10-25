@@ -88,9 +88,18 @@ public class ReviewService {
         for (Kotoba k : kotobas) {
             KotobaResponse kDto = KotobaResponse.from(k, lang);
             String localizedMeaning = getMeaningForLang(k, lang);
+            String question = (k.getKanji() != null && !k.getKanji().isBlank())
+                    ? k.getKanji().trim()
+                    : (k.getHiragana() != null ? k.getHiragana().trim() : "");
+            String cleanMeaning = localizedMeaning != null ? localizedMeaning.trim() : "";
+
+            if (question.isBlank() || cleanMeaning.isBlank() || question.equalsIgnoreCase(cleanMeaning)) {
+                continue;
+            }
 
             List<String> meaningChoices = generateChoices(
-                    localizedMeaning,
+                    cleanMeaning,
+                    question,
                     allMeaningsPool,
                     random,
                     lang
@@ -100,11 +109,15 @@ public class ReviewService {
                     "review_" + k.getId() + "_km",
                     kDto,
                     "kanji_to_meaning",
-                    k.getKanji() != null && !k.getKanji().isBlank() ? k.getKanji() : k.getHiragana(),
-                    localizedMeaning,
+                    question,
+                    cleanMeaning,
                     meaningChoices
             ));
         }
+
+        cards.removeIf(card -> card.question() == null || card.correctAnswer() == null
+                || card.question().trim().isBlank() || card.correctAnswer().trim().isBlank()
+                || card.question().trim().equalsIgnoreCase(card.correctAnswer().trim()));
 
         Collections.shuffle(cards);
         return cards;
@@ -150,24 +163,34 @@ public class ReviewService {
         return k.getMeaningId() != null ? k.getMeaningId() : "";
     }
 
-    private List<String> generateChoices(String correct, List<String> allPool, Random random, String lang) {
+    private List<String> generateChoices(String correct, String questionToExclude, List<String> allPool, Random random, String lang) {
         Set<String> choices = new LinkedHashSet<>();
-        choices.add(correct);
+        if (correct != null && !correct.isBlank()) {
+            choices.add(correct.trim());
+        }
 
         List<String> pool = new ArrayList<>(allPool);
-        pool.remove(correct);
+        pool.removeIf(item -> item == null || item.isBlank()
+                || item.trim().equalsIgnoreCase(correct.trim())
+                || (questionToExclude != null && item.trim().equalsIgnoreCase(questionToExclude.trim())));
         Collections.shuffle(pool, random);
 
         for (String item : pool) {
-            if (item != null && !item.isBlank() && !choices.contains(item)) {
-                choices.add(item);
+            String trimmed = item.trim();
+            if (!choices.contains(trimmed)) {
+                choices.add(trimmed);
                 if (choices.size() >= 4) break;
             }
         }
 
         String fallbackPrefix = "id".equalsIgnoreCase(lang) ? "Pilihan " : ("my".equalsIgnoreCase(lang) ? "ရွေးချယ်မှု " : "Option ");
+        int counter = 1;
         while (choices.size() < 4) {
-            choices.add(fallbackPrefix + (choices.size() + 1));
+            String fb = fallbackPrefix + counter;
+            if (!choices.contains(fb) && (questionToExclude == null || !fb.equalsIgnoreCase(questionToExclude.trim()))) {
+                choices.add(fb);
+            }
+            counter++;
         }
 
         List<String> result = new ArrayList<>(choices);

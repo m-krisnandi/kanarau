@@ -52,6 +52,16 @@ public class Kotoba {
 
     protected Kotoba() {}
 
+    public Kotoba(Long id, String kanji, String hiragana, String meaningId, String meaningEn, String meaningMy, JlptLevel level) {
+        this.id = id;
+        this.kanji = kanji;
+        this.hiragana = hiragana;
+        this.meaningId = meaningId;
+        this.meaningEn = meaningEn;
+        this.meaningMy = meaningMy;
+        this.level = level;
+    }
+
     public Long getId() { return id; }
     public String getKanji() { return kanji; }
     public String getHiragana() { return hiragana; }

@@ -21,6 +21,12 @@ public class DeckKotoba {
 
     protected DeckKotoba() {}
 
+    public DeckKotoba(Long deckId, Long kotobaId, Integer sortOrder) {
+        this.deckId = deckId;
+        this.kotobaId = kotobaId;
+        this.sortOrder = sortOrder;
+    }
+
     public Long getId() { return id; }
     public Long getDeckId() { return deckId; }
     public Long getKotobaId() { return kotobaId; }

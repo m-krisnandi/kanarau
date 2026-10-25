@@ -26,6 +26,14 @@ public class Deck {
 
     protected Deck() {}
 
+    public Deck(Long id, String name, JlptLevel level, Integer dayNumber, Integer kotobaCount) {
+        this.id = id;
+        this.name = name;
+        this.level = level;
+        this.dayNumber = dayNumber;
+        this.kotobaCount = kotobaCount;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public JlptLevel getLevel() { return level; }
