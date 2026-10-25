@@ -40,6 +40,8 @@ export const StudySessionPage: React.FC = () => {
   const isExamMode = studyMode === 'exam' || studyMode === 'diagnostic';
 
   const [cards, setCards] = useState<QuizCard[]>([]);
+  const [initialCards, setInitialCards] = useState<QuizCard[]>([]);
+  const [retryKotobaIds, setRetryKotobaIds] = useState<Set<number | string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [cardStartTime, setCardStartTime] = useState<number>(Date.now());
@@ -81,6 +83,8 @@ export const StudySessionPage: React.FC = () => {
           });
           const sessionCards = sanitizedCards.slice(0, maxCards);
           setCards(sessionCards);
+          setInitialCards(sessionCards);
+          setRetryKotobaIds(new Set());
           setCardStartTime(Date.now());
         }
         if (deckRes.status === 'fulfilled' && deckRes.value.data?.name) {
@@ -108,10 +112,11 @@ export const StudySessionPage: React.FC = () => {
     const responseTimeMs = Date.now() - cardStartTime;
     const isCorrect = choice === currentCard.correct_answer;
     const rating = rateByTime(responseTimeMs, isCorrect);
+    const kotobaId = currentCard.kotoba.id;
 
     const answer: QuizAnswer = {
       card_id: currentCard.id,
-      kotoba_id: currentCard.kotoba.id,
+      kotoba_id: kotobaId,
       selected_answer: choice,
       correct_answer: currentCard.correct_answer,
       is_correct: isCorrect,
@@ -119,8 +124,10 @@ export const StudySessionPage: React.FC = () => {
       rating,
     };
 
-    // Record mistake to store so Tanya AI suggestions adapt to user's real weaknesses
+    // If answer is incorrect, record mistake and queue card for repetition until mastered
     if (!isCorrect) {
+      setRetryKotobaIds((prev) => new Set(prev).add(kotobaId));
+
       useMistakesStore.getState().recordMistake({
         kanji: currentCard.kotoba.kanji || currentCard.kotoba.hiragana,
         hiragana: currentCard.kotoba.hiragana,
@@ -129,6 +136,15 @@ export const StudySessionPage: React.FC = () => {
         wrongAnswer: choice,
         correctAnswer: currentCard.correct_answer,
       });
+
+      // Append retry card to queue so user must get it right before finishing
+      if (rawCurrentCard) {
+        const retryCard: QuizCard = {
+          ...rawCurrentCard,
+          id: `${rawCurrentCard.id}_retry_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        };
+        setCards((prev) => [...prev, retryCard]);
+      }
     }
 
     setSelectedChoice(choice);
@@ -138,21 +154,48 @@ export const StudySessionPage: React.FC = () => {
 
   const finishSession = useCallback(async (sessionAnswers: QuizAnswer[] = answers) => {
     setIsFinished(true);
-    const correctCount = sessionAnswers.filter((a) => a.is_correct).length;
-    const totalTimeMs = sessionAnswers.reduce((sum, a) => sum + a.response_time_ms, 0);
-    const accuracy = cards.length > 0 ? Math.round((correctCount / cards.length) * 100) : 0;
-    const xpGained = correctCount * 10 + 20;
+    const totalUniqueCards = initialCards.length > 0 ? initialCards.length : (cards.length > 0 ? cards.length : 15);
+    const accuracy = 100; // All cards are practiced until 100% mastered
+    const xpGained = totalUniqueCards * 10 + 20;
     setEarnedXp(xpGained);
 
+    // Optimistically update total_xp in authStore immediately so results screen reflects it
+    useAuthStore.setState((state) => {
+      if (!state.user) return state;
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          total_xp: (state.user.total_xp || 0) + xpGained,
+        },
+      };
+    });
+
+    const totalTimeMs = sessionAnswers.reduce((sum, a) => sum + a.response_time_ms, 0);
     const numericDeckId = deckId ? Number(deckId) : 1;
+
+    // Filter to best/completed answer per unique kotoba for SRS submission
+    const uniqueKotobaAnswers: QuizAnswer[] = [];
+    const seenKotobas = new Set<number | string>();
+    for (let i = sessionAnswers.length - 1; i >= 0; i--) {
+      const ans = sessionAnswers[i]!;
+      if (!seenKotobas.has(ans.kotoba_id)) {
+        seenKotobas.add(ans.kotoba_id);
+        uniqueKotobaAnswers.unshift({
+          ...ans,
+          is_correct: true,
+        });
+      }
+    }
+
     const result: SessionResult = {
       deck_id: numericDeckId,
-      total_cards: cards.length,
-      correct_count: correctCount,
+      total_cards: totalUniqueCards,
+      correct_count: totalUniqueCards,
       accuracy_percent: accuracy,
       total_time_ms: totalTimeMs,
       xp_gained: xpGained,
-      answers: sessionAnswers,
+      answers: uniqueKotobaAnswers.length > 0 ? uniqueKotobaAnswers : sessionAnswers,
     };
 
     try {
@@ -161,7 +204,7 @@ export const StudySessionPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to submit session to backend', err);
     }
-  }, [answers, cards.length, deckId]);
+  }, [answers, initialCards.length, cards.length, deckId]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < cards.length - 1) {
@@ -196,7 +239,7 @@ export const StudySessionPage: React.FC = () => {
       ? `JLPT ${cardLevel} ဝေါဟာရ "${word}" (${reading}) အကြောင်းကို အကျဉ်းချုပ်ရှင်းပြပါ။ သုံးစွဲပုံ အဓိပ္ပာယ်၊ JLPT အဓိကအချက်များ၊ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် စာမေးပွဲလှည့်ကွက်များကို ရှင်းပြပါ။`
       : language === 'en'
       ? `Briefly explain the JLPT ${cardLevel} vocabulary "${word}" (${reading}). Provide usage nuances, JLPT key collocations, 1 practical example sentence with translation, and exam tips.`
-      : `Jelaskan secara ringkas kosakata "${word}" (${reading}) untuk JLPT ${cardLevel}. Berikan nuansa pemakaian, kunci JLPT (pasangan kata / lawan kata), 1 contoh kalimat praktis beserta terjemahannya, dan trik ujian.`;
+      : `Jelaskan secara ringkas kosakata "${word}" (bacaan hiragana baku: "${reading}") untuk JLPT ${cardLevel}. Berikan nuansa pemakaian, kunci JLPT (pasangan kata / lawan kata), 1 contoh kalimat praktis beserta terjemahannya, dan trik ujian.`;
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(language === 'my' ? `ဝေါဟာရ မေးမြန်းရန် (${cardLevel}) - ${word} (${reading})` : language === 'en' ? `Ask Vocabulary (${cardLevel}): ${word} (${reading})` : `Tanya kosakata ${cardLevel}: ${word} (${reading})`);
     setAiModalOpen(true);
@@ -205,12 +248,14 @@ export const StudySessionPage: React.FC = () => {
   const handleAskAiWhyWrong = () => {
     if (!currentCard || !selectedChoice) return;
     const word = currentCard.question;
+    const reading = currentCard.kotoba.hiragana;
+    const meaning = currentCard.kotoba.meaning;
     const cardLevel = currentCard.kotoba.jlpt_level || currentLevel;
     const prompt = language === 'my'
-      ? `ကျွန်ုပ်သည် JLPT ${cardLevel} မေးခွန်း "${word}" ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်ကွဲပြားပုံနှင့် စာမေးပွဲအတွက် မှတ်သားနည်းကို တိုတိုရှင်းရှင်း ရှင်းပြပါ။`
+      ? `ကျွန်ုပ်သည် JLPT ${cardLevel} မေးခွန်း "${word}" (အသံထွက်: ${reading}, အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်ကွဲပြားပုံနှင့် စာမေးပွဲအတွက် မှတ်သားနည်းကို တိုတိုရှင်းရှင်း ရှင်းပြပါ။ (ကျေးဇူးပြု၍ furigana/hiragana မှန်ကန်မှုရှိစေရန် သတိပြုပါ)`
       : language === 'en'
-      ? `I answered a JLPT ${cardLevel} question about "${word}". I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was incorrect, the nuance difference, and memory tips for the exam.`
-      : `Saya menjawab soal JLPT ${cardLevel} tentang "${word}". Pilihan saya "${selectedChoice}", jawaban yang benar adalah "${currentCard.correct_answer}". Jelaskan secara singkat to-the-point mengapa pilihan saya keliru, apa perbedaan nuansanya, dan trik mengingatnya untuk ujian.`;
+      ? `I answered a JLPT ${cardLevel} question about "${word}" (reading: ${reading}, meaning: "${meaning}"). I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was incorrect, the nuance difference, and memory tips for the exam. Ensure all Japanese furigana/hiragana readings are strictly accurate.`
+      : `Saya menjawab soal JLPT ${cardLevel} tentang "${word}" (bacaan hiragana baku: "${reading}", arti: "${meaning}"). Pilihan saya "${selectedChoice}", jawaban yang benar adalah "${currentCard.correct_answer}". Jelaskan secara singkat to-the-point mengapa pilihan saya keliru, apa perbedaan nuansanya, dan trik mengingatnya untuk ujian. Pastikan furigana / hiragana kanji 100% akurat sesuai kamus baku (misal: 憧れる dibaca あこがれる, bukan あがれる).`;
     setAiInitialPrompt(prompt);
     setAiInitialDisplay(language === 'my' ? `အဘယ်ကြောင့် မှားယွင်းသနည်း "${selectedChoice}"? အဖြေမှန် - "${currentCard.correct_answer}"` : language === 'en' ? `Why is "${selectedChoice}" wrong? Correct answer: "${currentCard.correct_answer}"` : `Kenapa keliru "${selectedChoice}"? Jawaban benar: "${currentCard.correct_answer}"`);
     setAiModalOpen(true);
@@ -240,147 +285,180 @@ export const StudySessionPage: React.FC = () => {
 
   // --- RESULTS SCREEN ---
   if (isFinished) {
-    const accuracy = Math.round(
-      (answers.filter((a) => a.is_correct).length / cards.length) * 100
-    );
+    const displayCards = initialCards.length > 0 ? initialCards : cards.slice(0, 15);
+    const effectiveXp = Math.max(user?.total_xp ?? 0, earnedXp);
 
     return (
-      <div className="space-y-5 pb-24 max-w-md mx-auto animate-fade-in pt-1">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate('/belajar')}
-            className="flex items-center space-x-1.5 text-xs font-bold text-[#57534E] hover:text-[#1E1B18] cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-mincho">{t.common.back}</span>
-          </button>
-          <span className="text-xs font-bold text-[#1E1B18] font-mincho">{t.studySession.resultsTitle}</span>
-          <div className="w-12" />
-        </div>
-
-        {/* Celebration Banner Card */}
-        <div className="card-washi rounded-2xl p-5 text-center space-y-2 border border-[#EFEAE2] shadow-xs">
-          <div className="w-13 h-13 mx-auto rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shadow-2xs">
-            <Award className="w-7 h-7" />
-          </div>
-          <h2 className="text-lg font-bold font-mincho text-[#1E1B18]">{t.studySession.sessionFinished}</h2>
-          <p className="text-xs text-[#78716C]">
-            {t.studySession.retentionTip}
-          </p>
-
-          <div className="flex items-center justify-center space-x-3 pt-1">
-            <span className="text-3xl font-extrabold text-emerald-600 font-mincho">
-              {accuracy}%
-            </span>
-            <span className="text-xs font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 flex items-center space-x-1">
-              <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-              <span>+{earnedXp || (answers.filter((a) => a.is_correct).length * 10 + 20)} {t.common.exp}</span>
-            </span>
+      <>
+        <div className="space-y-5 pb-24 max-w-md mx-auto animate-fade-in pt-1">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/belajar')}
+              className="flex items-center space-x-1.5 text-xs font-bold text-[#57534E] hover:text-[#1E1B18] cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="font-mincho">{t.common.back}</span>
+            </button>
+            <span className="text-xs font-bold text-[#1E1B18] font-mincho">{t.studySession.resultsTitle}</span>
+            <div className="w-12" />
           </div>
 
-          {/* User Level & XP Bar */}
-          {(() => {
-            const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
-            return (
-              <div className="bg-stone-50/80 dark:bg-slate-900/60 rounded-xl p-3 border border-stone-200/80 dark:border-slate-800 text-left space-y-1.5 mt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">
-                    Lv. {userLvl.level} · {userLvl.title}
-                  </span>
-                  <span className="text-[10px] text-stone-500 dark:text-slate-400 font-sans font-bold">
-                    {userLvl.totalXp} EXP
-                  </span>
-                </div>
-                <div className="w-full bg-stone-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${userLvl.progressPercent}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[9px] text-stone-400 dark:text-slate-500">
-                  <span>{t.leaderboard.levelProgress}</span>
-                  <span>{userLvl.xpInCurrentLevel} / {userLvl.xpNeededForNext} EXP ({userLvl.progressPercent}%)</span>
-                </div>
-              </div>
-            );
-          })()}
+          {/* Celebration Banner Card */}
+          <div className="card-washi rounded-2xl p-5 text-center space-y-2 border border-[#EFEAE2] shadow-xs">
+            <div className="w-13 h-13 mx-auto rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shadow-2xs">
+              <Award className="w-7 h-7" />
+            </div>
+            <h2 className="text-lg font-bold font-mincho text-[#1E1B18]">{t.studySession.sessionFinished}</h2>
+            <p className="text-xs text-[#78716C]">
+              {t.studySession.retentionTip}
+            </p>
 
-          {/* Quick Leaderboard Button */}
-          <button
-            onClick={() => setLeaderboardOpen(true)}
-            className="w-full mt-2 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
-          >
-            <Trophy className="w-4 h-4 text-amber-600 fill-amber-500" />
-            <span>{t.studySession.viewLeaderboard}</span>
-          </button>
-        </div>
+            <div className="flex items-center justify-center space-x-3 pt-1">
+              <span className="text-3xl font-extrabold text-emerald-600 font-mincho">
+                100%
+              </span>
+              <span className="text-xs font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 flex items-center space-x-1">
+                <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
+                <span>+{earnedXp || (displayCards.length * 10 + 20)} {t.common.exp}</span>
+              </span>
+            </div>
 
-        {/* Breakdown List */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-bold text-[#A8A29E] uppercase tracking-wider px-1">
-            {t.studySession.answerBreakdown(answers.length)}
-          </p>
-
-          <div className="space-y-1.5">
-            {answers.map((ans, idx) => {
-              const matchedCard = cards.find((c) => c.id === ans.card_id) || cards[idx];
-              const rawKotoba = matchedCard?.kotoba;
-              const kotoba = rawKotoba ? localizeKotoba(rawKotoba, language) : null;
-              const seconds = (ans.response_time_ms / 1000).toFixed(1);
-
+            {/* User Level & XP Bar */}
+            {(() => {
+              const userLvl = calculateUserLevel(effectiveXp, language);
               return (
-                <div key={ans.card_id || idx}
-                  onClick={() => kotoba && setSelectedKotobaForDetail(kotoba)}
-                  className="card-washi card-washi-hover rounded-xl p-3 flex items-center justify-between border border-[#EFEAE2] cursor-pointer transition-all hover:border-indigo-300 dark:hover:border-indigo-700 group active:scale-[0.99]"
-                  title={t.studySession.detailAndConjugation}
-                >
-                  <div className="space-y-0.5 pr-2 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-jp font-bold text-[#1E1B18] text-sm">
-                        {kotoba?.kanji || kotoba?.hiragana || ans.correct_answer}
-                      </span>
-                      {kotoba?.kanji && (
-                        <span className="text-[10px] text-indigo-600 font-jp">
-                          {kotoba.hiragana}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-[#78716C] line-clamp-1">
-                      {kotoba?.meaning || ans.correct_answer}
-                    </p>
+                <div className="bg-stone-50/80 dark:bg-slate-900/60 rounded-xl p-3 border border-stone-200/80 dark:border-slate-800 text-left space-y-1.5 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">
+                      Lv. {userLvl.level} · {userLvl.title}
+                    </span>
+                    <span className="text-[10px] text-stone-500 dark:text-slate-400 font-sans font-bold">
+                      {userLvl.totalXp} EXP
+                    </span>
                   </div>
-
-                  <div className="flex items-center space-x-2 shrink-0">
-                    {ans.is_correct ? (
-                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200/60">
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        <span>{t.studySession.correctWithTime(seconds)}</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200/60">
-                        <X className="w-3 h-3 text-rose-600" />
-                        <span>{t.studySession.wrongWithTime(seconds)}</span>
-                      </span>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-indigo-600 transition-colors" />
+                  <div className="w-full bg-stone-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${userLvl.progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-stone-400 dark:text-slate-500">
+                    <span>{t.leaderboard.levelProgress}</span>
+                    <span>{userLvl.xpInCurrentLevel} / {userLvl.xpNeededForNext} EXP ({userLvl.progressPercent}%)</span>
                   </div>
                 </div>
               );
-            })}
+            })()}
+
+            {/* Quick Leaderboard Button */}
+            <button
+              onClick={() => setLeaderboardOpen(true)}
+              className="w-full mt-2 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+            >
+              <Trophy className="w-4 h-4 text-amber-600 fill-amber-500" />
+              <span>{t.studySession.viewLeaderboard}</span>
+            </button>
+          </div>
+
+          {/* Breakdown List */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold text-[#A8A29E] uppercase tracking-wider px-1">
+              {t.studySession.answerBreakdown(displayCards.length)}
+            </p>
+
+            <div className="space-y-1.5">
+              {displayCards.map((card, idx) => {
+                const rawKotoba = card.kotoba;
+                const kotoba = rawKotoba ? localizeKotoba(rawKotoba, language) : null;
+                const hadMistake = retryKotobaIds.has(card.kotoba.id);
+                const matchedAnswers = answers.filter((a) => a.kotoba_id === card.kotoba.id);
+                const lastAnswerForCard = matchedAnswers[matchedAnswers.length - 1];
+                const seconds = ((lastAnswerForCard?.response_time_ms || 3500) / 1000).toFixed(1);
+
+                return (
+                  <div
+                    key={card.id || idx}
+                    onClick={() => kotoba && setSelectedKotobaForDetail(kotoba)}
+                    className="card-washi card-washi-hover rounded-xl p-3 flex items-center justify-between border border-[#EFEAE2] cursor-pointer transition-all hover:border-indigo-300 dark:hover:border-indigo-700 group active:scale-[0.99]"
+                    title={t.studySession.detailAndConjugation}
+                  >
+                    <div className="space-y-0.5 pr-2 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-jp font-bold text-[#1E1B18] text-sm">
+                          {kotoba?.kanji || kotoba?.hiragana || card.correct_answer}
+                        </span>
+                        {kotoba?.kanji && (
+                          <span className="text-[10px] text-indigo-600 font-jp">
+                            {kotoba.hiragana}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#78716C] line-clamp-1">
+                        {kotoba?.meaning || card.correct_answer}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      {hadMistake ? (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200/80">
+                          <Check className="w-3 h-3 text-amber-600" />
+                          <span>{t.studySession.masteredAfterRetry(seconds)}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200/60">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>{t.studySession.correctWithTime(seconds)}</span>
+                        </span>
+                      )}
+                      <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-indigo-600 transition-colors" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="pt-2">
+            <button
+              onClick={() => navigate('/belajar')}
+              className="w-full py-3.5 bg-[#1E1B18] hover:bg-black text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] text-xs cursor-pointer"
+            >
+              {t.studySession.backToDeckList}
+            </button>
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="pt-2">
-          <button
-            onClick={() => navigate('/belajar')}
-            className="w-full py-3.5 bg-[#1E1B18] hover:bg-black text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] text-xs cursor-pointer"
-          >
-            {t.studySession.backToDeckList}
-          </button>
-        </div>
-      </div>
+        {/* Kotoba Detail & Conjugation Modal */}
+        <KotobaDetailModal
+          kotoba={selectedKotobaForDetail}
+          onClose={() => setSelectedKotobaForDetail(null)}
+          onViewKanji={(char) => setSelectedKanjiChar(char)}
+        />
+
+        {/* Kanji Detail Modal */}
+        {selectedKanjiChar && (
+          <KanjiDetailView
+            character={selectedKanjiChar}
+            onClose={() => setSelectedKanjiChar(null)}
+          />
+        )}
+
+        {/* Tanya AI Modal */}
+        <TanyaAiModal
+          isOpen={aiModalOpen}
+          onClose={() => setAiModalOpen(false)}
+          initialPrompt={aiInitialPrompt}
+          initialDisplayText={aiInitialDisplay}
+        />
+
+        {/* Leaderboard Modal */}
+        <LeaderboardModal
+          isOpen={leaderboardOpen}
+          onClose={() => setLeaderboardOpen(false)}
+        />
+      </>
     );
   }
 

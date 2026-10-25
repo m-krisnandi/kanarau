@@ -59,24 +59,26 @@ export const BelajarPage: React.FC = () => {
   const [activeKanjiChar, setActiveKanjiChar] = useState<string | null>(null);
 
   const [currentTodayDay, setCurrentTodayDay] = useState<number>(1);
+  const [maxUnlockedDay, setMaxUnlockedDay] = useState<number>(1);
 
   useEffect(() => {
     async function loadCurriculum() {
       setLoading(true);
       try {
-        const [decksRes, progressRes] = await Promise.all([
+        const [decksRes, progressRes, countdownRes] = await Promise.allSettled([
           deckApi.list(currentLevel),
           progressApi.getDeckProgress(),
+          progressApi.getJLPTCountdown(),
         ]);
 
         const progressMap = new Map<string, number>();
-        if (progressRes?.data && Array.isArray(progressRes.data)) {
-          progressRes.data.forEach((dp) => {
+        if (progressRes.status === 'fulfilled' && progressRes.value?.data && Array.isArray(progressRes.value.data)) {
+          progressRes.value.data.forEach((dp) => {
             progressMap.set(String(dp.deck_id), dp.progress_percent ?? 0);
           });
         }
 
-        const rawDecks: Deck[] = decksRes?.data || [];
+        const rawDecks: Deck[] = (decksRes.status === 'fulfilled' && decksRes.value?.data) ? decksRes.value.data : [];
         const enriched = rawDecks.map((d) => {
           const prog = progressMap.has(String(d.id))
             ? progressMap.get(String(d.id))!
@@ -89,10 +91,26 @@ export const BelajarPage: React.FC = () => {
 
         setDecks(enriched);
 
-        // Find active day
+        // Calculate current calendar target day from JLPT countdown
+        let calendarTargetDay = 1;
+        if (countdownRes.status === 'fulfilled' && countdownRes.value?.data?.days_remaining !== undefined) {
+          const daysRem = countdownRes.value.data.days_remaining;
+          calendarTargetDay = Math.max(1, Math.min(60, 60 - daysRem));
+        }
+
+        // All days up to calendar target day are unlocked to let learners catch up,
+        // and whenever a day is completed, the next day is unlocked.
+        const highestCompleted = enriched
+          .filter((d) => (d.progress_percent || 0) >= 100)
+          .reduce((max, d) => Math.max(max, d.day_number), 0);
+
+        const unlockedDayLimit = Math.max(calendarTargetDay, highestCompleted + 1);
+        setMaxUnlockedDay(unlockedDayLimit);
+
+        // Find active day: the first incomplete day (or calendarTargetDay)
         const sorted = [...enriched].sort((a, b) => a.day_number - b.day_number);
         const firstIncomplete = sorted.find((d) => (d.progress_percent || 0) < 100);
-        const activeDay = firstIncomplete ? firstIncomplete.day_number : (sorted[0]?.day_number || 1);
+        const activeDay = firstIncomplete ? firstIncomplete.day_number : (calendarTargetDay || 1);
         setCurrentTodayDay(activeDay);
 
         const activeWeek = Math.max(1, Math.ceil(activeDay / 7));
@@ -108,9 +126,9 @@ export const BelajarPage: React.FC = () => {
   }, [currentLevel]);
 
   const handleOpenDeck = (deck: Deck) => {
-    if (deck.day_number > currentTodayDay && deck.day_number < 90) {
+    if (deck.day_number > maxUnlockedDay && deck.day_number < 90) {
       setLockedAlert(
-        t.belajar.lockedDeckJump(deck.name, currentTodayDay, currentLevel)
+        t.belajar.lockedDeckJump(deck.name, maxUnlockedDay, currentLevel)
       );
       return;
     }
@@ -119,9 +137,9 @@ export const BelajarPage: React.FC = () => {
 
   const handlePreviewDeck = async (e: React.MouseEvent, deck: Deck) => {
     e.stopPropagation();
-    if (deck.day_number > currentTodayDay && deck.day_number < 90) {
+    if (deck.day_number > maxUnlockedDay && deck.day_number < 90) {
       setLockedAlert(
-        t.belajar.lockedDeckPreview(deck.name, currentTodayDay, currentLevel)
+        t.belajar.lockedDeckPreview(deck.name, maxUnlockedDay, currentLevel)
       );
       return;
     }
@@ -187,7 +205,7 @@ export const BelajarPage: React.FC = () => {
   };
 
   const renderDeckCard = (deck: Deck) => {
-    const isLocked = deck.day_number > currentTodayDay;
+    const isLocked = deck.day_number > maxUnlockedDay && deck.day_number < 90;
     const isToday = deck.day_number === currentTodayDay;
     const progress = deck.progress_percent || 0;
 
