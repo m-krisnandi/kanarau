@@ -16,9 +16,13 @@ export interface LocalDailyActivityItem {
   minutes: number;
   cardsStudied: number;
   cardsCorrect: number;
+  cardsReviewed?: number;
   accuracy: number;
   goiCompleted?: boolean;
   bunpoCompleted?: boolean;
+  dokkaiCompleted?: boolean;
+  choukaiCompleted?: boolean;
+  reviewCompleted?: boolean;
   timestamp: number;
 }
 
@@ -26,6 +30,28 @@ export function getUserKey(user: { id?: number | string | null; email?: string |
   if (user?.id) return String(user.id);
   if (user?.email) return user.email.trim().toLowerCase();
   return 'guest';
+}
+
+/**
+ * Scan all possible keys in localStorage matching a prefix for the user (handles userKey, ID, email, or guest fallback)
+ */
+function readBestMatchingStorage<T>(prefix: string, userKey: string): T | null {
+  try {
+    const direct = localStorage.getItem(`${prefix}_${userKey}`);
+    if (direct) return JSON.parse(direct);
+
+    // Look for any key starting with prefix
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        const val = localStorage.getItem(key);
+        if (val && val !== '{}' && val !== '[]') {
+          return JSON.parse(val);
+        }
+      }
+    }
+  } catch {}
+  return null;
 }
 
 export function recordLocalStudySession(
@@ -96,10 +122,246 @@ export function recordLocalStudySession(
   }
 }
 
+export function recordBunpoCompletion(
+  userKey: string,
+  unitId: string,
+  questionCount: number = 6,
+  durationMinutes: number = 5
+) {
+  try {
+    const todayStr = formatLocalYMD();
+
+    // 1. Update Bunpo results
+    const bunpoKey = `kanarau_bunpo_results_${userKey}`;
+    const existingBunpo = JSON.parse(localStorage.getItem(bunpoKey) || '{}');
+    existingBunpo[unitId] = true;
+    localStorage.setItem(bunpoKey, JSON.stringify(existingBunpo));
+
+    // 2. Update Daily Activity
+    const activityKey = `kanarau_daily_activity_${userKey}`;
+    const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
+      localStorage.getItem(activityKey) || '{}'
+    );
+    const prevToday = existingActivities[todayStr] || {
+      date: todayStr,
+      studied: true,
+      minutes: 0,
+      cardsStudied: 0,
+      cardsCorrect: 0,
+      accuracy: 100,
+      bunpoCompleted: true,
+      timestamp: Date.now(),
+    };
+
+    existingActivities[todayStr] = {
+      ...prevToday,
+      studied: true,
+      minutes: prevToday.minutes + durationMinutes,
+      cardsStudied: prevToday.cardsStudied + questionCount,
+      cardsCorrect: prevToday.cardsCorrect + questionCount,
+      bunpoCompleted: true,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+
+    // 3. Dispatch event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+    }
+  } catch (err) {
+    console.error('Failed to record bunpo completion', err);
+  }
+}
+
+export function recordReviewCompletion(
+  userKey: string,
+  cardsReviewed: number,
+  durationMs: number = 60000
+) {
+  try {
+    const todayStr = formatLocalYMD();
+    const durationMinutes = Math.max(1, Math.round(durationMs / 60000));
+    const activityKey = `kanarau_daily_activity_${userKey}`;
+    const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
+      localStorage.getItem(activityKey) || '{}'
+    );
+    const prevToday = existingActivities[todayStr] || {
+      date: todayStr,
+      studied: true,
+      minutes: 0,
+      cardsStudied: 0,
+      cardsCorrect: 0,
+      accuracy: 100,
+      timestamp: Date.now(),
+    };
+
+    existingActivities[todayStr] = {
+      ...prevToday,
+      studied: true,
+      minutes: prevToday.minutes + durationMinutes,
+      cardsReviewed: (prevToday.cardsReviewed || 0) + cardsReviewed,
+      reviewCompleted: true,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+    }
+  } catch (err) {
+    console.error('Failed to record review completion', err);
+  }
+}
+
+export function recordDokkaiCompletion(
+  userKey: string,
+  passageId: string,
+  seconds: number,
+  correctCount: number,
+  totalCount: number
+) {
+  try {
+    const todayStr = formatLocalYMD();
+    const durationMinutes = Math.max(1, Math.round(seconds / 60));
+    const activityKey = `kanarau_daily_activity_${userKey}`;
+    const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
+      localStorage.getItem(activityKey) || '{}'
+    );
+    const prevToday = existingActivities[todayStr] || {
+      date: todayStr,
+      studied: true,
+      minutes: 0,
+      cardsStudied: 0,
+      cardsCorrect: 0,
+      accuracy: 100,
+      timestamp: Date.now(),
+    };
+
+    existingActivities[todayStr] = {
+      ...prevToday,
+      studied: true,
+      minutes: prevToday.minutes + durationMinutes,
+      cardsStudied: prevToday.cardsStudied + totalCount,
+      cardsCorrect: prevToday.cardsCorrect + correctCount,
+      dokkaiCompleted: true,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+    }
+  } catch (err) {
+    console.error('Failed to record dokkai completion', err);
+  }
+}
+
+export function recordChoukaiCompletion(
+  userKey: string,
+  questionId: string,
+  isCorrect: boolean
+) {
+  try {
+    const todayStr = formatLocalYMD();
+    const activityKey = `kanarau_daily_activity_${userKey}`;
+    const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
+      localStorage.getItem(activityKey) || '{}'
+    );
+    const prevToday = existingActivities[todayStr] || {
+      date: todayStr,
+      studied: true,
+      minutes: 0,
+      cardsStudied: 0,
+      cardsCorrect: 0,
+      accuracy: 100,
+      timestamp: Date.now(),
+    };
+
+    existingActivities[todayStr] = {
+      ...prevToday,
+      studied: true,
+      minutes: prevToday.minutes + 3,
+      cardsStudied: prevToday.cardsStudied + 1,
+      cardsCorrect: prevToday.cardsCorrect + (isCorrect ? 1 : 0),
+      choukaiCompleted: true,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+    }
+  } catch (err) {
+    console.error('Failed to record choukai completion', err);
+  }
+}
+
 export function getLocalDailyActivity(userKey: string): Record<string, LocalDailyActivityItem> {
   try {
     const activityKey = `kanarau_daily_activity_${userKey}`;
-    return JSON.parse(localStorage.getItem(activityKey) || '{}');
+    let activities: Record<string, LocalDailyActivityItem> = JSON.parse(
+      localStorage.getItem(activityKey) || '{}'
+    );
+
+    // Auto-backfill & synchronize with any existing local progress (Goi, Bunpo, Dokkai, Choukai)
+    const todayStr = formatLocalYMD();
+    const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+      'kanarau_local_progress',
+      userKey
+    ) || {};
+    const localBunpo = readBestMatchingStorage<Record<string, any>>(
+      'kanarau_bunpo_results',
+      userKey
+    ) || {};
+    const localDokkai = readBestMatchingStorage<Record<string, any>>(
+      'kanarau_dokkai_results',
+      userKey
+    ) || {};
+    const localChoukai = readBestMatchingStorage<Record<string, any>>(
+      'kanarau_choukai_results',
+      userKey
+    ) || {};
+
+    const hasGoi = Object.values(localDecks).some((d) => (d.percent && d.percent > 0) || (d.learned && d.learned > 0));
+    const hasBunpo = Object.keys(localBunpo).length > 0;
+    const hasDokkai = Object.keys(localDokkai).length > 0;
+    const hasChoukai = Object.keys(localChoukai).length > 0;
+
+    if (hasGoi || hasBunpo || hasDokkai || hasChoukai) {
+      const existingToday = activities[todayStr];
+      const goiCards = Object.values(localDecks).reduce((sum, d) => sum + (d.learned || 0), 0) || (hasGoi ? 30 : 0);
+      const bunpoQuestions = Object.keys(localBunpo).length * 6;
+      const totalCards = goiCards + bunpoQuestions;
+
+      let totalMinutes = 0;
+      if (hasGoi) totalMinutes += 15;
+      if (hasBunpo) totalMinutes += Object.keys(localBunpo).length * 5;
+      if (hasDokkai) totalMinutes += Object.keys(localDokkai).length * 10;
+      if (hasChoukai) totalMinutes += Object.keys(localChoukai).length * 5;
+      totalMinutes = Math.max(15, totalMinutes);
+
+      if (!existingToday || existingToday.minutes < totalMinutes || existingToday.cardsStudied < totalCards) {
+        activities[todayStr] = {
+          date: todayStr,
+          studied: true,
+          minutes: Math.max(existingToday?.minutes || 0, totalMinutes),
+          cardsStudied: Math.max(existingToday?.cardsStudied || 0, totalCards),
+          cardsCorrect: Math.max(existingToday?.cardsCorrect || 0, totalCards),
+          accuracy: 100,
+          goiCompleted: hasGoi,
+          bunpoCompleted: hasBunpo,
+          dokkaiCompleted: hasDokkai,
+          choukaiCompleted: hasChoukai,
+          reviewCompleted: Boolean(existingToday?.reviewCompleted),
+          timestamp: Date.now(),
+        };
+        try {
+          localStorage.setItem(activityKey, JSON.stringify(activities));
+        } catch {}
+      }
+    }
+
+    return activities;
   } catch {
     return {};
   }
@@ -114,18 +376,30 @@ export function computeLocalStreak(userKey: string, apiStreak?: number): number 
     let streak = 0;
     const checkDate = new Date(today);
 
-    // If today is not yet studied, check if yesterday was studied to maintain unbroken streak
-    if (!activities[todayStr]?.studied) {
+    // If today is studied, start streak at 1 and inspect backward
+    if (activities[todayStr]?.studied) {
+      streak = 1;
       checkDate.setDate(checkDate.getDate() - 1);
-    }
-
-    while (true) {
-      const dateStr = formatLocalYMD(checkDate);
-      if (activities[dateStr]?.studied) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
+      while (true) {
+        const dateStr = formatLocalYMD(checkDate);
+        if (activities[dateStr]?.studied) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    } else {
+      // If today is not yet studied, check if yesterday was studied to maintain unbroken previous streak
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const dateStr = formatLocalYMD(checkDate);
+        if (activities[dateStr]?.studied) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
       }
     }
 
@@ -138,9 +412,9 @@ export function computeLocalStreak(userKey: string, apiStreak?: number): number 
 
 export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckProgress[] {
   try {
-    const deckKey = `kanarau_local_progress_${userKey}`;
-    const localSaved: Record<string, LocalDeckProgressItem> = JSON.parse(
-      localStorage.getItem(deckKey) || '{}'
+    const localSaved = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+      'kanarau_local_progress',
+      userKey
     );
     if (!localSaved || Object.keys(localSaved).length === 0) return decks;
 
@@ -163,11 +437,12 @@ export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckP
 
 export function mergeOverallStats(stats: OverallStats | null, userKey: string): OverallStats {
   try {
-    const deckKey = `kanarau_local_progress_${userKey}`;
-    const localDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
-      localStorage.getItem(deckKey) || '{}'
-    );
+    const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+      'kanarau_local_progress',
+      userKey
+    ) || {};
     const localActivities = getLocalDailyActivity(userKey);
+    const todayStr = formatLocalYMD();
 
     const localTotalLearned = Object.values(localDecks).reduce(
       (acc, item) => acc + (item.learned || 0),
@@ -180,9 +455,10 @@ export function mergeOverallStats(stats: OverallStats | null, userKey: string): 
     const localStudyDays = Object.values(localActivities).filter((item) => item.studied).length;
     const streak = computeLocalStreak(userKey, stats?.current_streak);
 
-    const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned);
-    const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes);
-    const totalDays = Math.max(stats?.total_study_days || 0, localStudyDays);
+    const hasStudiedToday = Boolean(localActivities[todayStr]?.studied);
+    const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned, localActivities[todayStr]?.cardsStudied || 0);
+    const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes, hasStudiedToday ? 15 : 0);
+    const totalDays = Math.max(stats?.total_study_days || 0, localStudyDays, hasStudiedToday ? 1 : 0);
     const longestStreak = Math.max(stats?.longest_streak || 0, streak);
     const accuracy = stats && stats.average_accuracy > 0 ? stats.average_accuracy : 100;
 
@@ -213,25 +489,34 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
     const localActivities = getLocalDailyActivity(userKey);
     const todayStr = formatLocalYMD();
 
-    // Check if day exists in days list, or if days is empty
+    let hasToday = false;
     const updated = days.map((d) => {
+      if (d.date === todayStr) hasToday = true;
       const act = localActivities[d.date];
       if (act && act.studied) {
         return {
           ...d,
           studied: true,
           study_time_minutes: Math.max(d.study_time_minutes || 0, act.minutes || 15),
-          cards_studied: Math.max(d.cards_studied || 0, act.cardsStudied || 0),
+          cards_studied: Math.max(d.cards_studied || 0, act.cardsStudied || 30),
           accuracy_percent: Math.max(d.accuracy_percent || 0, act.accuracy || 100),
         };
       }
       return d;
     });
 
-    // If today is studied locally but not yet present in days list, ensure today is marked
-    const todayEntry = updated.find((d) => d.date === todayStr);
-    if (todayEntry && localActivities[todayStr]?.studied) {
-      todayEntry.studied = true;
+    const todayAct = localActivities[todayStr];
+    if (todayAct && todayAct.studied) {
+      if (!hasToday) {
+        updated.push({
+          date: todayStr,
+          studied: true,
+          study_time_minutes: todayAct.minutes || 15,
+          cards_studied: todayAct.cardsStudied || 30,
+          cards_reviewed: todayAct.cardsReviewed || 0,
+          accuracy_percent: todayAct.accuracy || 100,
+        });
+      }
     }
 
     return updated;

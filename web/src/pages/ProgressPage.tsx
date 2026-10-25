@@ -48,7 +48,7 @@ export const ProgressPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // User storage key for local completion tracking
-  const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
+  const userKey = getUserKey(user);
 
   // Sync selectedLevel if user changes currentLevel in settings/store
   useEffect(() => {

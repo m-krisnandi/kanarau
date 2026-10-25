@@ -30,10 +30,10 @@ export const Navbar: React.FC = () => {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [levelMenuOpen, setLevelMenuOpen] = useState(false);
   const [levelToast, setLevelToast] = useState<string | null>(null);
-  const [streak, setStreak] = useState<number>(user?.streak ?? 0);
+  const userKey = getUserKey(user);
+  const [streak, setStreak] = useState<number>(() => computeLocalStreak(userKey, user?.streak));
 
   useEffect(() => {
-    const userKey = getUserKey(user);
     async function loadRealStreak() {
       try {
         const res = await progressApi.getOverallStats();

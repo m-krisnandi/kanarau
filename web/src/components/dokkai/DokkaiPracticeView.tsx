@@ -6,6 +6,7 @@ import { localizeDokkai } from '@/locales/moduleTranslations';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
+import { recordDokkaiCompletion, getUserKey } from '@/utils/userProgressHelper';
 import { DOKKAI_VOCAB_TRANSLATIONS } from '@/locales/vocabularyTranslations';
 import {
   playDokkaiPassage,
@@ -205,6 +206,7 @@ export const DokkaiPracticeView: React.FC<DokkaiPracticeViewProps> = ({ currentL
       try {
         localStorage.setItem(storageKey, JSON.stringify(updated));
       } catch (e) {}
+      recordDokkaiCompletion(userKey, activePassage.id, secondsElapsed, correctCount, activePassage.questions.length);
     }
   };
 

@@ -17,6 +17,7 @@ import {
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
+import { recordChoukaiCompletion, getUserKey } from '@/utils/userProgressHelper';
 import {
   Headphones,
   Volume2,
@@ -314,6 +315,7 @@ export const ChoukaiPracticeView: React.FC<ChoukaiPracticeViewProps> = ({ curren
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (e) {}
+    recordChoukaiCompletion(userKey, activeQuestion.id, isCorrect);
   };
 
   const handleNextQuestion = () => {

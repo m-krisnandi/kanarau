@@ -11,6 +11,7 @@ import {
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/stores/languageStore';
+import { recordBunpoCompletion, getUserKey } from '@/utils/userProgressHelper';
 import {
   Layers,
   Sparkles,
@@ -163,6 +164,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
       } catch (err) {
         console.error("Failed to save bunpo completion", err);
       }
+      recordBunpoCompletion(userKey, selectedUnitId, activeQuestions.length || 6, 5);
     }
     handleBackToUnits();
   };

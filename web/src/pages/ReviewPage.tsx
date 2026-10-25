@@ -10,6 +10,7 @@ import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useAuthStore } from '@/stores/authStore';
+import { recordReviewCompletion, getUserKey } from '@/utils/userProgressHelper';
 
 export const ReviewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -161,6 +162,11 @@ export const ReviewPage: React.FC = () => {
     } else {
       const finalAnswers = answers;
       setIsFinished(true);
+      try {
+        const user = useAuthStore.getState().user;
+        const userKey = getUserKey(user);
+        recordReviewCompletion(userKey, finalAnswers.length);
+      } catch {}
       try {
         await reviewApi.submitReview(finalAnswers);
       } catch (err) {
