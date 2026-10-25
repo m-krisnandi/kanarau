@@ -21,10 +21,15 @@ public class StudyController {
     }
 
     private Long getUserId(Authentication auth) {
-        if (auth != null && auth.getPrincipal() instanceof Long uid) {
-            return uid;
+        if (auth == null || auth.getPrincipal() == null) return null;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof Long l) return l;
+        if (principal instanceof Number n) return n.longValue();
+        try {
+            return Long.parseLong(principal.toString());
+        } catch (NumberFormatException ignored) {
+            return null;
         }
-        return null;
     }
 
     @PostMapping("/submit")
@@ -33,6 +38,12 @@ public class StudyController {
             Authentication auth
     ) {
         Long userId = getUserId(auth);
+        if (userId == null) {
+            throw new com.kanarau.common.exception.ApiException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "Sesi login tidak valid atau sudah kedaluwarsa. Silakan masuk kembali."
+            );
+        }
         Map<String, Object> result = studyService.submitSession(userId, req);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }

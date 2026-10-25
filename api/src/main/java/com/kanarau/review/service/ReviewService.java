@@ -24,17 +24,23 @@ public class ReviewService {
     private final KotobaRepository kotobaRepository;
     private final StudyService studyService;
     private final UserRepository userRepository;
+    private final com.kanarau.study.repository.StudySessionRepository studySessionRepository;
+    private final com.kanarau.progress.service.ProgressService progressService;
 
     public ReviewService(
             UserProgressRepository userProgressRepository,
             KotobaRepository kotobaRepository,
             StudyService studyService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            com.kanarau.study.repository.StudySessionRepository studySessionRepository,
+            com.kanarau.progress.service.ProgressService progressService
     ) {
         this.userProgressRepository = userProgressRepository;
         this.kotobaRepository = kotobaRepository;
         this.studyService = studyService;
         this.userRepository = userRepository;
+        this.studySessionRepository = studySessionRepository;
+        this.progressService = progressService;
     }
 
     public ReviewStatsResponse getStats(Long userId) {
@@ -130,20 +136,35 @@ public class ReviewService {
         }
 
         int xpGained = 0;
-        if (answers != null) {
+        if (answers != null && !answers.isEmpty()) {
+            int correctCount = 0;
+            long totalMs = 0;
             for (QuizAnswerDto a : answers) {
                 studyService.recordSingleAnswer(userId, a);
-                if (a.isCorrect()) xpGained += 15;
+                if (a.isCorrect()) {
+                    xpGained += 15;
+                    correctCount++;
+                }
+                totalMs += a.responseTimeMs() > 0 ? a.responseTimeMs() : 5000L;
             }
+
+            com.kanarau.study.entity.StudySession session = new com.kanarau.study.entity.StudySession(userId, 999L);
+            session.setStartedAt(Instant.now().minusMillis(Math.max(1000L, totalMs)));
+            for (int i = 0; i < answers.size(); i++) session.incrementStudied();
+            for (int i = 0; i < correctCount; i++) session.incrementCorrect();
+            session.setFinishedAt(Instant.now());
+            studySessionRepository.save(session);
         }
 
         final int finalXp = xpGained;
+        int updatedStreak = progressService.computeStreak(userId);
         userRepository.findById(userId).ifPresent(user -> {
             user.addXp(finalXp);
+            user.setStreak(updatedStreak);
             userRepository.save(user);
         });
 
-        return Map.of("xp_gained", xpGained);
+        return Map.of("xp_gained", xpGained, "streak", updatedStreak);
     }
 
     private String getMeaningForLang(Kotoba k, String lang) {

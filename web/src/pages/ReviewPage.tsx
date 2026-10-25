@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { reviewApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, ReviewStats, Kotoba } from '@/types';
 import { rateByTime } from '@/utils';
-import { RotateCcw, Play, Check, X, ArrowLeft, BookOpen } from 'lucide-react';
+import { RotateCcw, Play, Check, X, ArrowLeft, BookOpen, Zap, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/stores/languageStore';
 import { localizeQuizCard, localizeKotoba } from '@/locales/vocabularyTranslations';
@@ -58,6 +58,66 @@ export const ReviewPage: React.FC = () => {
   }, [language]);
 
   const startReviewSession = () => {
+    setIsReviewing(true);
+    setCurrentIndex(0);
+    setAnswers([]);
+    setSelectedChoice(null);
+    setIsAnswered(false);
+    setIsFinished(false);
+    setCardStartTime(Date.now());
+  };
+
+  const startWeaknessReview = () => {
+    if (weakWords.length === 0) return;
+
+    const poolMeanings = [
+      'pembedaan ; pemisahan',
+      'merebus lama hingga meresap',
+      'kewalahan, menguasai secara mutlak',
+      'memberitahukan, mengabarkan',
+      'tenggelam, terbengkalai',
+      'seperti biasa, sama saja',
+      'merasakan, menikmati',
+      'tidak jelas, ambigu',
+    ];
+    const poolReadings = ['にこむ', 'くべつ', 'あっとう', 'つげる', 'しずむ', 'あいかわらず', 'あじわう', 'あいまい'];
+
+    const weakCards: QuizCard[] = weakWords.map((m, idx) => {
+      const kotobaObj: Kotoba = {
+        id: idx + 9100,
+        kanji: m.kanji,
+        hiragana: m.hiragana,
+        meaning: m.meaning,
+        jlpt_level: (m.level as any) || 'N2',
+        part_of_speech: '',
+      };
+      const localized = localizeKotoba(kotobaObj, language);
+      const isReading = m.correctAnswer === m.hiragana;
+      const question = m.kanji || m.hiragana;
+      const correctAnswer = isReading ? m.hiragana : localized.meaning;
+
+      const distractorPool = isReading ? poolReadings : poolMeanings;
+      const randomDistractors = distractorPool.filter((d) => d !== correctAnswer).slice(0, 3);
+      const choices = Array.from(
+        new Set([correctAnswer, m.wrongAnswer || randomDistractors[0] || '', ...randomDistractors])
+      ).filter(Boolean).slice(0, 4);
+
+      for (let i = choices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [choices[i], choices[j]] = [choices[j]!, choices[i]!];
+      }
+
+      return {
+        id: `weak_${m.id}_${idx}`,
+        kotoba: localized,
+        direction: isReading ? 'kanji_to_hiragana' : 'kanji_to_meaning',
+        question,
+        correct_answer: correctAnswer,
+        choices,
+      };
+    });
+
+    setQueue(weakCards);
     setIsReviewing(true);
     setCurrentIndex(0);
     setAnswers([]);
@@ -329,7 +389,7 @@ export const ReviewPage: React.FC = () => {
       </div>
 
       {weakWords.length > 0 && (
-        <div className="card-washi rounded-2xl p-4 border border-rose-100 bg-rose-50/30 space-y-2.5">
+        <div className="card-washi rounded-2xl p-4 border border-rose-100 bg-rose-50/30 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xs font-bold text-rose-900">{t.ai.weakLabel(currentLevel)}</h2>
@@ -337,26 +397,81 @@ export const ReviewPage: React.FC = () => {
             </div>
             <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">{weakWords.length}</span>
           </div>
+
+          <button
+            onClick={startWeaknessReview}
+            className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs active:scale-[0.99]"
+          >
+            <Zap className="w-4 h-4 fill-white" />
+            <span>{t.review.practiceWeaknessBtn(weakWords.length)}</span>
+          </button>
+
           <div className="space-y-1.5">
             {weakWords.map((mistake) => (
-              <div key={mistake.id} className="flex items-center justify-between rounded-xl bg-white/80 border border-rose-100 px-3 py-2">
-                <div className="min-w-0">
-                  <span className="font-jp font-bold text-sm text-stone-900">{mistake.kanji}</span>
-                  <span className="ml-2 text-[10px] text-indigo-600 font-jp">{mistake.hiragana}</span>
-                  <p className="text-[10px] text-stone-500 truncate">{localizeKotoba({
-                    id: mistake.id,
-                    kanji: mistake.kanji,
-                    hiragana: mistake.hiragana,
-                    meaning: mistake.meaning,
-                    jlpt_level: mistake.level as any,
-                    part_of_speech: '',
-                  }, language).meaning}</p>
+              <div
+                key={mistake.id}
+                onClick={() =>
+                  setActiveKotoba(
+                    localizeKotoba(
+                      {
+                        id: mistake.id,
+                        kanji: mistake.kanji,
+                        hiragana: mistake.hiragana,
+                        meaning: mistake.meaning,
+                        jlpt_level: mistake.level as any,
+                        part_of_speech: '',
+                      },
+                      language
+                    )
+                  )
+                }
+                className="flex items-center justify-between rounded-xl bg-white/90 dark:bg-slate-900 border border-rose-100 dark:border-rose-950/60 hover:border-rose-300 dark:hover:border-rose-800 px-3 py-2 cursor-pointer group transition-all"
+                title={t.studySession.detailAndConjugation}
+              >
+                <div className="min-w-0 pr-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-jp font-bold text-sm text-stone-900 dark:text-white">{mistake.kanji}</span>
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-jp">{mistake.hiragana}</span>
+                  </div>
+                  <p className="text-[10px] text-stone-500 dark:text-slate-400 truncate">
+                    {
+                      localizeKotoba(
+                        {
+                          id: mistake.id,
+                          kanji: mistake.kanji,
+                          hiragana: mistake.hiragana,
+                          meaning: mistake.meaning,
+                          jlpt_level: mistake.level as any,
+                          part_of_speech: '',
+                        },
+                        language
+                      ).meaning
+                    }
+                  </p>
                 </div>
-                <span className="text-[10px] font-bold text-rose-700 shrink-0">×{mistake.count}</span>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <span className="text-[10px] font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/60 px-1.5 py-0.5 rounded">×{mistake.count}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-stone-300 group-hover:text-rose-600 transition-colors" />
+                </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Kotoba Detail & Conjugation Modal */}
+      <KotobaDetailModal
+        kotoba={activeKotoba}
+        onClose={() => setActiveKotoba(null)}
+        onViewKanji={(char) => setActiveKanjiChar(char)}
+      />
+
+      {/* Kanji Detail Modal */}
+      {activeKanjiChar && (
+        <KanjiDetailView
+          character={activeKanjiChar}
+          onClose={() => setActiveKanjiChar(null)}
+        />
       )}
     </div>
   );

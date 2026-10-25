@@ -47,6 +47,7 @@ public class StudySession {
     public Integer getCardsStudied() { return cardsStudied; }
     public Integer getCardsCorrect() { return cardsCorrect; }
 
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
     public void incrementStudied() { this.cardsStudied++; }
     public void incrementCorrect() { this.cardsCorrect++; }

@@ -19,6 +19,7 @@ import type {
   AdminUserDetail,
   UserFeedbackItem,
   SubmitFeedbackPayload,
+  LeaderboardData,
 } from '@/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -381,3 +382,11 @@ export const adminApi = {
     });
   },
 };
+
+// ─── Leaderboard ───────────────────────────────────────────────────────
+export const leaderboardApi = {
+  getLeaderboard() {
+    return request<ApiResponse<LeaderboardData>>('/leaderboard');
+  },
+};
+

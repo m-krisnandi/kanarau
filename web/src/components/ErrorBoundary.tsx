@@ -17,6 +17,14 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
+    const isChunkError = /text\/html|dynamically imported module|Loading chunk|Failed to fetch/i.test(error.message);
+    if (isChunkError && typeof window !== 'undefined') {
+      const lastReload = Number(sessionStorage.getItem('last_chunk_reload') || 0);
+      if (Date.now() - lastReload > 8000) {
+        sessionStorage.setItem('last_chunk_reload', String(Date.now()));
+        window.location.reload();
+      }
+    }
     return { hasError: true, error };
   }
 

@@ -10,7 +10,8 @@ import type { Kotoba } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useTranslation } from '@/stores/languageStore';
-import { localizeQuizCard, localizeKotoba, localizeNotes } from '@/locales/vocabularyTranslations';
+import { localizeQuizCard, localizeKotoba } from '@/locales/vocabularyTranslations';
+import { getCardHintDetails } from '@/utils/hintHelper';
 import {
   ArrowLeft,
   Check,
@@ -22,7 +23,10 @@ import {
   AlertCircle,
   Award,
   BookOpen,
+  Trophy,
 } from 'lucide-react';
+import { LeaderboardModal } from '@/components/LeaderboardModal';
+import { calculateUserLevel } from '@/utils/levelHelper';
 
 export const StudySessionPage: React.FC = () => {
   const { deckId } = useParams<{ deckId: string }>();
@@ -52,6 +56,8 @@ export const StudySessionPage: React.FC = () => {
   const [selectedKotobaForDetail, setSelectedKotobaForDetail] = useState<Kotoba | null>(null);
   const [selectedKanjiChar, setSelectedKanjiChar] = useState<string | null>(null);
   const [deckTitle, setDeckTitle] = useState<string>("");
+  const [earnedXp, setEarnedXp] = useState<number>(0);
+  const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
 
   useEffect(() => {
     async function loadCards() {
@@ -136,9 +142,11 @@ export const StudySessionPage: React.FC = () => {
     const totalTimeMs = sessionAnswers.reduce((sum, a) => sum + a.response_time_ms, 0);
     const accuracy = cards.length > 0 ? Math.round((correctCount / cards.length) * 100) : 0;
     const xpGained = correctCount * 10 + 20;
+    setEarnedXp(xpGained);
 
+    const numericDeckId = deckId ? Number(deckId) : 1;
     const result: SessionResult = {
-      deck_id: deckId,
+      deck_id: numericDeckId,
       total_cards: cards.length,
       correct_count: correctCount,
       accuracy_percent: accuracy,
@@ -149,6 +157,7 @@ export const StudySessionPage: React.FC = () => {
 
     try {
       await studyApi.submitSession(result);
+      await useAuthStore.getState().fetchUser();
     } catch (err) {
       console.error('Failed to submit session to backend', err);
     }
@@ -251,8 +260,8 @@ export const StudySessionPage: React.FC = () => {
         </div>
 
         {/* Celebration Banner Card */}
-        <div className="card-washi rounded-2xl p-6 text-center space-y-2 border border-[#EFEAE2] shadow-xs">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shadow-2xs">
+        <div className="card-washi rounded-2xl p-5 text-center space-y-2 border border-[#EFEAE2] shadow-xs">
+          <div className="w-13 h-13 mx-auto rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 shadow-2xs">
             <Award className="w-7 h-7" />
           </div>
           <h2 className="text-lg font-bold font-mincho text-[#1E1B18]">{t.studySession.sessionFinished}</h2>
@@ -260,15 +269,51 @@ export const StudySessionPage: React.FC = () => {
             {t.studySession.retentionTip}
           </p>
 
-          <div className="flex items-center justify-center space-x-3 pt-2">
+          <div className="flex items-center justify-center space-x-3 pt-1">
             <span className="text-3xl font-extrabold text-emerald-600 font-mincho">
               {accuracy}%
             </span>
             <span className="text-xs font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 flex items-center space-x-1">
               <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-               <span>+30 {t.common.exp}</span>
+              <span>+{earnedXp || (answers.filter((a) => a.is_correct).length * 10 + 20)} {t.common.exp}</span>
             </span>
           </div>
+
+          {/* User Level & XP Bar */}
+          {(() => {
+            const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
+            return (
+              <div className="bg-stone-50/80 dark:bg-slate-900/60 rounded-xl p-3 border border-stone-200/80 dark:border-slate-800 text-left space-y-1.5 mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400">
+                    Lv. {userLvl.level} · {userLvl.title}
+                  </span>
+                  <span className="text-[10px] text-stone-500 dark:text-slate-400 font-sans font-bold">
+                    {userLvl.totalXp} EXP
+                  </span>
+                </div>
+                <div className="w-full bg-stone-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${userLvl.progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[9px] text-stone-400 dark:text-slate-500">
+                  <span>{t.leaderboard.levelProgress}</span>
+                  <span>{userLvl.xpInCurrentLevel} / {userLvl.xpNeededForNext} EXP ({userLvl.progressPercent}%)</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Quick Leaderboard Button */}
+          <button
+            onClick={() => setLeaderboardOpen(true)}
+            className="w-full mt-2 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+          >
+            <Trophy className="w-4 h-4 text-amber-600 fill-amber-500" />
+            <span>{t.studySession.viewLeaderboard}</span>
+          </button>
         </div>
 
         {/* Breakdown List */}
@@ -279,26 +324,34 @@ export const StudySessionPage: React.FC = () => {
 
           <div className="space-y-1.5">
             {answers.map((ans, idx) => {
-              const matchedCard = cards[idx];
-              const kotoba = matchedCard?.kotoba;
+              const matchedCard = cards.find((c) => c.id === ans.card_id) || cards[idx];
+              const rawKotoba = matchedCard?.kotoba;
+              const kotoba = rawKotoba ? localizeKotoba(rawKotoba, language) : null;
               const seconds = (ans.response_time_ms / 1000).toFixed(1);
 
               return (
                 <div key={ans.card_id || idx}
                   onClick={() => kotoba && setSelectedKotobaForDetail(kotoba)}
-                  className="card-washi card-washi-hover rounded-xl p-3 flex items-center justify-between border border-[#EFEAE2] cursor-pointer transition-all"
+                  className="card-washi card-washi-hover rounded-xl p-3 flex items-center justify-between border border-[#EFEAE2] cursor-pointer transition-all hover:border-indigo-300 dark:hover:border-indigo-700 group active:scale-[0.99]"
                   title={t.studySession.detailAndConjugation}
                 >
-                  <div className="space-y-0.5 pr-2">
-                    <span className="font-jp font-bold text-[#1E1B18] text-sm">
-                      {kotoba?.kanji || kotoba?.hiragana || ans.correct_answer}
-                    </span>
+                  <div className="space-y-0.5 pr-2 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-jp font-bold text-[#1E1B18] text-sm">
+                        {kotoba?.kanji || kotoba?.hiragana || ans.correct_answer}
+                      </span>
+                      {kotoba?.kanji && (
+                        <span className="text-[10px] text-indigo-600 font-jp">
+                          {kotoba.hiragana}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[#78716C] line-clamp-1">
                       {kotoba?.meaning || ans.correct_answer}
                     </p>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="flex items-center space-x-2 shrink-0">
                     {ans.is_correct ? (
                       <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200/60">
                         <Check className="w-3 h-3 text-emerald-600" />
@@ -310,6 +363,7 @@ export const StudySessionPage: React.FC = () => {
                         <span>{t.studySession.wrongWithTime(seconds)}</span>
                       </span>
                     )}
+                    <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-indigo-600 transition-colors" />
                   </div>
                 </div>
               );
@@ -334,22 +388,12 @@ export const StudySessionPage: React.FC = () => {
   const currentPercent = ((currentIndex / cards.length) * 100).toFixed(2);
   const activeDeckTitle = deckTitle || `DAY ${deckId || '1'} ${currentLevel}`;
 
-  const rawNotes = currentCard?.kotoba?.notes;
-  const localizedCardNotes = rawNotes ? localizeNotes(rawNotes, language) : null;
-
-  const hintContent =
-    localizedCardNotes ||
-    (currentCard?.kotoba?.example_sentence
-      ? (language === 'my'
-          ? `ဥပမာ အသုံးပြုပုံ- ${currentCard.kotoba.example_sentence}\nအဓိပ္ပာယ်- ${currentCard.kotoba.example_sentence_meaning || ''}`
-          : language === 'en'
-          ? `Example Usage: ${currentCard.kotoba.example_sentence}\nMeaning: ${currentCard.kotoba.example_sentence_meaning || ''}`
-          : `Contoh Penggunaan: ${currentCard.kotoba.example_sentence}\nTerjemahan: ${currentCard.kotoba.example_sentence_meaning || ''}`)
-      : (language === 'my'
-          ? 'ဤစကားလုံး၏ အဓိပ္ပာယ်ကို မှတ်မိရန် ခန်းဂျီးပုံစံနှင့် အရင်းခံဖွဲ့စည်းမှုကို သတိပြုပါ။'
-          : language === 'en'
-          ? 'Observe the kanji pattern and radicals to recall the meaning of this word.'
-          : 'Perhatikan pola kanji dan radikal pembentuknya untuk mengingat makna kata ini.'));
+  const hintDetails = currentCard
+    ? getCardHintDetails(currentCard, language, {
+        hintMeaning: t.studySession.hintMeaning,
+        hintReading: t.studySession.hintReading,
+      })
+    : null;
 
   const hasKanji = (text?: string) => !!text && /[\u4e00-\u9faf]/.test(text);
 
@@ -438,10 +482,71 @@ export const StudySessionPage: React.FC = () => {
             </button>
            </div>}
 
-          {/* Expanded Soft Amber Hint Box */}
-           {showHint && !isExamMode && (
-            <div className="mt-3 p-3.5 bg-[#FFF9ED] border border-[#FDE68A] rounded-xl text-left text-xs text-[#92400E] leading-relaxed shadow-2xs animate-fade-in whitespace-pre-line font-jp">
-              {hintContent}
+          {/* Expanded Rich Amber Hint Box */}
+          {showHint && !isExamMode && hintDetails && (
+            <div className="mt-3 p-4 bg-gradient-to-br from-[#FFFDF9] to-[#FFF9ED] border border-[#FDE68A] rounded-2xl text-left text-xs shadow-xs animate-fade-in space-y-2.5">
+              {/* Hint Title Header */}
+              <div className="flex items-center space-x-1.5 text-amber-900 font-bold border-b border-amber-200/70 pb-1.5">
+                <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-[11px] uppercase tracking-wider">{t.studySession.hintTitle}</span>
+              </div>
+
+              {/* Primary Clue: Meaning for reading quiz, or Reading for meaning quiz */}
+              {hintDetails.primaryClue?.value && (
+                <div className="bg-amber-100/70 rounded-xl p-2.5 border border-amber-200/80">
+                  <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wide block mb-0.5">
+                    {hintDetails.primaryClue.label}
+                  </span>
+                  <span className="font-semibold text-amber-950 text-sm leading-snug block">
+                    {hintDetails.primaryClue.value}
+                  </span>
+                </div>
+              )}
+
+              {/* Context: Example Sentence & Translation */}
+              {hintDetails.exampleSentence && (
+                <div className="space-y-1 bg-white/80 rounded-xl p-2.5 border border-amber-200/50">
+                  <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center space-x-1">
+                    <BookOpen className="w-3 h-3 text-amber-600 shrink-0" />
+                    <span>{t.studySession.hintExample}</span>
+                  </div>
+                  <p className="font-jp text-xs sm:text-sm text-[#1E1B18] font-medium leading-relaxed">
+                    {hintDetails.exampleSentence}
+                  </p>
+                  {hintDetails.exampleTranslation && (
+                    <p className="text-[11px] text-[#57534E] leading-normal pt-1 border-t border-amber-100/80 italic">
+                      "{hintDetails.exampleTranslation}"
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Tags: Part of speech and Kanji clues */}
+              {(hintDetails.partOfSpeech || (hintDetails.kanjiClues && hintDetails.kanjiClues.length > 0)) && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
+                  {hintDetails.partOfSpeech && (
+                    <div className="flex items-center space-x-1 text-amber-900 bg-amber-100/70 px-2 py-0.5 rounded-md border border-amber-200/70">
+                      <span className="font-bold text-amber-800">{t.studySession.hintPartOfSpeech}:</span>
+                      <span>{hintDetails.partOfSpeech}</span>
+                    </div>
+                  )}
+                  {hintDetails.kanjiClues && hintDetails.kanjiClues.length > 0 && (
+                    <div className="flex items-center space-x-1 text-amber-900 bg-amber-100/70 px-2 py-0.5 rounded-md border border-amber-200/70">
+                      <span className="font-bold text-amber-800">{t.studySession.hintKanjiClue}:</span>
+                      <span>
+                        {hintDetails.kanjiClues.map((kc) => `${kc.char}${kc.meaning ? ` (${kc.meaning})` : ''}`).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Extra Notes if any */}
+              {hintDetails.notes && (
+                <p className="text-[11px] text-[#78716C] italic pt-1 border-t border-amber-200/40">
+                  {hintDetails.notes}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -554,9 +659,10 @@ export const StudySessionPage: React.FC = () => {
               <p className="text-[11px] text-[#57534E] leading-relaxed">
                 {t.studySession.meaningLabel} <span className="font-semibold">{currentCard.kotoba.meaning}</span>
               </p>
-               {localizedCardNotes && (
-                 <p className="text-[11px] text-[#78716C] font-jp bg-white/70 p-2 rounded-xl border border-rose-100">
-                   {localizedCardNotes}
+               {hintDetails?.partOfSpeech && (
+                 <p className="text-[11px] text-[#78716C] bg-white/70 p-2 rounded-xl border border-rose-100 flex items-center space-x-1">
+                   <span className="font-bold text-[#57534E]">{t.studySession.hintPartOfSpeech}:</span>
+                   <span>{hintDetails.partOfSpeech}</span>
                  </p>
                )}
             </div>
@@ -614,6 +720,12 @@ export const StudySessionPage: React.FC = () => {
         onClose={() => setAiModalOpen(false)}
         initialPrompt={aiInitialPrompt}
         initialDisplayText={aiInitialDisplay}
+      />
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
       />
     </>
   );

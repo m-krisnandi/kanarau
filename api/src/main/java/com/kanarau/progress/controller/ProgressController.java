@@ -57,9 +57,14 @@ public class ProgressController {
     }
 
     private Long getUserId(Authentication auth) {
-        if (auth != null && auth.getPrincipal() instanceof Long userId) {
-            return userId;
+        if (auth == null || auth.getPrincipal() == null) return null;
+        Object principal = auth.getPrincipal();
+        if (principal instanceof Long l) return l;
+        if (principal instanceof Number n) return n.longValue();
+        try {
+            return Long.parseLong(principal.toString());
+        } catch (NumberFormatException ignored) {
+            return null;
         }
-        return null;
     }
 }

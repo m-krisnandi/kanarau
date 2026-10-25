@@ -26,19 +26,22 @@ public class StudyService {
     private final ReviewLogRepository reviewLogRepository;
     private final UserRepository userRepository;
     private final SrsAlgorithm srsAlgorithm;
+    private final com.kanarau.progress.service.ProgressService progressService;
 
     public StudyService(
             StudySessionRepository studySessionRepository,
             UserProgressRepository userProgressRepository,
             ReviewLogRepository reviewLogRepository,
             UserRepository userRepository,
-            SrsAlgorithm srsAlgorithm
+            SrsAlgorithm srsAlgorithm,
+            com.kanarau.progress.service.ProgressService progressService
     ) {
         this.studySessionRepository = studySessionRepository;
         this.userProgressRepository = userProgressRepository;
         this.reviewLogRepository = reviewLogRepository;
         this.userRepository = userRepository;
         this.srsAlgorithm = srsAlgorithm;
+        this.progressService = progressService;
     }
 
     @Transactional
@@ -47,8 +50,10 @@ public class StudyService {
             return Map.of("xp_gained", 0);
         }
 
-        // 1. Record session
+        // 1. Record session with realistic start time based on actual duration
         StudySession session = new StudySession(userId, req.deckId() != null ? req.deckId() : 1L);
+        long durationMs = req.totalTimeMs() > 0 ? req.totalTimeMs() : (Math.max(1, req.totalCards()) * 15000L);
+        session.setStartedAt(Instant.now().minusMillis(durationMs));
         for (int i = 0; i < req.totalCards(); i++) session.incrementStudied();
         for (int i = 0; i < req.correctCount(); i++) session.incrementCorrect();
         session.setFinishedAt(Instant.now());
@@ -61,13 +66,15 @@ public class StudyService {
             }
         }
 
-        // 3. Update user XP and streak
+        // 3. Update user XP and compute updated streak
+        int updatedStreak = progressService.computeStreak(userId);
         userRepository.findById(userId).ifPresent(user -> {
             user.addXp(req.xpGained());
+            user.setStreak(updatedStreak);
             userRepository.save(user);
         });
 
-        return Map.of("xp_gained", req.xpGained());
+        return Map.of("xp_gained", req.xpGained(), "streak", updatedStreak);
     }
 
     @Transactional

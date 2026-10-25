@@ -57,10 +57,11 @@ public class ProgressService {
         }
 
         int streak = computeStreak(userId);
+        long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
         long masteredCount = userProgressRepository.countMasteredByUser(userId);
         long reviewCount = userProgressRepository.countReviewByUser(userId);
         long learningCount = userProgressRepository.countLearningByUser(userId);
-        long totalCards = masteredCount + reviewCount + learningCount;
+        long totalCards = distinctKotobas > 0 ? distinctKotobas : (masteredCount + reviewCount + learningCount);
 
         List<StudySession> sessions = studySessionRepository.findByUserIdOrderByStartedAtDesc(userId);
 
@@ -71,7 +72,8 @@ public class ProgressService {
         int totalMinutes = 0;
         for (StudySession s : sessions) {
             if (s.getStartedAt() != null && s.getFinishedAt() != null) {
-                totalMinutes += (int) Duration.between(s.getStartedAt(), s.getFinishedAt()).toMinutes();
+                long diffMs = Duration.between(s.getStartedAt(), s.getFinishedAt()).toMillis();
+                totalMinutes += Math.max(1, (int) Math.ceil(diffMs / 60000.0));
             } else {
                 totalMinutes += Math.max(1, s.getCardsStudied() * 20 / 60);
             }
@@ -123,7 +125,8 @@ public class ProgressService {
                 int dayMinutes = 0;
                 for (StudySession s : daySessions) {
                     if (s.getStartedAt() != null && s.getFinishedAt() != null) {
-                        dayMinutes += (int) Duration.between(s.getStartedAt(), s.getFinishedAt()).toMinutes();
+                        long diffMs = Duration.between(s.getStartedAt(), s.getFinishedAt()).toMillis();
+                        dayMinutes += Math.max(1, (int) Math.ceil(diffMs / 60000.0));
                     } else {
                         dayMinutes += Math.max(1, s.getCardsStudied() * 20 / 60);
                     }
@@ -164,6 +167,7 @@ public class ProgressService {
             int learned = 0;
             int reviewing = 0;
             int mastered = 0;
+            int percent = 0;
 
             if (userId != null && !kotobaIds.isEmpty()) {
                 List<UserProgress> upList = userProgressRepository.findByUserIdAndKotobaIds(userId, kotobaIds);
@@ -172,10 +176,10 @@ public class ProgressService {
                     else if (up.getStatus() == ProgressStatus.REVIEW) reviewing++;
                     else if (up.getStatus() == ProgressStatus.MASTERED) mastered++;
                 }
-            }
 
-            int percent = total > 0 ? (int) Math.round(((double) (mastered * 2 + reviewing + learned) / (total * 2)) * 100) : 0;
-            if (percent > 100) percent = 100;
+                long distinctLearnedInDeck = upList.stream().map(UserProgress::getKotobaId).distinct().count();
+                percent = total > 0 ? (int) Math.min(100, Math.round(((double) distinctLearnedInDeck / total) * 100)) : 0;
+            }
 
             result.add(new DeckProgressResponse(
                     deck.getId(),
@@ -205,7 +209,7 @@ public class ProgressService {
         );
     }
 
-    private int computeStreak(Long userId) {
+    public int computeStreak(Long userId) {
         List<StudySession> sessions = studySessionRepository.findByUserIdOrderByStartedAtDesc(userId);
         if (sessions.isEmpty()) return 0;
 

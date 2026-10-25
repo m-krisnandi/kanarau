@@ -256,3 +256,22 @@ export interface SubmitFeedbackPayload {
   category: string;
   description: string;
 }
+
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: number;
+  display_name: string;
+  total_xp: number;
+  gamification_level: number;
+  level_title: string;
+  streak: number;
+  jlpt_level: string;
+  is_current_user: boolean;
+}
+
+export interface LeaderboardData {
+  top_users: LeaderboardEntry[];
+  current_user_entry?: LeaderboardEntry | null;
+  total_learners: number;
+}
+

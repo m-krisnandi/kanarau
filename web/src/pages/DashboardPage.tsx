@@ -12,6 +12,7 @@ import {
   FileText,
   Headphones,
   TrendingUp,
+  Trophy,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useReviewStore } from '@/stores/reviewStore';
@@ -19,6 +20,8 @@ import { useTranslation } from '@/stores/languageStore';
 import { reviewApi, progressApi } from '@/services/api';
 import type { OverallStats, DayStats } from '@/types';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
+import { LeaderboardModal } from '@/components/LeaderboardModal';
+import { calculateUserLevel } from '@/utils/levelHelper';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
 import { formatLocalYMD } from '@/utils';
@@ -28,14 +31,16 @@ export const DashboardPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const currentLevel = useAuthStore((state) => state.currentLevel) || user?.current_level || 'N2';
   const { pendingCount, setPendingCount } = useReviewStore();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [dokkaiDone, setDokkaiDone] = useState(false);
   const [choukaiDone, setChoukaiDone] = useState(false);
   const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
   const [calendarDays, setCalendarDays] = useState<DayStats[]>([]);
 
   const level = currentLevel;
+  const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
   const [activeDay, setActiveDay] = useState(1);
   const [targetWordsCount, setTargetWordsCount] = useState(30);
   const [countdownDays, setCountdownDays] = useState<number>(49);
@@ -182,7 +187,7 @@ export const DashboardPage: React.FC = () => {
         {/* Authentic Welcoming Dashboard Header */}
         <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center flex-wrap gap-1.5">
               <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-100/80">
                  {t.common.level} {level}
               </span>
@@ -190,9 +195,20 @@ export const DashboardPage: React.FC = () => {
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                 <span>{t.dashboard.streak(user?.streak ?? 0)}</span>
               </span>
+              {/* Gamification User Level Badge */}
+              <button
+                type="button"
+                onClick={() => setLeaderboardOpen(true)}
+                className="inline-flex items-center space-x-1 text-[10px] sm:text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-2 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors shadow-2xs cursor-pointer active:scale-95"
+                title={`${userLvl.title} (${userLvl.totalXp} XP)`}
+              >
+                <Trophy className="w-3 h-3 text-amber-500 fill-amber-400" />
+                <span>Lv. {userLvl.level}</span>
+                <span className="text-[9px] opacity-75 font-normal">({userLvl.totalXp} XP)</span>
+              </button>
             </div>
 
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2 sm:px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
                 {t.dashboard.countdown(countdownDays)}
               </span>
@@ -222,6 +238,32 @@ export const DashboardPage: React.FC = () => {
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
+        </div>
+
+        {/* Papan Peringkat / Leaderboard Competitive Card */}
+        <div
+          onClick={() => setLeaderboardOpen(true)}
+          className="card-washi rounded-2xl px-3 py-2 sm:py-2.5 border border-amber-200/80 dark:border-amber-800/50 bg-gradient-to-r from-amber-50/80 via-white to-indigo-50/40 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-amber-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-amber-300 dark:hover:border-amber-500 transition-all group active:scale-98"
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Trophy className="w-3.5 h-3.5 fill-amber-200" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center space-x-2">
+                <h4 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight">
+                  {t.leaderboard?.title || 'Papan Peringkat'}
+                </h4>
+                <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                  Lv. {userLvl.level} · {userLvl.title}
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 truncate mt-0.5">
+                {t.leaderboard?.subtitle || 'Bandingkan level dan bersaing dengan pembelajar lain'}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
         </div>
 
         {/* Tanya AI Card */}
@@ -566,6 +608,12 @@ export const DashboardPage: React.FC = () => {
       <TanyaAiModal
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
+      />
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
       />
     </>
   );

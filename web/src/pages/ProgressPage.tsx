@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { progressApi } from '@/services/api';
 import type { OverallStats, DeckProgress, MonthlyCalendar, JLPTCountdown, JLPTLevel } from '@/types';
 import { StudyCalendar } from '@/components/StudyCalendar';
-import { Flame, Clock, Award, CheckCircle, ShieldCheck, AlertTriangle, BookOpen, FileText, Headphones } from 'lucide-react';
+import { Flame, Clock, Award, CheckCircle, ShieldCheck, AlertTriangle, BookOpen, FileText, Headphones, Trophy, ChevronRight } from 'lucide-react';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
+import { LeaderboardModal } from '@/components/LeaderboardModal';
+import { calculateUserLevel } from '@/utils/levelHelper';
 
 export const ProgressPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = (storeLevel || user?.current_level || 'N2') as JLPTLevel;
@@ -19,6 +21,8 @@ export const ProgressPage: React.FC = () => {
   const [deckProgress, setDeckProgress] = useState<DeckProgress[]>([]);
   const [countdown, setCountdown] = useState<JLPTCountdown | null>(null);
   const [calendar, setCalendar] = useState<MonthlyCalendar | null>(null);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
   const initialDate = new Date();
   const [year, setYear] = useState(initialDate.getFullYear());
   const [month, setMonth] = useState(initialDate.getMonth() + 1);
@@ -141,6 +145,43 @@ export const ProgressPage: React.FC = () => {
         <p className="text-xs text-[#78716C] mt-0.5">
           {t.progress.subtitle}
         </p>
+      </div>
+
+      {/* Gamification Level & Leaderboard Card */}
+      <div
+        onClick={() => setLeaderboardOpen(true)}
+        className="card-washi rounded-2xl p-3.5 border border-amber-200/90 dark:border-amber-800/60 bg-gradient-to-r from-amber-50/70 via-white to-orange-50/40 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-amber-950/20 shadow-xs cursor-pointer hover:border-amber-300 dark:hover:border-amber-500 transition-all group active:scale-98"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Trophy className="w-5 h-5 fill-amber-200" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/60 px-2 py-0.5 rounded-full">
+                  Level {userLvl.level}
+                </span>
+                <span className="text-sm font-bold font-mincho text-[#1E1B18] dark:text-slate-100">
+                  {userLvl.title}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#78716C] dark:text-slate-400 mt-0.5">
+                {userLvl.totalXp} XP · {userLvl.progressPercent}% menuju Level {userLvl.level + 1}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1 text-xs font-bold text-amber-700 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2">
+            <span>{t.leaderboard?.title || 'Papan Peringkat'}</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="w-full bg-amber-100 dark:bg-amber-950/60 h-1.5 rounded-full overflow-hidden mt-3">
+          <div
+            className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
+            style={{ width: `${userLvl.progressPercent}%` }}
+          />
+        </div>
       </div>
 
       {/* 4 Summary Badges */}
@@ -508,6 +549,12 @@ export const ProgressPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+      />
     </div>
   );
 };

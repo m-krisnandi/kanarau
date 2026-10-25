@@ -48,8 +48,9 @@ public class DeckService {
                 List<Long> kotobaIds = deckKotobaRepository.findByDeckIdOrderBySortOrder(deck.getId())
                         .stream().map(DeckKotoba::getKotobaId).toList();
                 if (!kotobaIds.isEmpty()) {
-                    int learnedCount = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds).size();
-                    progressPercent = (int) Math.min(100, Math.round(((double) learnedCount / (kotobaIds.size() * 3)) * 100));
+                    long distinctLearned = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds)
+                            .stream().map(com.kanarau.review.entity.UserProgress::getKotobaId).distinct().count();
+                    progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / kotobaIds.size()) * 100));
                 }
             }
             return DeckResponse.from(deck, progressPercent);
@@ -64,8 +65,9 @@ public class DeckService {
             List<Long> kotobaIds = deckKotobaRepository.findByDeckIdOrderBySortOrder(deck.getId())
                     .stream().map(DeckKotoba::getKotobaId).toList();
             if (!kotobaIds.isEmpty()) {
-                int learnedCount = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds).size();
-                progressPercent = (int) Math.min(100, Math.round(((double) learnedCount / (kotobaIds.size() * 3)) * 100));
+                long distinctLearned = userProgressRepository.findByUserIdAndKotobaIdIn(userId, kotobaIds)
+                        .stream().map(com.kanarau.review.entity.UserProgress::getKotobaId).distinct().count();
+                progressPercent = (int) Math.min(100, Math.round(((double) distinctLearned / kotobaIds.size()) * 100));
             }
         }
         return DeckResponse.from(deck, progressPercent);
