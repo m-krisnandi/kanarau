@@ -9,8 +9,10 @@ import com.kanarau.progress.service.ProgressService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -19,10 +21,16 @@ public class ProgressController {
 
     private final ProgressService progressService;
     private final com.kanarau.auth.repository.UserRepository userRepository;
+    private final ZoneId studyZone;
 
-    public ProgressController(ProgressService progressService, com.kanarau.auth.repository.UserRepository userRepository) {
+    public ProgressController(
+            ProgressService progressService,
+            com.kanarau.auth.repository.UserRepository userRepository,
+            @Value("${kanarau.jlpt.timezone:Asia/Jakarta}") String timezone
+    ) {
         this.progressService = progressService;
         this.userRepository = userRepository;
+        this.studyZone = ZoneId.of(timezone);
     }
 
     @GetMapping("/stats")
@@ -39,8 +47,9 @@ public class ProgressController {
             Authentication auth
     ) {
         Long userId = getUserId(auth);
-        int y = (year != null) ? year : LocalDate.now().getYear();
-        int m = (month != null) ? month : LocalDate.now().getMonthValue();
+        LocalDate today = LocalDate.now(studyZone);
+        int y = (year != null) ? year : today.getYear();
+        int m = (month != null) ? month : today.getMonthValue();
         MonthlyCalendarResponse calendar = progressService.getCalendar(userId, y, m);
         return ResponseEntity.ok(ApiResponse.ok(calendar));
     }

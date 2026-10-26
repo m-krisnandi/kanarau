@@ -118,7 +118,10 @@ export const DashboardPage: React.FC = () => {
         const bSaved = localStorage.getItem(`kanarau_bunpo_results_${userKey}`);
         if (bSaved) {
           const parsed = JSON.parse(bSaved);
-          isBunpo = Boolean(parsed && Object.keys(parsed).some((k) => Boolean(parsed[k])));
+          isBunpo = Boolean(parsed && Object.values(parsed).some((record: any) => {
+            const raw = record && typeof record === 'object' ? (record.completedAt || record.timestamp) : null;
+            return typeof raw === 'string' && raw.slice(0, 10) === todayStr;
+          }));
         }
         setBunpoDone(isBunpo);
 
@@ -165,10 +168,9 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     async function loadStatsData() {
       try {
-        const now = new Date();
         const [statsRes, calRes] = await Promise.all([
           progressApi.getOverallStats(),
-          progressApi.getCalendar(now.getFullYear(), now.getMonth() + 1),
+          progressApi.getCalendar(),
         ]);
         const mergedStats = mergeOverallStats(statsRes?.data || null, userKey);
         setOverallStats(mergedStats);

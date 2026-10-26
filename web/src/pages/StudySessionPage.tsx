@@ -60,7 +60,10 @@ export const StudySessionPage: React.FC = () => {
   const [selectedKotobaForDetail, setSelectedKotobaForDetail] = useState<Kotoba | null>(null);
   const [selectedKanjiChar, setSelectedKanjiChar] = useState<string | null>(null);
   const [deckTitle, setDeckTitle] = useState<string>("");
+  const [deckTotalCards, setDeckTotalCards] = useState<number>(0);
   const [earnedXp, setEarnedXp] = useState<number>(0);
+  const [sessionAccuracy, setSessionAccuracy] = useState<number>(0);
+  const [totalXpAfterSession, setTotalXpAfterSession] = useState<number | null>(null);
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
 
   useEffect(() => {
@@ -83,9 +86,10 @@ export const StudySessionPage: React.FC = () => {
             return true;
           });
 
-          const deckWordCount = (deckRes.status === 'fulfilled' && deckRes.value.data?.kotoba_count)
-            ? deckRes.value.data.kotoba_count
-            : 30;
+           const deckWordCount = (deckRes.status === 'fulfilled' && deckRes.value.data?.kotoba_count)
+             ? deckRes.value.data.kotoba_count
+             : 30;
+           setDeckTotalCards(deckWordCount);
           const maxCards = studyMode === 'exam' ? 30 : studyMode === 'diagnostic' ? 20 : deckWordCount;
 
           // Pick 1 card per unique kotoba first to ensure complete deck coverage
@@ -177,21 +181,19 @@ export const StudySessionPage: React.FC = () => {
   const finishSession = useCallback(async (sessionAnswers: QuizAnswer[] = answers) => {
     setIsFinished(true);
     const totalUniqueCards = initialCards.length > 0 ? initialCards.length : (cards.length > 0 ? cards.length : 15);
-    const accuracy = 100; // All cards are practiced until 100% mastered
-    const xpGained = totalUniqueCards * 10 + 20;
+    const firstAttemptAnswers: QuizAnswer[] = [];
+    const firstAttemptKotobas = new Set<number | string>();
+    for (const answer of (answersRef.current.length > 0 ? answersRef.current : sessionAnswers)) {
+      if (answer.kotoba_id && !firstAttemptKotobas.has(answer.kotoba_id)) {
+        firstAttemptKotobas.add(answer.kotoba_id);
+        firstAttemptAnswers.push(answer);
+      }
+    }
+    const correctCount = firstAttemptAnswers.filter((answer) => answer.is_correct).length;
+    const accuracy = totalUniqueCards > 0 ? Math.round((correctCount / totalUniqueCards) * 100) : 0;
+    const xpGained = correctCount * 10 + (correctCount > 0 ? 20 : 0);
+    setSessionAccuracy(accuracy);
     setEarnedXp(xpGained);
-
-    // Optimistically update total_xp in authStore immediately so results screen reflects it
-    useAuthStore.setState((state) => {
-      if (!state.user) return state;
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          total_xp: (state.user.total_xp || 0) + xpGained,
-        },
-      };
-    });
 
     const effectiveAnswers = answersRef.current.length > 0
       ? answersRef.current
@@ -199,17 +201,14 @@ export const StudySessionPage: React.FC = () => {
     const totalTimeMs = effectiveAnswers.reduce((sum, a) => sum + (a.response_time_ms || 3000), 0);
     const numericDeckId = (deckId && !isNaN(Number(deckId))) ? Number(deckId) : 1;
 
-    // Filter to best/completed answer per unique kotoba for SRS submission
+    // Submit the latest answer per unique word so retries update SRS correctly.
     const uniqueKotobaAnswers: QuizAnswer[] = [];
     const seenKotobas = new Set<number | string>();
     for (let i = effectiveAnswers.length - 1; i >= 0; i--) {
       const ans = effectiveAnswers[i]!;
       if (ans.kotoba_id && !seenKotobas.has(ans.kotoba_id)) {
         seenKotobas.add(ans.kotoba_id);
-        uniqueKotobaAnswers.unshift({
-          ...ans,
-          is_correct: true,
-        });
+        uniqueKotobaAnswers.unshift(ans);
       }
     }
 
@@ -218,7 +217,7 @@ export const StudySessionPage: React.FC = () => {
     const result: SessionResult = {
       deck_id: numericDeckId,
       total_cards: totalUniqueCards,
-      correct_count: totalUniqueCards,
+      correct_count: correctCount,
       accuracy_percent: accuracy,
       total_time_ms: totalTimeMs,
       xp_gained: xpGained,
@@ -233,15 +232,16 @@ export const StudySessionPage: React.FC = () => {
         userKey,
         numericDeckId,
         totalUniqueCards,
-        totalUniqueCards,
+        correctCount,
         totalTimeMs,
-        accuracy
+        deckTotalCards || totalUniqueCards
       );
     } catch {}
 
     try {
       await studyApi.submitSession(result);
       await useAuthStore.getState().fetchUser();
+      setTotalXpAfterSession(useAuthStore.getState().user?.total_xp ?? null);
     } catch (err) {
       console.error('Failed to submit session to backend', err);
     }
@@ -327,7 +327,7 @@ export const StudySessionPage: React.FC = () => {
   // --- RESULTS SCREEN ---
   if (isFinished) {
     const displayCards = initialCards.length > 0 ? initialCards : cards.slice(0, 15);
-    const effectiveXp = Math.max(user?.total_xp ?? 0, earnedXp);
+    const effectiveXp = totalXpAfterSession ?? user?.total_xp ?? 0;
 
     return (
       <>
@@ -357,11 +357,11 @@ export const StudySessionPage: React.FC = () => {
 
             <div className="flex items-center justify-center space-x-3 pt-1">
               <span className="text-3xl font-extrabold text-emerald-600 font-mincho">
-                100%
+                 {sessionAccuracy}%
               </span>
               <span className="text-xs font-bold text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 flex items-center space-x-1">
                 <Zap className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
-                <span>+{earnedXp || (displayCards.length * 10 + 20)} {t.common.exp}</span>
+                 <span>+{earnedXp} {t.common.exp}</span>
               </span>
             </div>
 

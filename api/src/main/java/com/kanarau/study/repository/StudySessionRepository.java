@@ -13,7 +13,8 @@ public interface StudySessionRepository extends JpaRepository<StudySession, Long
     List<StudySession> findByUserIdOrderByStartedAtDesc(Long userId);
 
     @Query("SELECT ss FROM StudySession ss WHERE ss.userId = :userId " +
-           "AND ss.startedAt BETWEEN :start AND :end " +
+           "AND ((ss.finishedAt >= :start AND ss.finishedAt < :end) " +
+           "OR (ss.finishedAt IS NULL AND ss.startedAt >= :start AND ss.startedAt < :end)) " +
            "ORDER BY ss.startedAt DESC")
     List<StudySession> findByUserIdAndDateRange(
             @Param("userId") Long userId,

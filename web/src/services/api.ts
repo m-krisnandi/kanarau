@@ -312,9 +312,10 @@ export const progressApi = {
     return request<ApiResponse<OverallStats>>('/progress/stats');
   },
 
-  getCalendar(year: number, month: number) {
+  getCalendar(year?: number, month?: number) {
+    const query = year && month ? `?year=${year}&month=${month}` : '';
     return request<ApiResponse<MonthlyCalendar>>(
-      `/progress/calendar?year=${year}&month=${month}`
+      `/progress/calendar${query}`
     );
   },
 
@@ -389,4 +390,3 @@ export const leaderboardApi = {
     return request<ApiResponse<LeaderboardData>>('/leaderboard');
   },
 };
-

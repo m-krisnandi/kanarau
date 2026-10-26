@@ -80,12 +80,12 @@ public class ProgressService {
         }
 
         int totalStudyDays = (int) sessions.stream()
-                .filter(s -> s.getStartedAt() != null)
-                .map(s -> s.getStartedAt().atZone(studyZone).toLocalDate())
+                .filter(s -> activityInstant(s) != null)
+                .map(s -> activityInstant(s).atZone(studyZone).toLocalDate())
                 .distinct()
                 .count();
 
-        int longestStreak = Math.max(streak, totalStudyDays);
+        int longestStreak = computeLongestStreak(sessions);
 
         return new OverallStatsResponse(
                 streak,
@@ -104,15 +104,15 @@ public class ProgressService {
         List<MonthlyCalendarResponse.DayStatsDto> dayList = new ArrayList<>();
 
         Instant start = ym.atDay(1).atStartOfDay(studyZone).toInstant();
-        Instant end = ym.atEndOfMonth().atTime(23, 59, 59).atZone(studyZone).toInstant();
+        Instant end = ym.plusMonths(1).atDay(1).atStartOfDay(studyZone).toInstant();
 
         List<StudySession> sessions = (userId != null)
                 ? studySessionRepository.findByUserIdAndDateRange(userId, start, end)
                 : Collections.emptyList();
 
         Map<Integer, List<StudySession>> sessionsByDay = sessions.stream()
-                .filter(s -> s.getStartedAt() != null)
-                .collect(Collectors.groupingBy(s -> s.getStartedAt().atZone(studyZone).getDayOfMonth()));
+                .filter(s -> activityInstant(s) != null)
+                .collect(Collectors.groupingBy(s -> activityInstant(s).atZone(studyZone).getDayOfMonth()));
 
         for (int d = 1; d <= daysInMonth; d++) {
             LocalDate date = ym.atDay(d);
@@ -224,16 +224,14 @@ public class ProgressService {
         if (sessions.isEmpty()) return 0;
 
         Set<LocalDate> dates = sessions.stream()
-                .filter(s -> s.getStartedAt() != null)
-                .map(s -> s.getStartedAt().atZone(studyZone).toLocalDate())
+                .filter(s -> activityInstant(s) != null)
+                .map(s -> activityInstant(s).atZone(studyZone).toLocalDate())
                 .collect(Collectors.toSet());
 
         LocalDate checkDate = LocalDate.now(studyZone);
         int streak = 0;
 
-        if (!dates.contains(checkDate)) {
-            checkDate = checkDate.minusDays(1);
-        }
+        if (!dates.contains(checkDate)) return 0;
 
         while (dates.contains(checkDate)) {
             streak++;
@@ -241,5 +239,31 @@ public class ProgressService {
         }
 
         return streak;
+    }
+
+    private int computeLongestStreak(List<StudySession> sessions) {
+        List<LocalDate> dates = sessions.stream()
+                .filter(s -> activityInstant(s) != null)
+                .map(s -> activityInstant(s).atZone(studyZone).toLocalDate())
+                .distinct()
+                .sorted()
+                .toList();
+        if (dates.isEmpty()) return 0;
+
+        int longest = 1;
+        int current = 1;
+        for (int i = 1; i < dates.size(); i++) {
+            if (dates.get(i).equals(dates.get(i - 1).plusDays(1))) {
+                current++;
+                longest = Math.max(longest, current);
+            } else {
+                current = 1;
+            }
+        }
+        return longest;
+    }
+
+    private Instant activityInstant(StudySession session) {
+        return session.getFinishedAt() != null ? session.getFinishedAt() : session.getStartedAt();
     }
 }

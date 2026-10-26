@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { reviewApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, ReviewStats, Kotoba } from '@/types';
 import { rateByTime } from '@/utils';
@@ -21,6 +21,8 @@ export const ReviewPage: React.FC = () => {
   const [isReviewing, setIsReviewing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+  const answersRef = useRef<QuizAnswer[]>([]);
+  const reviewSessionStartTimeRef = useRef<number>(Date.now());
   const [cardStartTime, setCardStartTime] = useState<number>(Date.now());
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -63,10 +65,12 @@ export const ReviewPage: React.FC = () => {
       setIsReviewing(true);
       setCurrentIndex(0);
       setAnswers([]);
+      answersRef.current = [];
       setSelectedChoice(null);
       setIsAnswered(false);
       setIsFinished(false);
       setCardStartTime(Date.now());
+      reviewSessionStartTimeRef.current = Date.now();
       return;
     }
     if (weakWords.length > 0) {
@@ -129,10 +133,12 @@ export const ReviewPage: React.FC = () => {
     setIsReviewing(true);
     setCurrentIndex(0);
     setAnswers([]);
+    answersRef.current = [];
     setSelectedChoice(null);
     setIsAnswered(false);
     setIsFinished(false);
     setCardStartTime(Date.now());
+    reviewSessionStartTimeRef.current = Date.now();
   };
 
   const rawCurrentCard = queue[currentIndex];
@@ -161,6 +167,7 @@ export const ReviewPage: React.FC = () => {
 
     setSelectedChoice(choice);
     setIsAnswered(true);
+    answersRef.current.push(answer);
     setAnswers((prev) => [...prev, answer]);
   };
 
@@ -171,39 +178,20 @@ export const ReviewPage: React.FC = () => {
       setIsAnswered(false);
       setCardStartTime(Date.now());
     } else {
-      const finalAnswers = answers;
+      const finalAnswers = answersRef.current.length > 0 ? answersRef.current : answers;
       setIsFinished(true);
       try {
         const user = useAuthStore.getState().user;
         const userKey = getUserKey(user);
-        recordReviewCompletion(userKey, finalAnswers.length);
+        recordReviewCompletion(userKey, finalAnswers.length, Date.now() - reviewSessionStartTimeRef.current);
       } catch {}
       try {
-        const res = await reviewApi.submitReview(finalAnswers);
-        const addedXp = Number(res?.data?.xp_gained ?? (finalAnswers.filter((a) => a.is_correct).length * 15));
-        useAuthStore.setState((state) => {
-          if (!state.user) return state;
-          return {
-            ...state,
-            user: {
-              ...state.user,
-              total_xp: (state.user.total_xp || 0) + addedXp,
-            },
-          };
-        });
+        await reviewApi.submitReview(finalAnswers);
+        await useAuthStore.getState().fetchUser();
       } catch (err) {
         console.error('Failed to submit reviews', err);
-        const addedXp = finalAnswers.filter((a) => a.is_correct).length * 15;
-        useAuthStore.setState((state) => {
-          if (!state.user) return state;
-          return {
-            ...state,
-            user: {
-              ...state.user,
-              total_xp: (state.user.total_xp || 0) + addedXp,
-            },
-          };
-        });
+        // Keep XP server-authoritative. The offline queue will retry the review;
+        // do not display XP that was not persisted yet.
       }
     }
   };
@@ -218,7 +206,7 @@ export const ReviewPage: React.FC = () => {
 
   // --- REVIEW ACTIVE QUIZ ---
   if (isReviewing && !isFinished) {
-    const progressPercent = Math.round((currentIndex / queue.length) * 100);
+    const progressPercent = queue.length > 0 ? Math.round(((currentIndex + 1) / queue.length) * 100) : 0;
 
     return (
       <div className="space-y-5 pb-24 max-w-md mx-auto animate-fade-in">
@@ -336,9 +324,10 @@ export const ReviewPage: React.FC = () => {
 
   // --- REVIEW FINISHED ---
   if (isFinished) {
-    const accuracy = Math.round(
-      (answers.filter((a) => a.is_correct).length / queue.length) * 100
-    );
+    const displayedAnswers = answersRef.current.length > 0 ? answersRef.current : answers;
+    const accuracy = queue.length > 0
+      ? Math.round((displayedAnswers.filter((a) => a.is_correct).length / queue.length) * 100)
+      : 0;
 
     return (
       <div className="space-y-5 pb-24 text-center max-w-md mx-auto pt-8 animate-fade-in">
