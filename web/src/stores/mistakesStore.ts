@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export interface MistakeRecord {
   id: string;
+  kotobaId?: number | string;
   kanji: string;
   hiragana: string;
   meaning: string;
@@ -16,6 +17,7 @@ export interface MistakeRecord {
 interface MistakesState {
   mistakes: MistakeRecord[];
   recordMistake: (data: {
+    kotobaId?: number | string;
     kanji: string;
     hiragana: string;
     meaning: string;
@@ -23,6 +25,7 @@ interface MistakesState {
     wrongAnswer: string;
     correctAnswer: string;
   }) => void;
+  resolveMistake: (identifier: string) => void;
   getWeakWords: (level?: string) => MistakeRecord[];
   clearMistakes: () => void;
 }
@@ -90,6 +93,7 @@ export const useMistakesStore = create<MistakesState>()(
           updated[existingIndex] = {
             ...current,
             count: current.count + 1,
+            kotobaId: data.kotobaId || current.kotobaId,
             wrongAnswer: data.wrongAnswer,
             timestamp: Date.now(),
           };
@@ -97,6 +101,7 @@ export const useMistakesStore = create<MistakesState>()(
         } else {
           const newRecord: MistakeRecord = {
             id: 'm_' + Date.now(),
+            kotobaId: data.kotobaId,
             kanji: data.kanji,
             hiragana: data.hiragana,
             meaning: data.meaning,
@@ -108,6 +113,19 @@ export const useMistakesStore = create<MistakesState>()(
           };
           set({ mistakes: [newRecord, ...mistakes].slice(0, 50) });
         }
+      },
+
+      resolveMistake: (identifier: string) => {
+        const { mistakes } = get();
+        const updated = mistakes
+          .map((m) => {
+            if (m.id === identifier || m.kanji === identifier || m.hiragana === identifier) {
+              return { ...m, count: m.count - 1 };
+            }
+            return m;
+          })
+          .filter((m) => m.count > 0);
+        set({ mistakes: updated });
       },
 
       getWeakWords: (level?: string) => {

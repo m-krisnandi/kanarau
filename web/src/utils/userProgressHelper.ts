@@ -322,19 +322,43 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
       userKey
     ) || {};
 
-    const hasGoi = Object.values(localDecks).some((d) => (d.percent && d.percent > 0) || (d.learned && d.learned > 0));
+    // Backfill past deck activities to their respective completed dates
+    Object.values(localDecks).forEach((d) => {
+      if ((d.percent && d.percent > 0) || (d.learned && d.learned > 0)) {
+        const dDate = d.completedDate || (d.timestamp ? formatLocalYMD(new Date(d.timestamp)) : todayStr);
+        if (!activities[dDate]) {
+          activities[dDate] = {
+            date: dDate,
+            studied: true,
+            minutes: 15,
+            cardsStudied: d.learned || 30,
+            cardsCorrect: d.learned || 30,
+            accuracy: 100,
+            goiCompleted: true,
+            timestamp: d.timestamp || Date.now(),
+          };
+        }
+      }
+    });
+
+    const hasGoiToday = Object.values(localDecks).some((d) => {
+      if (!d.percent || d.percent <= 0) return false;
+      if (d.completedDate) return d.completedDate === todayStr;
+      if (d.timestamp) return formatLocalYMD(new Date(d.timestamp)) === todayStr;
+      return true;
+    });
     const hasBunpo = Object.keys(localBunpo).length > 0;
     const hasDokkai = Object.keys(localDokkai).length > 0;
     const hasChoukai = Object.keys(localChoukai).length > 0;
 
-    if (hasGoi || hasBunpo || hasDokkai || hasChoukai) {
+    if (hasGoiToday || hasBunpo || hasDokkai || hasChoukai) {
       const existingToday = activities[todayStr];
-      const goiCards = Object.values(localDecks).reduce((sum, d) => sum + (d.learned || 0), 0) || (hasGoi ? 30 : 0);
+      const goiCards = hasGoiToday ? (Object.values(localDecks).reduce((sum, d) => sum + (d.learned || 0), 0) || 30) : 0;
       const bunpoQuestions = Object.keys(localBunpo).length * 6;
       const totalCards = goiCards + bunpoQuestions;
 
       let totalMinutes = 0;
-      if (hasGoi) totalMinutes += 15;
+      if (hasGoiToday) totalMinutes += 15;
       if (hasBunpo) totalMinutes += Object.keys(localBunpo).length * 5;
       if (hasDokkai) totalMinutes += Object.keys(localDokkai).length * 10;
       if (hasChoukai) totalMinutes += Object.keys(localChoukai).length * 5;
@@ -348,10 +372,10 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
           cardsStudied: Math.max(existingToday?.cardsStudied || 0, totalCards),
           cardsCorrect: Math.max(existingToday?.cardsCorrect || 0, totalCards),
           accuracy: 100,
-          goiCompleted: hasGoi,
-          bunpoCompleted: hasBunpo,
-          dokkaiCompleted: hasDokkai,
-          choukaiCompleted: hasChoukai,
+          goiCompleted: hasGoiToday || Boolean(existingToday?.goiCompleted),
+          bunpoCompleted: hasBunpo || Boolean(existingToday?.bunpoCompleted),
+          dokkaiCompleted: hasDokkai || Boolean(existingToday?.dokkaiCompleted),
+          choukaiCompleted: hasChoukai || Boolean(existingToday?.choukaiCompleted),
           reviewCompleted: Boolean(existingToday?.reviewCompleted),
           timestamp: Date.now(),
         };

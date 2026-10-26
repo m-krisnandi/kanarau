@@ -73,7 +73,7 @@ function localizePattern(pattern: string, lang: string): string {
 export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLevel }) => {
   const { t, language } = useTranslation();
   const user = useAuthStore((state) => state.user);
-  const userKey = user?.id ? String(user.id) : (user?.email || "guest");
+  const userKey = getUserKey(user);
   const storageKey = `kanarau_bunpo_results_${userKey}`;
   const [completedUnits, setCompletedUnits] = useState<Record<string, boolean>>({});
   const [lockedAlert, setLockedAlert] = useState<string | null>(null);

@@ -90,7 +90,7 @@ export const ChoukaiPracticeView: React.FC<ChoukaiPracticeViewProps> = ({ curren
   };
 
   const user = useAuthStore((state) => state.user);
-  const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
+  const userKey = getUserKey(user);
   const storageKey = `kanarau_choukai_results_${userKey}`;
 
   // Completed records from localStorage scoped to user

@@ -59,13 +59,20 @@ export const ReviewPage: React.FC = () => {
   }, [language]);
 
   const startReviewSession = () => {
-    setIsReviewing(true);
-    setCurrentIndex(0);
-    setAnswers([]);
-    setSelectedChoice(null);
-    setIsAnswered(false);
-    setIsFinished(false);
-    setCardStartTime(Date.now());
+    if (queue.length > 0) {
+      setIsReviewing(true);
+      setCurrentIndex(0);
+      setAnswers([]);
+      setSelectedChoice(null);
+      setIsAnswered(false);
+      setIsFinished(false);
+      setCardStartTime(Date.now());
+      return;
+    }
+    if (weakWords.length > 0) {
+      startWeaknessReview();
+      return;
+    }
   };
 
   const startWeaknessReview = () => {
@@ -85,7 +92,7 @@ export const ReviewPage: React.FC = () => {
 
     const weakCards: QuizCard[] = weakWords.map((m, idx) => {
       const kotobaObj: Kotoba = {
-        id: idx + 9100,
+        id: m.kotobaId || (idx + 9100),
         kanji: m.kanji,
         hiragana: m.hiragana,
         meaning: m.meaning,
@@ -138,6 +145,10 @@ export const ReviewPage: React.FC = () => {
     const isCorrect = choice === currentCard.correct_answer;
     const rating = rateByTime(responseTimeMs, isCorrect);
 
+    if (isCorrect) {
+      useMistakesStore.getState().resolveMistake(currentCard.kotoba.kanji || currentCard.kotoba.hiragana);
+    }
+
     const answer: QuizAnswer = {
       card_id: currentCard.id,
       kotoba_id: currentCard.kotoba.id,
@@ -168,9 +179,31 @@ export const ReviewPage: React.FC = () => {
         recordReviewCompletion(userKey, finalAnswers.length);
       } catch {}
       try {
-        await reviewApi.submitReview(finalAnswers);
+        const res = await reviewApi.submitReview(finalAnswers);
+        const addedXp = Number(res?.data?.xp_gained ?? (finalAnswers.filter((a) => a.is_correct).length * 15));
+        useAuthStore.setState((state) => {
+          if (!state.user) return state;
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              total_xp: (state.user.total_xp || 0) + addedXp,
+            },
+          };
+        });
       } catch (err) {
         console.error('Failed to submit reviews', err);
+        const addedXp = finalAnswers.filter((a) => a.is_correct).length * 15;
+        useAuthStore.setState((state) => {
+          if (!state.user) return state;
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              total_xp: (state.user.total_xp || 0) + addedXp,
+            },
+          };
+        });
       }
     }
   };
@@ -363,13 +396,41 @@ export const ReviewPage: React.FC = () => {
           </p>
         </div>
 
+        {queue.length === 0 && (
+          <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/50 rounded-xl text-left space-y-1 text-xs">
+            <p className="font-bold text-indigo-900 dark:text-indigo-300 flex items-center space-x-1.5">
+              <span>✓</span>
+              <span>
+                {language === 'id'
+                  ? 'Semua Review Hari Ini Sudah Tuntas'
+                  : language === 'en'
+                  ? 'All Reviews Completed for Today'
+                  : 'ယနေ့အတွက် ပြန်လည်လေ့လာမှုများ ပြီးပါပြီ'}
+              </span>
+            </p>
+            <p className="text-[11px] text-indigo-700/90 dark:text-indigo-300/80 leading-relaxed">
+              {language === 'id'
+                ? 'Kosakata baru yang baru dipelajari hari ini akan masuk antrean review mulai besok sesuai interval kurva lupa SRS (Spaced Repetition).'
+                : language === 'en'
+                ? 'Vocabulary learned today will enter your review queue tomorrow based on spaced repetition intervals.'
+                : 'ယနေ့ လေ့လာထားသော ဝေါဟာရများသည် SRS စနစ်အရ မနက်ဖြန်တွင် ပြန်လည်လေ့လာရန် စတင်ပေါ်လာပါမည်။'}
+            </p>
+          </div>
+        )}
+
         <button
           onClick={startReviewSession}
-          disabled={queue.length === 0}
+          disabled={queue.length === 0 && weakWords.length === 0}
           className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs cursor-pointer active:scale-98"
         >
           <Play className="w-4 h-4 fill-white" />
-          <span>{t.review.startBtn}</span>
+          <span>
+            {queue.length > 0
+              ? t.review.startBtn
+              : weakWords.length > 0
+              ? `${t.review.startBtn} (${weakWords.length} Kelemahan)`
+              : t.review.startBtn}
+          </span>
         </button>
       </div>
 

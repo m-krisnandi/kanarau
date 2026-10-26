@@ -149,6 +149,7 @@ export const StudySessionPage: React.FC = () => {
       setRetryKotobaIds((prev) => new Set(prev).add(kotobaId));
 
       useMistakesStore.getState().recordMistake({
+        kotobaId: currentCard.kotoba.id,
         kanji: currentCard.kotoba.kanji || currentCard.kotoba.hiragana,
         hiragana: currentCard.kotoba.hiragana,
         meaning: currentCard.kotoba.meaning,

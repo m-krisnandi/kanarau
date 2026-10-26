@@ -52,6 +52,7 @@ export const DashboardPage: React.FC = () => {
   const level = currentLevel;
   const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
   const [activeDay, setActiveDay] = useState(1);
+  const [activeDeckId, setActiveDeckId] = useState<number | string>(1);
   const [targetWordsCount, setTargetWordsCount] = useState(30);
   const [countdownDays, setCountdownDays] = useState<number>(49);
 
@@ -85,15 +86,18 @@ export const DashboardPage: React.FC = () => {
           const firstIncomplete = levelDecks.find((d) => (d.progress_percent || 0) < 100);
           if (firstIncomplete) {
             setActiveDay(firstIncomplete.day_number);
+            setActiveDeckId(firstIncomplete.deck_id);
             setTargetWordsCount(firstIncomplete.total_kotoba || 30);
           } else if (levelDecks.length > 0 && levelDecks[levelDecks.length - 1]) {
             const lastDeck = levelDecks[levelDecks.length - 1]!;
             setActiveDay(lastDeck.day_number);
+            setActiveDeckId(lastDeck.deck_id);
             setTargetWordsCount(lastDeck.total_kotoba || 30);
           }
         }
       } catch {
         setActiveDay(1);
+        setActiveDeckId(1);
         setTargetWordsCount(30);
       }
     }
@@ -192,8 +196,7 @@ export const DashboardPage: React.FC = () => {
   const currentStreak = computeLocalStreak(userKey, overallStats?.current_streak ?? user?.streak);
   const isGoiDoneToday = Boolean(
     dailyActivities[todayStr]?.goiCompleted ||
-    (activeDay > 1) ||
-    (calendarDays.find((d) => d.date === todayStr)?.studied)
+    (calendarDays.find((d) => d.date === todayStr)?.studied && (dailyActivities[todayStr]?.cardsStudied || 0) > 0)
   );
   const isBunpoDoneToday = Boolean(
     bunpoDone ||
@@ -289,7 +292,7 @@ export const DashboardPage: React.FC = () => {
               <span>{t.dashboard.todayTarget(targetWordsCount)}</span>
             </div>
             <button
-              onClick={() => navigate('/belajar')}
+              onClick={() => navigate(activeDeckId ? `/study-session/${activeDeckId}` : '/belajar')}
               className="flex items-center space-x-1 text-[11px] sm:text-xs font-bold text-indigo-700 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer active:scale-95 py-0.5"
             >
               <span>{t.dashboard.startDay(activeDay)}</span>
@@ -381,7 +384,7 @@ export const DashboardPage: React.FC = () => {
 
               <div className="space-y-1">
                 <div
-                  onClick={() => navigate('/belajar?tab=goi')}
+                  onClick={() => navigate(isGoiDoneToday ? '/belajar?tab=goi' : (activeDeckId ? `/study-session/${activeDeckId}` : '/belajar?tab=goi'))}
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     isGoiDoneToday
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'

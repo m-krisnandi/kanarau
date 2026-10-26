@@ -10,6 +10,7 @@ import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { BunpoPracticeView } from '@/components/bunpo/BunpoPracticeView';
 import { DokkaiPracticeView } from '@/components/dokkai/DokkaiPracticeView';
 import { ChoukaiPracticeView } from '@/components/choukai/ChoukaiPracticeView';
+import { getUserKey } from '@/utils/userProgressHelper';
 import {
   ArrowLeft,
   ChevronDown,
@@ -40,6 +41,12 @@ export const BelajarPage: React.FC = () => {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
+
+  useEffect(() => {
+    if (urlTab && ['goi', 'bunpo', 'dokkai', 'choukai'].includes(urlTab)) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
 
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,11 +86,24 @@ export const BelajarPage: React.FC = () => {
         }
 
         const rawDecks: Deck[] = (decksRes.status === 'fulfilled' && decksRes.value?.data) ? decksRes.value.data : [];
-        const userKey = user?.id ? String(user.id) : (user?.email || 'guest');
+        const userKey = getUserKey(user);
         let localSaved: Record<string, any> = {};
         try {
-          const localKey = `kanarau_local_progress_${userKey}`;
-          localSaved = JSON.parse(localStorage.getItem(localKey) || '{}');
+          const direct = localStorage.getItem(`kanarau_local_progress_${userKey}`);
+          if (direct && direct !== '{}') {
+            localSaved = JSON.parse(direct);
+          } else {
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('kanarau_local_progress')) {
+                const val = localStorage.getItem(k);
+                if (val && val !== '{}') {
+                  localSaved = JSON.parse(val);
+                  break;
+                }
+              }
+            }
+          }
         } catch {}
 
         const enriched = rawDecks.map((d) => {
