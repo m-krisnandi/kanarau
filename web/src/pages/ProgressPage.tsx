@@ -18,6 +18,7 @@ import {
   mergeDeckProgress,
   mergeOverallStats,
   mergeCalendarDays,
+  getEffectiveUserXp,
 } from '@/utils/userProgressHelper';
 
 export const ProgressPage: React.FC = () => {
@@ -41,7 +42,7 @@ export const ProgressPage: React.FC = () => {
   const [activeKotobaForDetail, setActiveKotobaForDetail] = useState<Kotoba | null>(null);
   const [activeKanjiForDetail, setActiveKanjiForDetail] = useState<string | null>(null);
 
-  const effectiveUserXp = Math.max(user?.total_xp ?? 0, (stats?.total_cards_learned || 0) * 10);
+  const effectiveUserXp = getEffectiveUserXp(user, stats);
   const userLvl = calculateUserLevel(effectiveUserXp, language);
   const initialDate = new Date();
   const [year, setYear] = useState(initialDate.getFullYear());

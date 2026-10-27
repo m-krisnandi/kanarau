@@ -70,6 +70,11 @@ public class StudyService {
         int updatedStreak = progressService.computeStreak(userId);
         userRepository.findById(userId).ifPresent(user -> {
             user.addXp(req.xpGained());
+            long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
+            int minXp = (int) (distinctKotobas * 10);
+            if (minXp > user.getTotalXp()) {
+                user.setTotalXp(minXp);
+            }
             user.setStreak(updatedStreak);
             userRepository.save(user);
         });

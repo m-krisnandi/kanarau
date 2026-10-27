@@ -9,6 +9,7 @@ import com.kanarau.auth.repository.UserRepository;
 import com.kanarau.auth.security.JwtTokenProvider;
 import com.kanarau.common.exception.ApiException;
 import com.kanarau.common.model.JlptLevel;
+import com.kanarau.review.repository.UserProgressRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,13 +23,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final UserProgressRepository userProgressRepository;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtTokenProvider tokenProvider) {
+                       JwtTokenProvider tokenProvider,
+                       UserProgressRepository userProgressRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.userProgressRepository = userProgressRepository;
     }
 
     @Transactional
@@ -63,6 +67,13 @@ public class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Email atau password salah");
         }
 
+        long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(user.getId());
+        int minXp = (int) (distinctKotobas * 10);
+        if (minXp > user.getTotalXp()) {
+            user.setTotalXp(minXp);
+            user = userRepository.save(user);
+        }
+
         String token = tokenProvider.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(UserDto.from(user), token);
     }
@@ -75,8 +86,15 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Pengguna tidak ditemukan"));
     }
 
+    @Transactional
     public UserDto getCurrentUser(Long userId) {
         User user = getUserEntity(userId);
+        long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
+        int minXp = (int) (distinctKotobas * 10);
+        if (minXp > user.getTotalXp()) {
+            user.setTotalXp(minXp);
+            user = userRepository.save(user);
+        }
         return UserDto.from(user);
     }
 

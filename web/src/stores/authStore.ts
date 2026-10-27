@@ -127,8 +127,12 @@ export const useAuthStore = create<AuthState>()(
               try {
                 localStorage.setItem('kanarau_level', lvl);
               } catch {}
+              const effectiveXp = Math.max(res.data.total_xp ?? 0, state.user?.total_xp ?? 0);
               return {
-                user: res.data,
+                user: {
+                  ...res.data,
+                  total_xp: effectiveXp,
+                },
                 currentLevel: lvl,
               };
             });

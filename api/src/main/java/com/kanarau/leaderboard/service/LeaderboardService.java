@@ -4,8 +4,10 @@ import com.kanarau.auth.entity.User;
 import com.kanarau.auth.repository.UserRepository;
 import com.kanarau.leaderboard.dto.LeaderboardEntryDto;
 import com.kanarau.leaderboard.dto.LeaderboardResponse;
+import com.kanarau.review.repository.UserProgressRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +16,11 @@ import java.util.List;
 public class LeaderboardService {
 
     private final UserRepository userRepository;
+    private final UserProgressRepository userProgressRepository;
 
-    public LeaderboardService(UserRepository userRepository) {
+    public LeaderboardService(UserRepository userRepository, UserProgressRepository userProgressRepository) {
         this.userRepository = userRepository;
+        this.userProgressRepository = userProgressRepository;
     }
 
     public static int calculateGamificationLevel(int xp) {
@@ -47,7 +51,19 @@ public class LeaderboardService {
         };
     }
 
+    @Transactional
     public LeaderboardResponse getLeaderboard(Long currentUserId) {
+        if (currentUserId != null) {
+            userRepository.findById(currentUserId).ifPresent(u -> {
+                long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(currentUserId);
+                int minXp = (int) (distinctKotobas * 10);
+                if (minXp > u.getTotalXp()) {
+                    u.setTotalXp(minXp);
+                    userRepository.save(u);
+                }
+            });
+        }
+
         List<User> topUsers = userRepository.findLeaderboardTopUsers(PageRequest.of(0, 30));
         long totalLearners = userRepository.countNonAdminUsers();
 
@@ -58,14 +74,19 @@ public class LeaderboardService {
             User u = topUsers.get(i);
             int rank = i + 1;
             boolean isCurrent = currentUserId != null && u.getId().equals(currentUserId);
-            int userLvl = calculateGamificationLevel(u.getTotalXp());
+            int effectiveXp = u.getTotalXp();
+            if (isCurrent) {
+                long distinct = userProgressRepository.countDistinctKotobaByUser(u.getId());
+                effectiveXp = Math.max(effectiveXp, (int) (distinct * 10));
+            }
+            int userLvl = calculateGamificationLevel(effectiveXp);
             String title = getLevelTitle(userLvl);
 
             LeaderboardEntryDto dto = new LeaderboardEntryDto(
                     rank,
                     u.getId(),
                     u.getDisplayName() != null ? u.getDisplayName() : "Murid Kanarau",
-                    u.getTotalXp(),
+                    effectiveXp,
                     userLvl,
                     title,
                     u.getStreak(),
@@ -83,15 +104,17 @@ public class LeaderboardService {
         if (currentUserEntry == null && currentUserId != null) {
             User u = userRepository.findById(currentUserId).orElse(null);
             if (u != null && !"ADMIN".equalsIgnoreCase(u.getRole())) {
-                int userRank = (int) userRepository.countUsersWithMoreXp(u.getTotalXp()) + 1;
-                int userLvl = calculateGamificationLevel(u.getTotalXp());
+                long distinct = userProgressRepository.countDistinctKotobaByUser(u.getId());
+                int effectiveXp = Math.max(u.getTotalXp(), (int) (distinct * 10));
+                int userRank = (int) userRepository.countUsersWithMoreXp(effectiveXp) + 1;
+                int userLvl = calculateGamificationLevel(effectiveXp);
                 String title = getLevelTitle(userLvl);
 
                 currentUserEntry = new LeaderboardEntryDto(
                         userRank,
                         u.getId(),
                         u.getDisplayName() != null ? u.getDisplayName() : "Murid Kanarau",
-                        u.getTotalXp(),
+                        effectiveXp,
                         userLvl,
                         title,
                         u.getStreak(),

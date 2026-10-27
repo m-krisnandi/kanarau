@@ -5,6 +5,7 @@ import type { LeaderboardData, LeaderboardEntry } from '@/types';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
 import { calculateUserLevel } from '@/utils/levelHelper';
+import { getEffectiveUserXp } from '@/utils/userProgressHelper';
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -41,52 +42,111 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
     };
   }, [isOpen]);
 
+  const effectiveUserXp = getEffectiveUserXp(user);
+
+  // Sync authStore if stored user total_xp is lower than their effective progress XP
+  useEffect(() => {
+    if (user && (user.total_xp || 0) < effectiveUserXp) {
+      useAuthStore.setState((state) => {
+        if (!state.user) return state;
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            total_xp: effectiveUserXp,
+          },
+        };
+      });
+    }
+  }, [user, effectiveUserXp]);
+
   if (!isOpen) return null;
 
-  const effectiveUserXp = user?.total_xp ?? 0;
+  const myName = (user?.displayName || user?.name || '').trim().toLowerCase();
+  let foundMeInTop = false;
 
-  const topUsers = (data?.top_users || []).map((u) => {
-    const myName = (user?.displayName || user?.name || '').trim().toLowerCase();
+  const topUsers: LeaderboardEntry[] = (data?.top_users || []).map((u) => {
     const isMe = Boolean(
       u.is_current_user ||
       (user?.id && String(u.user_id) === String(user.id)) ||
-      (myName && u.display_name.trim().toLowerCase() === myName)
+      (myName && u.display_name && u.display_name.trim().toLowerCase() === myName)
     );
     if (isMe) {
+      foundMeInTop = true;
+      const effectiveXp = Math.max(u.total_xp || 0, effectiveUserXp);
+      const lvlInfo = calculateUserLevel(effectiveXp, language);
       return {
         ...u,
         is_current_user: true,
-        total_xp: Math.max(u.total_xp, effectiveUserXp),
+        display_name: user?.displayName || user?.name || u.display_name,
+        total_xp: effectiveXp,
+        gamification_level: lvlInfo.level,
+        level_title: lvlInfo.title,
+        streak: Math.max(u.streak || 0, user?.streak || 0),
       };
     }
     return u;
   });
 
-  // Re-sort in case local XP moved current user higher up
-  topUsers.sort((a, b) => b.total_xp - a.total_xp);
+  // If user has earned XP or is logged in and not found in top_users list:
+  if (!foundMeInTop && (user || effectiveUserXp > 0)) {
+    const fallbackId = typeof user?.id === 'number' ? user.id : (Number(user?.id) || 999999);
+    const fallbackName = user?.displayName || user?.name || 'Murid Kanarau';
+    const fallbackStreak = user?.streak || 1;
+    const fallbackLevel = user?.current_level || 'N2';
+    const lvlInfo = calculateUserLevel(effectiveUserXp, language);
+
+    topUsers.push({
+      rank: 0,
+      user_id: fallbackId,
+      display_name: fallbackName,
+      total_xp: effectiveUserXp,
+      gamification_level: lvlInfo.level,
+      level_title: lvlInfo.title,
+      streak: fallbackStreak,
+      jlpt_level: fallbackLevel,
+      is_current_user: true,
+    });
+  }
+
+  // Re-sort so current user is positioned accurately based on XP
+  topUsers.sort((a, b) => {
+    if (b.total_xp !== a.total_xp) {
+      return b.total_xp - a.total_xp;
+    }
+    if (a.is_current_user) return -1;
+    if (b.is_current_user) return 1;
+    return (b.streak || 0) - (a.streak || 0);
+  });
+
+  // Re-rank after sorting
   topUsers.forEach((u, idx) => {
     u.rank = idx + 1;
   });
 
-  const top1 = topUsers[0];
-  const top2 = topUsers[1];
-  const top3 = topUsers[2];
-  const remainingUsers = topUsers.slice(3);
+  const currentRankInAll = topUsers.find((u) => u.is_current_user)?.rank;
+  const displayTopUsers = topUsers.slice(0, 30);
+
+  const top1 = displayTopUsers[0];
+  const top2 = displayTopUsers[1];
+  const top3 = displayTopUsers[2];
+  const remainingUsers = displayTopUsers.slice(3);
 
   const rawMyEntry = data?.current_user_entry;
-  const myEntry = rawMyEntry
+  const myTotalXp = Math.max(rawMyEntry?.total_xp || 0, effectiveUserXp);
+  const myLevelInfo = calculateUserLevel(myTotalXp, language);
+  const numericUserId = (typeof user?.id === 'number' ? user.id : Number(user?.id)) || rawMyEntry?.user_id || 0;
+
+  const myEntry: LeaderboardEntry | null = (user || effectiveUserXp > 0)
     ? {
-        ...rawMyEntry,
-        total_xp: Math.max(rawMyEntry.total_xp, effectiveUserXp),
-      }
-    : user
-    ? {
-        rank: topUsers.find((u) => u.is_current_user)?.rank || (topUsers.length + 1),
-        user_id: user.id || 0,
-        display_name: user.displayName || user.name || 'Murid Kanarau',
-        total_xp: effectiveUserXp,
-        streak: user.streak || 1,
-        jlpt_level: user.current_level || 'N2',
+        rank: currentRankInAll || rawMyEntry?.rank || (displayTopUsers.length + 1),
+        user_id: numericUserId,
+        display_name: user?.displayName || user?.name || rawMyEntry?.display_name || 'Murid Kanarau',
+        total_xp: myTotalXp,
+        gamification_level: myLevelInfo.level,
+        level_title: myLevelInfo.title,
+        streak: Math.max(rawMyEntry?.streak || 0, user?.streak || 1),
+        jlpt_level: user?.current_level || rawMyEntry?.jlpt_level || 'N2',
         is_current_user: true,
       }
     : null;
@@ -139,7 +199,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
                 {t.leaderboard.title}...
               </p>
             </div>
-          ) : topUsers.length === 0 ? (
+          ) : displayTopUsers.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <Users className="w-12 h-12 text-stone-300 dark:text-slate-600 mx-auto" />
               <p className="text-xs text-stone-500 dark:text-slate-400">

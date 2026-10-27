@@ -33,6 +33,7 @@ import {
   mergeCalendarDays,
   computeLocalStreak,
   getLocalDailyActivity,
+  getEffectiveUserXp,
 } from '@/utils/userProgressHelper';
 
 export const DashboardPage: React.FC = () => {
@@ -50,7 +51,7 @@ export const DashboardPage: React.FC = () => {
   const [calendarDays, setCalendarDays] = useState<DayStats[]>([]);
 
   const level = currentLevel;
-  const effectiveUserXp = Math.max(user?.total_xp ?? 0, (overallStats?.total_cards_learned || 0) * 10);
+  const effectiveUserXp = getEffectiveUserXp(user, overallStats);
   const userLvl = calculateUserLevel(effectiveUserXp, language);
   const [activeDay, setActiveDay] = useState(1);
   const [activeDeckId, setActiveDeckId] = useState<number | string>(1);

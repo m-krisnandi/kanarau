@@ -457,19 +457,38 @@ export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckP
   }
 }
 
-export function mergeOverallStats(stats: OverallStats | null, userKey: string): OverallStats {
+export function getLocalTotalCardsLearned(userKey: string): number {
   try {
     const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
       'kanarau_local_progress',
       userKey
     ) || {};
-    const localActivities = getLocalDailyActivity(userKey);
-    const todayStr = formatLocalYMD();
-
-    const localTotalLearned = Object.values(localDecks).reduce(
+    return Object.values(localDecks).reduce(
       (acc, item) => acc + (item.learned || 0),
       0
     );
+  } catch {
+    return 0;
+  }
+}
+
+export function getEffectiveUserXp(
+  user: { id?: number | string | null; email?: string | null; total_xp?: number } | null | undefined,
+  stats?: OverallStats | null
+): number {
+  const userKey = getUserKey(user);
+  const localLearned = getLocalTotalCardsLearned(userKey);
+  const totalCards = Math.max(stats?.total_cards_learned || 0, localLearned);
+  const xpFromCards = totalCards * 10;
+  return Math.max(user?.total_xp ?? 0, xpFromCards);
+}
+
+export function mergeOverallStats(stats: OverallStats | null, userKey: string): OverallStats {
+  try {
+    const localActivities = getLocalDailyActivity(userKey);
+    const todayStr = formatLocalYMD();
+
+    const localTotalLearned = getLocalTotalCardsLearned(userKey);
     const localTotalMinutes = Object.values(localActivities).reduce(
       (acc, item) => acc + (item.minutes || 0),
       0
