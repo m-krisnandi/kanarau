@@ -27,6 +27,7 @@ export interface LocalDailyActivityItem {
   bunpoCompletedIds?: string[];
   dokkaiCompletedIds?: string[];
   choukaiCompletedIds?: string[];
+  hasRealStudySession?: boolean;
   timestamp: number;
 }
 
@@ -103,6 +104,7 @@ export function recordLocalStudySession(
       cardsCorrect: 0,
       accuracy: 100,
       goiCompleted: true,
+      hasRealStudySession: true,
       timestamp: Date.now(),
     };
 
@@ -118,6 +120,7 @@ export function recordLocalStudySession(
       cardsCorrect: newCardsCorrect,
       accuracy: newAccuracy,
       goiCompleted: true,
+      hasRealStudySession: true,
       timestamp: Date.now(),
     };
     localStorage.setItem(activityKey, JSON.stringify(existingActivities));
@@ -171,6 +174,7 @@ export function recordBunpoCompletion(
       cardsStudied: prevToday.cardsStudied + (isDuplicateToday ? 0 : questionCount),
       cardsCorrect: prevToday.cardsCorrect + (isDuplicateToday ? 0 : questionCount),
       bunpoCompleted: true,
+      hasRealStudySession: true,
       bunpoCompletedIds: isDuplicateToday ? completedIds : [...completedIds, unitId],
       timestamp: Date.now(),
     };
@@ -213,6 +217,7 @@ export function recordReviewCompletion(
       minutes: prevToday.minutes + durationMinutes,
       cardsReviewed: (prevToday.cardsReviewed || 0) + cardsReviewed,
       reviewCompleted: true,
+      hasRealStudySession: true,
       timestamp: Date.now(),
     };
     localStorage.setItem(activityKey, JSON.stringify(existingActivities));
@@ -258,6 +263,7 @@ export function recordDokkaiCompletion(
       cardsStudied: prevToday.cardsStudied + (isDuplicateToday ? 0 : totalCount),
       cardsCorrect: prevToday.cardsCorrect + (isDuplicateToday ? 0 : correctCount),
       dokkaiCompleted: true,
+      hasRealStudySession: true,
       dokkaiCompletedIds: isDuplicateToday ? completedIds : [...completedIds, passageId],
       timestamp: Date.now(),
     };
@@ -301,6 +307,7 @@ export function recordChoukaiCompletion(
       cardsStudied: prevToday.cardsStudied + (isDuplicateToday ? 0 : 1),
       cardsCorrect: prevToday.cardsCorrect + (isDuplicateToday ? 0 : (isCorrect ? 1 : 0)),
       choukaiCompleted: true,
+      hasRealStudySession: true,
       choukaiCompletedIds: isDuplicateToday ? completedIds : [...completedIds, questionId],
       timestamp: Date.now(),
     };
@@ -320,31 +327,42 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
     let activities: Record<string, LocalDailyActivityItem> = JSON.parse(
       localStorage.getItem(activityKey) || '{}'
     );
-
-    // Auto-backfill & synchronize with any existing local progress (Goi, Bunpo, Dokkai, Choukai)
     const todayStr = formatLocalYMD();
+
+    // Verify today's record: ONLY keep today if there was an actual study session or module completed today!
+    // Simply opening the app must NEVER count as studying today or invent 15 minutes!
+    const todayRecord = activities[todayStr];
+    if (todayRecord) {
+      const localBunpo = readBestMatchingStorage<Record<string, any>>('kanarau_bunpo_results', userKey) || {};
+      const localDokkai = readBestMatchingStorage<Record<string, any>>('kanarau_dokkai_results', userKey) || {};
+      const localChoukai = readBestMatchingStorage<Record<string, any>>('kanarau_choukai_results', userKey) || {};
+
+      const hasBunpoToday = Object.values(localBunpo).some((record) => recordDate(record) === todayStr);
+      const hasDokkaiToday = Object.values(localDokkai).some((record) => recordDate(record) === todayStr);
+      const hasChoukaiToday = Object.values(localChoukai).some((record) => recordDate(record) === todayStr);
+      const hasReviewToday = Boolean(todayRecord.reviewCompleted && (todayRecord.cardsReviewed || 0) > 0);
+      const hasRealStudySession = Boolean(todayRecord.hasRealStudySession);
+
+      // If todayRecord does not have any confirmed study action, purge it so opening the app doesn't fake 15 mins!
+      if (!hasRealStudySession && !hasBunpoToday && !hasDokkaiToday && !hasChoukaiToday && !hasReviewToday) {
+        delete activities[todayStr];
+        try {
+          localStorage.setItem(activityKey, JSON.stringify(activities));
+        } catch {}
+      }
+    }
+
+    // Backfill past deck activities ONLY to their respective PAST completed dates (never today)
     const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
       'kanarau_local_progress',
       userKey
     ) || {};
-    const localBunpo = readBestMatchingStorage<Record<string, any>>(
-      'kanarau_bunpo_results',
-      userKey
-    ) || {};
-    const localDokkai = readBestMatchingStorage<Record<string, any>>(
-      'kanarau_dokkai_results',
-      userKey
-    ) || {};
-    const localChoukai = readBestMatchingStorage<Record<string, any>>(
-      'kanarau_choukai_results',
-      userKey
-    ) || {};
 
-    // Backfill past deck activities to their respective completed dates
     Object.values(localDecks).forEach((d) => {
       if ((d.percent && d.percent > 0) || (d.learned && d.learned > 0)) {
         const dDate = d.completedDate || (d.timestamp ? formatLocalYMD(new Date(d.timestamp)) : null);
-        if (!dDate) return;
+        // Only backfill for PAST dates that are missing, never fabricate today's activity on app open
+        if (!dDate || dDate === todayStr) return;
         if (!activities[dDate]) {
           activities[dDate] = {
             date: dDate,
@@ -352,64 +370,14 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
             minutes: Math.max(1, Math.ceil(((d.learned || 0) * 20) / 60)),
             cardsStudied: d.learned || 0,
             cardsCorrect: d.cardsCorrect ?? Math.round((d.learned || 0) * ((d.percent || 0) / 100)),
-            accuracy: d.percent || 0,
+            accuracy: d.percent || 100,
             goiCompleted: true,
+            hasRealStudySession: true,
             timestamp: d.timestamp || Date.now(),
           };
         }
       }
     });
-
-    const hasGoiToday = Object.values(localDecks).some((d) => {
-      if (!d.percent || d.percent <= 0) return false;
-      if (d.completedDate) return d.completedDate === todayStr;
-      if (d.timestamp) return formatLocalYMD(new Date(d.timestamp)) === todayStr;
-      return false;
-    });
-    const hasBunpoToday = Object.values(localBunpo).some((record) => recordDate(record) === todayStr);
-    const hasDokkaiToday = Object.values(localDokkai).some((record) => recordDate(record) === todayStr);
-    const hasChoukaiToday = Object.values(localChoukai).some((record) => recordDate(record) === todayStr);
-
-    const existingToday = activities[todayStr];
-    const hasReviewToday = Boolean(existingToday?.reviewCompleted && isToday(existingToday.timestamp, todayStr));
-    const hasAnyActivityToday = hasGoiToday || hasBunpoToday || hasDokkaiToday || hasChoukaiToday || hasReviewToday;
-
-    if (hasAnyActivityToday) {
-      const goiCards = hasGoiToday
-        ? (Object.values(localDecks)
-            .filter((deck) => (deck.completedDate || (deck.timestamp ? formatLocalYMD(new Date(deck.timestamp)) : null)) === todayStr)
-            .reduce((sum, d) => sum + (d.learned || 0), 0) || 30)
-        : 0;
-      const bunpoQuestions = hasBunpoToday ? Object.values(localBunpo).filter((record) => recordDate(record) === todayStr).length * 6 : 0;
-      const totalCards = goiCards + bunpoQuestions;
-
-      let totalMinutes = 0;
-      if (hasGoiToday) totalMinutes += 15;
-      if (hasBunpoToday) totalMinutes += Object.values(localBunpo).filter((record) => recordDate(record) === todayStr).length * 5;
-      if (hasDokkaiToday) totalMinutes += Object.values(localDokkai).filter((record) => recordDate(record) === todayStr).length * 10;
-      if (hasChoukaiToday) totalMinutes += Object.values(localChoukai).filter((record) => recordDate(record) === todayStr).length * 5;
-      totalMinutes = Math.max(15, totalMinutes);
-
-      if (!existingToday) {
-        activities[todayStr] = {
-          date: todayStr,
-          studied: true,
-          minutes: totalMinutes,
-          cardsStudied: totalCards,
-          cardsCorrect: totalCards,
-          accuracy: 100,
-          goiCompleted: hasGoiToday,
-          bunpoCompleted: hasBunpoToday,
-          dokkaiCompleted: hasDokkaiToday,
-          choukaiCompleted: hasChoukaiToday,
-          reviewCompleted: hasReviewToday,
-          timestamp: Date.now(),
-        };
-        try {
-          localStorage.setItem(activityKey, JSON.stringify(activities));
-        } catch {}
-      }
-    }
 
     return activities;
   } catch {
@@ -453,8 +421,7 @@ export function computeLocalStreak(userKey: string, apiStreak?: number): number 
       }
     }
 
-    const hasStudiedToday = Boolean(activities[todayStr]?.studied);
-    return Math.max(apiStreak || 0, streak, hasStudiedToday ? 1 : 0);
+    return Math.max(apiStreak || 0, streak);
   } catch {
     return apiStreak || 0;
   }
@@ -510,10 +477,9 @@ export function mergeOverallStats(stats: OverallStats | null, userKey: string): 
     const localStudyDays = Object.values(localActivities).filter((item) => item.studied).length;
     const streak = computeLocalStreak(userKey, stats?.current_streak);
 
-    const hasStudiedToday = Boolean(localActivities[todayStr]?.studied);
-    const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned, localActivities[todayStr]?.cardsStudied || 0);
-    const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes, hasStudiedToday ? 15 : 0);
-    const totalDays = Math.max(stats?.total_study_days || 0, localStudyDays, hasStudiedToday ? 1 : 0);
+    const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned);
+    const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes);
+    const totalDays = Math.max(stats?.total_study_days || 0, localStudyDays);
     const longestStreak = Math.max(stats?.longest_streak || 0, streak);
     const accuracy = stats && stats.average_accuracy > 0 ? stats.average_accuracy : 100;
 
@@ -552,8 +518,8 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
         return {
           ...d,
           studied: true,
-          study_time_minutes: Math.max(d.study_time_minutes || 0, act.minutes || 15),
-          cards_studied: Math.max(d.cards_studied || 0, act.cardsStudied || 30),
+          study_time_minutes: Math.max(d.study_time_minutes || 0, act.minutes || 1),
+          cards_studied: Math.max(d.cards_studied || 0, act.cardsStudied || 0),
           cards_reviewed: Math.max(d.cards_reviewed || 0, act.cardsReviewed || 0),
           accuracy_percent: Math.max(d.accuracy_percent || 0, act.accuracy || 100),
         };
@@ -567,8 +533,8 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
         updated.push({
           date: todayStr,
           studied: true,
-          study_time_minutes: todayAct.minutes || 15,
-          cards_studied: todayAct.cardsStudied || 30,
+          study_time_minutes: todayAct.minutes || 1,
+          cards_studied: todayAct.cardsStudied || 0,
           cards_reviewed: todayAct.cardsReviewed || 0,
           accuracy_percent: todayAct.accuracy || 100,
         });
@@ -581,8 +547,8 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
         updated.push({
           date: dateStr,
           studied: true,
-          study_time_minutes: act.minutes || 15,
-          cards_studied: act.cardsStudied || 30,
+          study_time_minutes: act.minutes || 1,
+          cards_studied: act.cardsStudied || 0,
           cards_reviewed: act.cardsReviewed || 0,
           accuracy_percent: act.accuracy || 100,
         });
