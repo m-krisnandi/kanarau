@@ -228,11 +228,14 @@ public class ProgressService {
                 .map(s -> activityInstant(s).atZone(studyZone).toLocalDate())
                 .collect(Collectors.toSet());
 
-        LocalDate checkDate = LocalDate.now(studyZone);
+        LocalDate today = LocalDate.now(studyZone);
+        LocalDate checkDate = today;
+
+        if (!dates.contains(checkDate)) {
+            checkDate = checkDate.minusDays(1);
+        }
+
         int streak = 0;
-
-        if (!dates.contains(checkDate)) return 0;
-
         while (dates.contains(checkDate)) {
             streak++;
             checkDate = checkDate.minusDays(1);

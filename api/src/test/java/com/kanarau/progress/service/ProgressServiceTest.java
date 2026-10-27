@@ -40,7 +40,7 @@ class ProgressServiceTest {
     }
 
     @Test
-    void currentStreakIsZeroUntilThereIsActivityToday() {
+    void currentStreakMaintainsYesterdayActivity() {
         var sessions = new com.kanarau.study.entity.StudySession(1L, 1L);
         sessions.setStartedAt(ZonedDateTime.now(ZoneId.of("Asia/Jakarta")).minusDays(1).toInstant());
 
@@ -56,6 +56,6 @@ class ProgressServiceTest {
                 "Asia/Jakarta"
         );
 
-        assertEquals(0, service.computeStreak(1L));
+        assertEquals(1, service.computeStreak(1L));
     }
 }

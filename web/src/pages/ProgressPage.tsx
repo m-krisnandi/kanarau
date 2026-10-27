@@ -41,7 +41,8 @@ export const ProgressPage: React.FC = () => {
   const [activeKotobaForDetail, setActiveKotobaForDetail] = useState<Kotoba | null>(null);
   const [activeKanjiForDetail, setActiveKanjiForDetail] = useState<string | null>(null);
 
-  const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
+  const effectiveUserXp = Math.max(user?.total_xp ?? 0, (stats?.total_cards_learned || 0) * 10);
+  const userLvl = calculateUserLevel(effectiveUserXp, language);
   const initialDate = new Date();
   const [year, setYear] = useState(initialDate.getFullYear());
   const [month, setMonth] = useState(initialDate.getMonth() + 1);
@@ -58,6 +59,9 @@ export const ProgressPage: React.FC = () => {
   useEffect(() => {
     async function loadData() {
       try {
+        try {
+          await useAuthStore.getState().fetchUser();
+        } catch {}
         const [statsRes, decksRes, countRes, calRes] = await Promise.all([
           progressApi.getOverallStats(),
           progressApi.getDeckProgress(),

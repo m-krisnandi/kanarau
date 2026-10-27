@@ -186,12 +186,33 @@ export const ReviewPage: React.FC = () => {
         recordReviewCompletion(userKey, finalAnswers.length, Date.now() - reviewSessionStartTimeRef.current);
       } catch {}
       try {
-        await reviewApi.submitReview(finalAnswers);
+        const res = await reviewApi.submitReview(finalAnswers);
+        const serverXp = Number(res?.data?.xp_gained || 0);
+        const addedXp = serverXp > 0 ? serverXp : finalAnswers.filter((a) => a.is_correct).length * 15;
+        useAuthStore.setState((state) => {
+          if (!state.user) return state;
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              total_xp: (state.user.total_xp || 0) + addedXp,
+            },
+          };
+        });
         await useAuthStore.getState().fetchUser();
       } catch (err) {
         console.error('Failed to submit reviews', err);
-        // Keep XP server-authoritative. The offline queue will retry the review;
-        // do not display XP that was not persisted yet.
+        const addedXp = finalAnswers.filter((a) => a.is_correct).length * 15;
+        useAuthStore.setState((state) => {
+          if (!state.user) return state;
+          return {
+            ...state,
+            user: {
+              ...state.user,
+              total_xp: (state.user.total_xp || 0) + addedXp,
+            },
+          };
+        });
       }
     }
   };

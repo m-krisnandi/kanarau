@@ -50,7 +50,8 @@ export const DashboardPage: React.FC = () => {
   const [calendarDays, setCalendarDays] = useState<DayStats[]>([]);
 
   const level = currentLevel;
-  const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
+  const effectiveUserXp = Math.max(user?.total_xp ?? 0, (overallStats?.total_cards_learned || 0) * 10);
+  const userLvl = calculateUserLevel(effectiveUserXp, language);
   const [activeDay, setActiveDay] = useState(1);
   const [activeDeckId, setActiveDeckId] = useState<number | string>(1);
   const [targetWordsCount, setTargetWordsCount] = useState(30);
@@ -168,6 +169,9 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     async function loadStatsData() {
       try {
+        try {
+          await useAuthStore.getState().fetchUser();
+        } catch {}
         const [statsRes, calRes] = await Promise.all([
           progressApi.getOverallStats(),
           progressApi.getCalendar(),

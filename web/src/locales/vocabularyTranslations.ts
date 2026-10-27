@@ -5638,7 +5638,7 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
 
   return {
     ...k,
-    meaning: localizedMeaning || (lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable'),
+    meaning: localizedMeaning || (lang === 'en' ? ((k as any)?.meaning_en || (k as any)?.meaningEn || k.meaning) : (lang === 'my' ? ((k as any)?.meaning_my || (k as any)?.meaningMy || (k as any)?.meaning_en || k.meaning) : k.meaning)),
     notes: localizedNotes,
     example_sentence_meaning: localizedExample || undefined,
   };
@@ -5702,7 +5702,7 @@ export function translateMeaningString(str: string, lang: Language): string {
     }
   }
 
-  return lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable';
+  return str;
 }
 
 /**
@@ -5721,7 +5721,8 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
     if (localizedKotoba.meaning && localizedKotoba.meaning.trim().length > 0) {
       question = localizedKotoba.meaning;
     } else {
-      question = translateMeaningString(card.question, lang);
+      const transQ = translateMeaningString(card.question, lang);
+      question = transQ && transQ !== 'Translation unavailable' ? transQ : card.question;
     }
   }
 
@@ -5730,16 +5731,32 @@ export function localizeQuizCard(card: QuizCard, lang: Language): QuizCard {
     if (localizedKotoba.meaning && localizedKotoba.meaning.trim().length > 0) {
       correctAnswer = localizedKotoba.meaning;
     } else {
-      correctAnswer = translateMeaningString(card.correct_answer, lang);
+      const transAns = translateMeaningString(card.correct_answer, lang);
+      correctAnswer = transAns && transAns !== 'Translation unavailable' ? transAns : card.correct_answer;
     }
   }
 
   const choices = isMeaningChoices
     ? card.choices.map((c) => {
-        if (card.kotoba && (c === card.kotoba.meaning || c === (card.kotoba as any)?.meaning_id || c === (card.kotoba as any)?.meaningId)) {
+        if (!c) return c;
+        if (c === 'Translation unavailable' || c === 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ') return c;
+        if (
+          card.kotoba &&
+          (c === card.kotoba.meaning ||
+            c === (card.kotoba as any)?.meaning_id ||
+            c === (card.kotoba as any)?.meaningId ||
+            c === (card.kotoba as any)?.meaning_en ||
+            c === (card.kotoba as any)?.meaningEn ||
+            c === (card.kotoba as any)?.meaning_my ||
+            c === (card.kotoba as any)?.meaningMy)
+        ) {
           return localizedKotoba.meaning || c;
         }
-        return translateMeaningString(c, lang);
+        const translated = translateMeaningString(c, lang);
+        if (!translated || translated === 'Translation unavailable' || translated === 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ') {
+          return c;
+        }
+        return translated;
       })
     : card.choices;
 

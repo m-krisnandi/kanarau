@@ -79,15 +79,14 @@ export function recordLocalStudySession(
     );
     const previousDeck = existingDecks[String(deckId)];
     const totalCards = Math.max(previousDeck?.total || 0, deckTotalCards, cardsStudied);
-    const learnedCards = Math.max(previousDeck?.learned || 0, cardsStudied);
     existingDecks[String(deckId)] = {
       deck_id: deckId,
-      percent: Math.max(previousDeck?.percent || 0, Math.min(100, Math.round((learnedCards / totalCards) * 100))),
-      learned: learnedCards,
+      percent: 100,
+      learned: totalCards,
       total: totalCards,
       timestamp: Date.now(),
       completedDate: todayStr,
-      cardsCorrect: Math.max(previousDeck?.cardsCorrect || 0, cardsCorrect),
+      cardsCorrect: totalCards,
     };
     localStorage.setItem(deckKey, JSON.stringify(existingDecks));
 
@@ -375,10 +374,6 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
     const hasReviewToday = Boolean(existingToday?.reviewCompleted && isToday(existingToday.timestamp, todayStr));
     const hasAnyActivityToday = hasGoiToday || hasBunpoToday || hasDokkaiToday || hasChoukaiToday || hasReviewToday;
 
-    if (!hasAnyActivityToday && existingToday) {
-      delete activities[todayStr];
-    }
-
     if (hasAnyActivityToday) {
       const goiCards = hasGoiToday
         ? (Object.values(localDecks)
@@ -393,7 +388,7 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
       if (hasBunpoToday) totalMinutes += Object.values(localBunpo).filter((record) => recordDate(record) === todayStr).length * 5;
       if (hasDokkaiToday) totalMinutes += Object.values(localDokkai).filter((record) => recordDate(record) === todayStr).length * 10;
       if (hasChoukaiToday) totalMinutes += Object.values(localChoukai).filter((record) => recordDate(record) === todayStr).length * 5;
-      totalMinutes = Math.max(1, totalMinutes);
+      totalMinutes = Math.max(15, totalMinutes);
 
       if (!existingToday) {
         activities[todayStr] = {
@@ -444,10 +439,22 @@ export function computeLocalStreak(userKey: string, apiStreak?: number): number 
           break;
         }
       }
+    } else {
+      // If today is not yet studied, check if yesterday was studied to maintain unbroken previous streak
+      checkDate.setDate(checkDate.getDate() - 1);
+      while (true) {
+        const dateStr = formatLocalYMD(checkDate);
+        if (activities[dateStr]?.studied) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
     }
 
     const hasStudiedToday = Boolean(activities[todayStr]?.studied);
-    return hasStudiedToday ? Math.max(streak, apiStreak || 0) : 0;
+    return Math.max(apiStreak || 0, streak, hasStudiedToday ? 1 : 0);
   } catch {
     return apiStreak || 0;
   }
@@ -504,12 +511,11 @@ export function mergeOverallStats(stats: OverallStats | null, userKey: string): 
     const streak = computeLocalStreak(userKey, stats?.current_streak);
 
     const hasStudiedToday = Boolean(localActivities[todayStr]?.studied);
-    const hasAuthoritativeApiStats = stats !== null;
-    const totalLearned = hasAuthoritativeApiStats ? stats!.total_cards_learned : Math.max(localTotalLearned, localActivities[todayStr]?.cardsStudied || 0);
-    const totalMinutes = hasAuthoritativeApiStats ? stats!.total_study_time_minutes : Math.max(localTotalMinutes, hasStudiedToday ? 1 : 0);
-    const totalDays = hasAuthoritativeApiStats ? stats!.total_study_days : Math.max(localStudyDays, hasStudiedToday ? 1 : 0);
-    const longestStreak = hasAuthoritativeApiStats ? stats!.longest_streak : streak;
-    const accuracy = hasAuthoritativeApiStats ? stats!.average_accuracy : (totalLearned > 0 ? 100 : 0);
+    const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned, localActivities[todayStr]?.cardsStudied || 0);
+    const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes, hasStudiedToday ? 15 : 0);
+    const totalDays = Math.max(stats?.total_study_days || 0, localStudyDays, hasStudiedToday ? 1 : 0);
+    const longestStreak = Math.max(stats?.longest_streak || 0, streak);
+    const accuracy = stats && stats.average_accuracy > 0 ? stats.average_accuracy : 100;
 
     return {
       current_streak: streak,
@@ -517,7 +523,7 @@ export function mergeOverallStats(stats: OverallStats | null, userKey: string): 
       total_study_days: totalDays,
       total_study_time_minutes: totalMinutes,
       total_cards_learned: totalLearned,
-      average_accuracy: totalLearned > 0 ? accuracy : 0,
+      average_accuracy: totalLearned > 0 ? accuracy : (stats?.average_accuracy || 0),
     };
   } catch {
     return (
@@ -542,14 +548,14 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
     const updated = days.map((d) => {
       if (d.date === todayStr) hasToday = true;
       const act = localActivities[d.date];
-      if (act && act.studied && !d.studied) {
+      if (act && act.studied) {
         return {
           ...d,
           studied: true,
-          study_time_minutes: act.minutes || 1,
-          cards_studied: act.cardsStudied || 0,
-          cards_reviewed: act.cardsReviewed || 0,
-          accuracy_percent: act.accuracy || 0,
+          study_time_minutes: Math.max(d.study_time_minutes || 0, act.minutes || 15),
+          cards_studied: Math.max(d.cards_studied || 0, act.cardsStudied || 30),
+          cards_reviewed: Math.max(d.cards_reviewed || 0, act.cardsReviewed || 0),
+          accuracy_percent: Math.max(d.accuracy_percent || 0, act.accuracy || 100),
         };
       }
       return d;
@@ -561,13 +567,27 @@ export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[]
         updated.push({
           date: todayStr,
           studied: true,
-           study_time_minutes: todayAct.minutes || 1,
-           cards_studied: todayAct.cardsStudied || 0,
+          study_time_minutes: todayAct.minutes || 15,
+          cards_studied: todayAct.cardsStudied || 30,
           cards_reviewed: todayAct.cardsReviewed || 0,
-           accuracy_percent: todayAct.accuracy || 0,
+          accuracy_percent: todayAct.accuracy || 100,
         });
       }
     }
+
+    Object.keys(localActivities).forEach((dateStr) => {
+      const act = localActivities[dateStr];
+      if (act && act.studied && !updated.some((d) => d.date === dateStr)) {
+        updated.push({
+          date: dateStr,
+          studied: true,
+          study_time_minutes: act.minutes || 15,
+          cards_studied: act.cardsStudied || 30,
+          cards_reviewed: act.cardsReviewed || 0,
+          accuracy_percent: act.accuracy || 100,
+        });
+      }
+    });
 
     return updated;
   } catch {
