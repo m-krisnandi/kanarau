@@ -307,32 +307,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Papan Peringkat / Leaderboard Competitive Card */}
-        <div
-          onClick={() => setLeaderboardOpen(true)}
-          className="card-washi rounded-2xl px-3 py-2 sm:py-2.5 border border-amber-200/80 dark:border-amber-800/50 bg-gradient-to-r from-amber-50/80 via-white to-indigo-50/40 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-amber-950/20 cursor-pointer flex items-center justify-between shadow-2xs hover:border-amber-300 dark:hover:border-amber-500 transition-all group active:scale-98"
-        >
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
-              <Trophy className="w-3.5 h-3.5 fill-amber-200" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center space-x-2">
-                <h4 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight">
-                  {t.leaderboard?.title || 'Papan Peringkat'}
-                </h4>
-                <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
-                  Lv. {userLvl.level} · {userLvl.title}
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 truncate mt-0.5">
-                {t.leaderboard?.subtitle || 'Bandingkan level dan bersaing dengan pembelajar lain'}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
-        </div>
-
         {/* Tanya AI Card */}
         <div
           onClick={() => setAiModalOpen(true)}
