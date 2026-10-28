@@ -4,6 +4,7 @@ import type { JLPTModuleLevel } from '@/types/jlptModules';
 import { BUNPO_UNITS, BUNPO_QUESTIONS } from '@/data/bunpoData';
 import { localizeBunpo } from '@/locales/moduleTranslations';
 import { localizeBunpoQuestion } from '@/locales/bunpoTranslations';
+import { shuffle } from '@/utils';
 import {
   playNaturalJapaneseVoice,
   stopAudio,
@@ -108,6 +109,8 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
     setAiInitialDisplay('');
   }, []);
 
+  const [sessionSeed, setSessionSeed] = useState(0);
+
   // Questions for the active unit
   const activeQuestions = useMemo(() => {
     if (!selectedUnitId) return [];
@@ -116,12 +119,25 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
     );
   }, [selectedUnitId, language]);
 
+  // Map of randomized choices per question ID for the active unit session
+  const unitShuffledChoices = useMemo(() => {
+    if (!selectedUnitId) return {};
+    const map: Record<string, string[]> = {};
+    BUNPO_QUESTIONS.filter((q) => q.unitId === selectedUnitId).forEach((q) => {
+      if (q.type === 'selection' && Array.isArray(q.choices)) {
+        map[q.id] = shuffle([...q.choices]);
+      }
+    });
+    return map;
+  }, [selectedUnitId, sessionSeed]);
+
   const currentQ: BunpoQuestion | undefined = activeQuestions[currentQuestionIndex];
   const localizedQ: BunpoQuestion | undefined = useMemo(() => {
     if (!currentQ) return undefined;
     return localizeBunpoQuestion(currentQ, language);
   }, [currentQ, language]);
   const activeQ = localizedQ || currentQ;
+  const displayChoices = (currentQ && unitShuffledChoices[currentQ.id]) || currentQ?.choices || [];
 
   // Reset question state when moving to next question
   const resetQuestionState = () => {
@@ -145,6 +161,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
       return;
     }
     setSelectedUnitId(unit.id);
+    setSessionSeed((prev) => prev + 1);
     setCurrentQuestionIndex(0);
     resetQuestionState();
   };
@@ -598,7 +615,7 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
         {/* MODE 2: SELECTION QUESTION CHOICES */}
         {!isStar && (
           <div className="space-y-2.5">
-            {currentQ.choices.map((choice, i) => {
+            {displayChoices.map((choice, i) => {
               const choiceNumber = i + 1;
               const isSelected = selectedChoice === choice;
               const isCorrectAnswer = choice === currentQ.correctAnswer;

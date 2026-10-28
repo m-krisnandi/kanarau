@@ -292,6 +292,9 @@ export const BUNPO_UNITS: BunpoUnit[] = [
   },
 ];
 
+// Catatan: Pada dataset BUNPO_QUESTIONS untuk tipe 'selection', kunci jawaban ditempatkan
+// di choices[0] sebagai konvensi authoring data baku. Di UI (BunpoPracticeView), opsi pilihan
+// ganda diacak (shuffled) secara otomatis pada setiap sesi latihan agar letak jawaban tidak selalu di nomor 1.
 export const BUNPO_QUESTIONS: BunpoQuestion[] = [
   // ═════════════════════════════════════════════════════════════════
   // N2 QUESTIONS
