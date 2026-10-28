@@ -61,6 +61,92 @@ function recordDate(record: unknown): string | null {
   return null;
 }
 
+export interface ActiveStudySession {
+  deckId: string | number;
+  studyMode?: string | null;
+  currentIndex: number;
+  totalCards: number;
+  cards: any[];
+  initialCards: any[];
+  retryKotobaIds: (number | string)[];
+  answers: any[];
+  percent: number;
+  timestamp: number;
+}
+
+export function getActiveSessionKey(userKey: string, deckId: string | number, studyMode?: string | null): string {
+  const modeKey = studyMode ? `_${studyMode}` : '';
+  return `kanarau_active_session_${userKey}_${deckId}${modeKey}`;
+}
+
+export function saveActiveStudySession(
+  userKey: string,
+  session: ActiveStudySession
+) {
+  try {
+    const key = getActiveSessionKey(userKey, session.deckId, session.studyMode);
+    localStorage.setItem(key, JSON.stringify(session));
+
+    // Also update in-progress percentage in kanarau_local_progress if percent > 0 and deck not already 100% complete
+    const deckKey = `kanarau_local_progress_${userKey}`;
+    const existingDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
+      localStorage.getItem(deckKey) || '{}'
+    );
+    const prev = existingDecks[String(session.deckId)];
+    if (!prev || (prev.percent || 0) < 100) {
+      existingDecks[String(session.deckId)] = {
+        deck_id: Number(session.deckId) || 1,
+        percent: session.percent,
+        learned: Math.min(session.totalCards, session.currentIndex),
+        total: session.totalCards,
+        timestamp: Date.now(),
+        cardsCorrect: session.answers.filter((a) => a.is_correct).length,
+      };
+      localStorage.setItem(deckKey, JSON.stringify(existingDecks));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to save active study session', err);
+  }
+}
+
+export function getActiveStudySession(
+  userKey: string,
+  deckId: string | number,
+  studyMode?: string | null
+): ActiveStudySession | null {
+  try {
+    const key = getActiveSessionKey(userKey, deckId, studyMode);
+    const data = localStorage.getItem(key);
+    if (!data) return null;
+    const parsed: ActiveStudySession = JSON.parse(data);
+    if (
+      parsed &&
+      Array.isArray(parsed.cards) &&
+      parsed.cards.length > 0 &&
+      typeof parsed.currentIndex === 'number' &&
+      parsed.currentIndex >= 0 &&
+      parsed.currentIndex < parsed.cards.length
+    ) {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+export function clearActiveStudySession(
+  userKey: string,
+  deckId: string | number,
+  studyMode?: string | null
+) {
+  try {
+    const key = getActiveSessionKey(userKey, deckId, studyMode);
+    localStorage.removeItem(key);
+  } catch {}
+}
+
 export function recordLocalStudySession(
   userKey: string,
   deckId: number,

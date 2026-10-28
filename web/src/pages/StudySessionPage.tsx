@@ -24,10 +24,17 @@ import {
   Award,
   BookOpen,
   Trophy,
+  RotateCcw,
 } from 'lucide-react';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { calculateUserLevel } from '@/utils/levelHelper';
-import { recordLocalStudySession, getUserKey } from '@/utils/userProgressHelper';
+import {
+  recordLocalStudySession,
+  getUserKey,
+  getActiveStudySession,
+  saveActiveStudySession,
+  clearActiveStudySession,
+} from '@/utils/userProgressHelper';
 
 export const StudySessionPage: React.FC = () => {
   const { deckId } = useParams<{ deckId: string }>();
@@ -52,6 +59,7 @@ export const StudySessionPage: React.FC = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [resumedToast, setResumedToast] = useState<string | null>(null);
 
   // Tanya AI modal state
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -67,9 +75,52 @@ export const StudySessionPage: React.FC = () => {
   const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
 
   useEffect(() => {
+    if (resumedToast) {
+      const timer = setTimeout(() => setResumedToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [resumedToast]);
+
+  useEffect(() => {
     async function loadCards() {
       try {
         const id = deckId || '1';
+        const userKey = getUserKey(user);
+
+        // 1. Check if there is an in-progress session to resume
+        const activeSession = getActiveStudySession(userKey, id, studyMode);
+        if (
+          activeSession &&
+          activeSession.cards &&
+          activeSession.cards.length > 0 &&
+          activeSession.currentIndex < activeSession.cards.length
+        ) {
+          setCards(activeSession.cards);
+          setInitialCards(activeSession.initialCards || activeSession.cards);
+          setCurrentIndex(activeSession.currentIndex);
+          setAnswers(activeSession.answers || []);
+          answersRef.current = activeSession.answers || [];
+          setRetryKotobaIds(new Set(activeSession.retryKotobaIds || []));
+          setDeckTotalCards(activeSession.totalCards);
+          setCardStartTime(Date.now());
+          setResumedToast(
+            t.studySession.resumedSessionToast(activeSession.currentIndex + 1, activeSession.cards.length)
+          );
+
+          try {
+            const deckRes = await deckApi.get(id);
+            if (deckRes?.data?.name) {
+              setDeckTitle(deckRes.data.name);
+            } else {
+              setDeckTitle(`DAY ${id} ${currentLevel}`);
+            }
+          } catch {
+            setDeckTitle(`DAY ${id} ${currentLevel}`);
+          }
+          setLoading(false);
+          return;
+        }
+
         const [cardsRes, deckRes] = await Promise.allSettled([
           deckApi.getCards(id, language),
           deckApi.get(id),
@@ -148,9 +199,13 @@ export const StudySessionPage: React.FC = () => {
       rating,
     };
 
+    let updatedCards = cards;
+    let updatedRetries = retryKotobaIds;
+
     // If answer is incorrect, record mistake and queue card for repetition until mastered
     if (!isCorrect) {
-      setRetryKotobaIds((prev) => new Set(prev).add(kotobaId));
+      updatedRetries = new Set(retryKotobaIds).add(kotobaId);
+      setRetryKotobaIds(updatedRetries);
 
       useMistakesStore.getState().recordMistake({
         kotobaId: currentCard.kotoba.id,
@@ -168,7 +223,8 @@ export const StudySessionPage: React.FC = () => {
           ...rawCurrentCard,
           id: `${rawCurrentCard.id}_retry_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         };
-        setCards((prev) => [...prev, retryCard]);
+        updatedCards = [...cards, retryCard];
+        setCards(updatedCards);
       }
     }
 
@@ -176,6 +232,21 @@ export const StudySessionPage: React.FC = () => {
     setIsAnswered(true);
     answersRef.current.push(answer);
     setAnswers((prev) => [...prev, answer]);
+
+    const userKey = getUserKey(user);
+    const pct = Math.round(((currentIndex + 1) / updatedCards.length) * 100);
+    saveActiveStudySession(userKey, {
+      deckId: String(deckId || 1),
+      studyMode,
+      currentIndex,
+      totalCards: updatedCards.length,
+      cards: updatedCards,
+      initialCards,
+      retryKotobaIds: Array.from(updatedRetries),
+      answers: answersRef.current,
+      percent: pct,
+      timestamp: Date.now(),
+    });
   };
 
   const finishSession = useCallback(async (sessionAnswers: QuizAnswer[] = answers) => {
@@ -185,6 +256,10 @@ export const StudySessionPage: React.FC = () => {
     const xpGained = totalUniqueCards * 10 + 20;
     setSessionAccuracy(100);
     setEarnedXp(xpGained);
+
+    // Clear in-progress active session now that session is completed
+    const userKey = getUserKey(useAuthStore.getState().user);
+    clearActiveStudySession(userKey, String(deckId || 1), studyMode);
 
     // Optimistically update total_xp in authStore immediately so results screen reflects it
     useAuthStore.setState((state) => {
@@ -233,9 +308,9 @@ export const StudySessionPage: React.FC = () => {
     // Save immediate local progress & daily activity so streak & stats never show 0%
     try {
       const localUser = useAuthStore.getState().user;
-      const userKey = getUserKey(localUser);
+      const uKey = getUserKey(localUser);
       recordLocalStudySession(
-        userKey,
+        uKey,
         numericDeckId,
         totalUniqueCards,
         totalUniqueCards,
@@ -251,19 +326,73 @@ export const StudySessionPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to submit session to backend', err);
     }
-  }, [answers, initialCards.length, cards.length, deckId]);
+  }, [answers, initialCards.length, cards.length, deckId, studyMode]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
       setSelectedChoice(null);
       setIsAnswered(false);
       setShowHint(false);
       setCardStartTime(Date.now());
+
+      const userKey = getUserKey(user);
+      const pct = Math.round((nextIdx / cards.length) * 100);
+      saveActiveStudySession(userKey, {
+        deckId: String(deckId || 1),
+        studyMode,
+        currentIndex: nextIdx,
+        totalCards: cards.length,
+        cards,
+        initialCards,
+        retryKotobaIds: Array.from(retryKotobaIds),
+        answers: answersRef.current,
+        percent: pct,
+        timestamp: Date.now(),
+      });
     } else {
       void finishSession();
     }
-  }, [currentIndex, cards.length, finishSession]);
+  }, [currentIndex, cards, initialCards, retryKotobaIds, deckId, studyMode, user, finishSession]);
+
+  const handleBack = () => {
+    if (currentIndex > 0 && !isFinished && cards.length > 0) {
+      const userKey = getUserKey(user);
+      const nextUnanswered = isAnswered ? Math.min(cards.length - 1, currentIndex + 1) : currentIndex;
+      const pct = Math.round((nextUnanswered / cards.length) * 100);
+      saveActiveStudySession(userKey, {
+        deckId: String(deckId || 1),
+        studyMode,
+        currentIndex: nextUnanswered,
+        totalCards: cards.length,
+        cards,
+        initialCards,
+        retryKotobaIds: Array.from(retryKotobaIds),
+        answers: answersRef.current,
+        percent: pct,
+        timestamp: Date.now(),
+      });
+    }
+    navigate('/belajar');
+  };
+
+  const handleRestartSession = () => {
+    if (window.confirm(t.studySession.confirmRestart)) {
+      const userKey = getUserKey(user);
+      clearActiveStudySession(userKey, String(deckId || 1), studyMode);
+      setCurrentIndex(0);
+      setSelectedChoice(null);
+      setIsAnswered(false);
+      setShowHint(false);
+      setAnswers([]);
+      answersRef.current = [];
+      setRetryKotobaIds(new Set());
+      setCards(initialCards);
+      setCardStartTime(Date.now());
+      setResumedToast(null);
+    }
+  };
 
   // Keyboard shortcut: Press Enter or Space to go Next when answered
   useEffect(() => {
@@ -537,7 +666,7 @@ export const StudySessionPage: React.FC = () => {
         {/* Top Bar */}
         <div className="flex items-center justify-between pt-1 px-1">
           <button
-            onClick={() => navigate('/belajar')}
+            onClick={handleBack}
             className="flex items-center space-x-1.5 text-xs font-bold text-[#44403C] hover:text-[#1E1B18] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -556,14 +685,41 @@ export const StudySessionPage: React.FC = () => {
                 style={{ width: `${currentPercent}%` }}
               />
             </div>
-            <span className="text-[10px] font-bold text-[#1E1B18] leading-none">
-              {currentPercent}%
-            </span>
+            <div className="flex items-center space-x-1.5">
+              {currentIndex > 0 && (
+                <button
+                  onClick={handleRestartSession}
+                  title={t.studySession.restart}
+                  className="text-[9px] text-[#A8A29E] hover:text-stone-700 underline cursor-pointer"
+                >
+                  {t.studySession.restart}
+                </button>
+              )}
+              <span className="text-[10px] font-bold text-[#1E1B18] leading-none">
+                {currentPercent}%
+              </span>
+            </div>
             <span className="text-[9px] text-[#A8A29E] uppercase leading-tight font-medium">
               {activeDeckTitle}
             </span>
           </div>
         </div>
+
+        {/* Resumed session toast banner */}
+        {resumedToast && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium px-3 py-1.5 rounded-xl flex items-center justify-between animate-fade-in shadow-2xs">
+            <div className="flex items-center space-x-1.5">
+              <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>{resumedToast}</span>
+            </div>
+            <button
+              onClick={() => setResumedToast(null)}
+              className="text-amber-500 hover:text-amber-800 ml-2 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Main Question Container Card */}
         <div className="card-washi rounded-2xl p-6 sm:p-7 text-center relative border border-[#EFEAE2] shadow-xs space-y-3 bg-white">

@@ -353,6 +353,9 @@ export const translations = {
       bottomCorrect: 'Jawaban Benar',
       bottomWrong: 'Jawaban Belum Tepat',
       nextBtn: 'Next',
+      resumedSessionToast: (curr: number, total: number) => `Melanjutkan sesi (${curr}/${total})`,
+      restart: 'Ulang dari Awal',
+      confirmRestart: 'Ulangi sesi belajar ini dari awal? Kemajuan saat ini akan di-reset.',
     },
     kotobaDetail: {
       tokyoAudioTitle: 'Dengar pengucapan native Tokyo',
@@ -1072,6 +1075,9 @@ export const translations = {
       bottomCorrect: 'Correct Answer',
       bottomWrong: 'Not Quite Right',
       nextBtn: 'Next',
+      resumedSessionToast: (curr: number, total: number) => `Resuming session (${curr}/${total})`,
+      restart: 'Restart from Beginning',
+      confirmRestart: 'Restart this study session from the beginning? Current progress will be reset.',
     },
     kotobaDetail: {
       tokyoAudioTitle: 'Listen Tokyo native pronunciation',
@@ -1791,6 +1797,9 @@ export const translations = {
       bottomCorrect: 'အဖြေမှန်ပါသည်',
       bottomWrong: 'မမှန်သေးပါ',
       nextBtn: 'ရှေ့သို့',
+      resumedSessionToast: (curr: number, total: number) => `ယခင်လေ့လာမှု ဆက်လက်လုပ်ဆောင်နေသည် (${curr}/${total})`,
+      restart: 'အစမှ ပြန်လည်စတင်ရန်',
+      confirmRestart: 'ဤလေ့လာမှုအပိုင်းကို အစမှ ပြန်စမလား။ လက်ရှိတိုးတက်မှု ပြန်လည်သတ်မှတ်ပါမည်။',
     },
     kotobaDetail: {
       tokyoAudioTitle: 'တိုကျို အသံထွက် နားထောင်ရန်',
