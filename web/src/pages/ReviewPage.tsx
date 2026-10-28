@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { reviewApi } from '@/services/api';
+import { reviewApi, deckApi, progressApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, ReviewStats, Kotoba } from '@/types';
 import { rateByTime } from '@/utils';
 import { RotateCcw, Play, Check, X, ArrowLeft, BookOpen, Zap, ChevronRight } from 'lucide-react';
@@ -10,7 +10,7 @@ import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useAuthStore } from '@/stores/authStore';
-import { recordReviewCompletion, getUserKey } from '@/utils/userProgressHelper';
+import { recordReviewCompletion, getUserKey, mergeDeckProgress } from '@/utils/userProgressHelper';
 import { calculateUserLevel } from '@/utils/levelHelper';
 
 export const ReviewPage: React.FC = () => {
@@ -47,6 +47,9 @@ export const ReviewPage: React.FC = () => {
           reviewApi.getStats(),
           reviewApi.getQueue(language),
         ]);
+        if (statsRes?.data) {
+          setStats(statsRes.data);
+        }
         const rawQueue = queueRes.data || [];
         const sanitizedQueue = rawQueue.filter((card) => {
           if (!card || !card.question || !card.correct_answer) return false;
@@ -61,6 +64,40 @@ export const ReviewPage: React.FC = () => {
     }
     loadData();
   }, [language]);
+
+  const [loadingRecent, setLoadingRecent] = useState(false);
+
+  const startRecentPractice = async () => {
+    setLoadingRecent(true);
+    try {
+      const res = await progressApi.getDeckProgress();
+      const rawDecks = res?.data || [];
+      const userKey = getUserKey(useAuthStore.getState().user);
+      const merged = mergeDeckProgress(rawDecks, userKey);
+      const levelDecks = merged.filter((d) => d.jlpt_level === currentLevel);
+      const targetDeck = levelDecks.find((d) => (d.progress_percent || 0) > 0) || levelDecks[0];
+      const targetDeckId = targetDeck ? targetDeck.deck_id : 1;
+
+      const cardsRes = await deckApi.getCards(targetDeckId, language);
+      const practiceCards = (cardsRes?.data || []).slice(0, 20);
+      if (practiceCards.length > 0) {
+        setQueue(practiceCards);
+        setIsReviewing(true);
+        setCurrentIndex(0);
+        setAnswers([]);
+        answersRef.current = [];
+        setSelectedChoice(null);
+        setIsAnswered(false);
+        setIsFinished(false);
+        setCardStartTime(Date.now());
+        reviewSessionStartTimeRef.current = Date.now();
+      }
+    } catch (err) {
+      console.error('Failed to load recent deck cards for review', err);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
 
   const startReviewSession = () => {
     if (queue.length > 0) {
@@ -79,6 +116,7 @@ export const ReviewPage: React.FC = () => {
       startWeaknessReview();
       return;
     }
+    void startRecentPractice();
   };
 
   const startWeaknessReview = () => {
@@ -480,20 +518,40 @@ export const ReviewPage: React.FC = () => {
           </div>
         )}
 
-        <button
-          onClick={startReviewSession}
-          disabled={queue.length === 0 && weakWords.length === 0}
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs cursor-pointer active:scale-98"
-        >
-          <Play className="w-4 h-4 fill-white" />
-          <span>
-            {queue.length > 0
-              ? t.review.startBtn
-              : weakWords.length > 0
-              ? `${t.review.startBtn} (${weakWords.length} Kelemahan)`
-              : t.review.startBtn}
-          </span>
-        </button>
+        {queue.length > 0 ? (
+          <button
+            onClick={startReviewSession}
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs cursor-pointer active:scale-98"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>{t.review.startBtn} ({queue.length} Kartu Jatuh Tempo)</span>
+          </button>
+        ) : weakWords.length > 0 ? (
+          <button
+            onClick={startWeaknessReview}
+            className="w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs cursor-pointer active:scale-98"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>Review {weakWords.length} Kosakata Belum Dikuasai</span>
+          </button>
+        ) : (
+          <button
+            onClick={startRecentPractice}
+            disabled={loadingRecent}
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs cursor-pointer active:scale-98"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>
+              {loadingRecent
+                ? 'Menyiapkan kartu...'
+                : language === 'en'
+                ? 'Practice Recent Words (Self-Drill)'
+                : language === 'my'
+                ? 'လတ်တလော စကားလုံးများ လေ့ကျင့်ရန်'
+                : 'Latihan Mandiri Kosakata Terakhir'}
+            </span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
