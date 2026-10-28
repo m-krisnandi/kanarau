@@ -54,6 +54,7 @@ export const DashboardPage: React.FC = () => {
   const [bunpoResults, setBunpoResults] = useState<Record<string, any>>({});
   const [dokkaiResults, setDokkaiResults] = useState<Record<string, any>>({});
   const [choukaiResults, setChoukaiResults] = useState<Record<string, any>>({});
+  const [advanceDayTrigger, setAdvanceDayTrigger] = useState(0);
 
   const level = currentLevel;
   const effectiveUserXp = getEffectiveUserXp(user, overallStats);
@@ -177,8 +178,35 @@ export const DashboardPage: React.FC = () => {
     );
 
     // Find the first day where lesson content (Goi, Bunpo, Dokkai/Choukai) is not 100% completed
+    const completedDaysKey = `kanarau_cycle_completed_days_${userKey}_${level}`;
+    let savedCompleted: Record<number, any> = {};
+    try {
+      const raw = localStorage.getItem(completedDaysKey);
+      if (raw) savedCompleted = JSON.parse(raw);
+    } catch {}
+
+    const isAlreadyAdvanced = (d: number): boolean => {
+      const val = savedCompleted[d];
+      if (!val) return false;
+      if (val === true) return true;
+      if (typeof val === 'object') {
+        if (val.advanced) return true;
+        if (val.completedAt && val.completedAt < todayStr) return true;
+      }
+      return false;
+    };
+
+    const newlyCompletedDays: number[] = [];
+
+    // Find the first day where the 4-pillar package is not yet fully completed
     let activeDay = 1;
+    let foundActive = false;
+
     for (let d = 1; d <= maxDays; d++) {
+      if (isAlreadyAdvanced(d)) {
+        continue;
+      }
+
       const goiDeck = levelDecks.find((deck) => deck.day_number === d);
       const isGoiDone = Boolean(goiDeck && (goiDeck.progress_percent || 0) >= 100);
 
@@ -193,10 +221,28 @@ export const DashboardPage: React.FC = () => {
       const isDokkaiChoukaiDone = hasReadingOrListening ? (isDokkaiDone || isChoukaiDone) : true;
 
       const isLessonContentDone = isGoiDone && isBunpoDone && isDokkaiChoukaiDone;
-      if (!isLessonContentDone || d === maxDays) {
-        activeDay = d;
-        break;
+      const isReviewDone = pendingCount === 0 || Boolean(
+        dailyActivities[todayStr]?.reviewCompleted || (dailyActivities[todayStr]?.cardsReviewed || 0) > 0
+      );
+
+      // If all 4 pillars are done for day d:
+      if (isLessonContentDone && isReviewDone) {
+        newlyCompletedDays.push(d);
+        const existingRec = savedCompleted[d];
+        const completedDate = typeof existingRec === 'object' && existingRec?.completedAt ? existingRec.completedAt : todayStr;
+        // If it was completed in a past calendar day, automatically roll forward
+        if (completedDate < todayStr && d < maxDays) {
+          continue;
+        }
       }
+
+      activeDay = d;
+      foundActive = true;
+      break;
+    }
+
+    if (!foundActive) {
+      activeDay = maxDays;
     }
 
     // Evaluate the 4 pillars for activeDay
@@ -231,6 +277,7 @@ export const DashboardPage: React.FC = () => {
     const prevDay = activeDay > 1 ? activeDay - 1 : null;
     const isPrevDayCompleted = Boolean(
       prevDay && (
+        savedCompleted[prevDay] ||
         dailyActivities[todayStr]?.hasRealStudySession ||
         dailyActivities[todayStr]?.dokkaiCompleted ||
         dailyActivities[todayStr]?.bunpoCompleted ||
@@ -241,6 +288,7 @@ export const DashboardPage: React.FC = () => {
 
     return {
       activeDay,
+      maxDays,
       activeDeckId,
       targetWordsCount,
       isGoiDoneInCycle,
@@ -253,10 +301,44 @@ export const DashboardPage: React.FC = () => {
       isDayFullyComplete,
       prevDay,
       isPrevDayCompleted,
+      newlyCompletedDays,
     };
-  }, [mergedDecks, level, bunpoResults, dokkaiResults, choukaiResults, pendingCount, dailyActivities, todayStr]);
+  }, [mergedDecks, level, bunpoResults, dokkaiResults, choukaiResults, pendingCount, dailyActivities, todayStr, userKey, advanceDayTrigger]);
+
+  useEffect(() => {
+    if (cycleInfo.newlyCompletedDays && cycleInfo.newlyCompletedDays.length > 0) {
+      try {
+        const key = `kanarau_cycle_completed_days_${userKey}_${level}`;
+        const existing = JSON.parse(localStorage.getItem(key) || '{}');
+        let changed = false;
+        cycleInfo.newlyCompletedDays.forEach((d) => {
+          if (!existing[d]) {
+            existing[d] = { completedAt: todayStr, advanced: false };
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem(key, JSON.stringify(existing));
+        }
+      } catch {}
+    }
+  }, [cycleInfo.newlyCompletedDays, userKey, level, todayStr]);
+
+  const advanceToNextDay = (day: number) => {
+    try {
+      const key = `kanarau_cycle_completed_days_${userKey}_${level}`;
+      const existing = JSON.parse(localStorage.getItem(key) || '{}');
+      existing[day] = { completedAt: todayStr, advanced: true };
+      localStorage.setItem(key, JSON.stringify(existing));
+      setAdvanceDayTrigger((prev) => prev + 1);
+    } catch {}
+  };
 
   const handleQuickLaunch = () => {
+    if (cycleInfo.isDayFullyComplete && cycleInfo.activeDay < cycleInfo.maxDays) {
+      advanceToNextDay(cycleInfo.activeDay);
+      return;
+    }
     if (!cycleInfo.isGoiDoneInCycle) {
       navigate(cycleInfo.activeDeckId ? `/study-session/${cycleInfo.activeDeckId}` : '/belajar?tab=goi');
     } else if (!cycleInfo.isBunpoDoneInCycle) {
@@ -275,6 +357,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   const quickLaunchLabel = useMemo(() => {
+    if (cycleInfo.isDayFullyComplete) {
+      return cycleInfo.activeDay < cycleInfo.maxDays
+        ? `Lanjut DAY ${cycleInfo.activeDay + 1} →`
+        : `Kurikulum Selesai ✓`;
+    }
     if (!cycleInfo.isGoiDoneInCycle) {
       return `Mulai Goi DAY ${cycleInfo.activeDay}`;
     }
@@ -436,12 +523,21 @@ export const DashboardPage: React.FC = () => {
               <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-200">
                 {t.dashboard.cycleCelebration(cycleInfo.activeDay)}
               </span>
-              <button
-                onClick={() => navigate('/belajar')}
-                className="text-[9px] font-extrabold text-emerald-900 bg-emerald-200/90 hover:bg-emerald-300 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0 ml-2"
-              >
-                Lanjut
-              </button>
+              {cycleInfo.activeDay < cycleInfo.maxDays ? (
+                <button
+                  onClick={() => advanceToNextDay(cycleInfo.activeDay)}
+                  className="text-[9px] font-extrabold text-emerald-900 bg-emerald-200/90 hover:bg-emerald-300 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0 ml-2"
+                >
+                  Mulai DAY {cycleInfo.activeDay + 1} →
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/belajar')}
+                  className="text-[9px] font-extrabold text-emerald-900 bg-emerald-200/90 hover:bg-emerald-300 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0 ml-2"
+                >
+                  Lihat Semua
+                </button>
+              )}
             </div>
           ) : cycleInfo.isPrevDayCompleted && cycleInfo.prevDay ? (
             <div className="px-2.5 py-1 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/40 text-[9.5px] font-semibold text-emerald-800 dark:text-emerald-300 shadow-2xs">
