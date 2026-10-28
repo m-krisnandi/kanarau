@@ -23,6 +23,7 @@ import type { OverallStats, DayStats } from '@/types';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { calculateUserLevel } from '@/utils/levelHelper';
+import { BUNPO_UNITS } from '@/data/bunpoData';
 import { DOKKAI_PASSAGES } from '@/data/dokkaiData';
 import { CHOUKAI_QUESTIONS } from '@/data/choukaiData';
 import { formatLocalYMD } from '@/utils';
@@ -44,19 +45,20 @@ export const DashboardPage: React.FC = () => {
   const { t, language } = useTranslation();
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [dokkaiDone, setDokkaiDone] = useState(false);
-  const [choukaiDone, setChoukaiDone] = useState(false);
-  const [bunpoDone, setBunpoDone] = useState(false);
   const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
   const [calendarDays, setCalendarDays] = useState<DayStats[]>([]);
+  const [countdownDays, setCountdownDays] = useState<number>(49);
+
+  // Raw decks and module records loaded from progress API / localStorage
+  const [mergedDecks, setMergedDecks] = useState<any[]>([]);
+  const [bunpoResults, setBunpoResults] = useState<Record<string, any>>({});
+  const [dokkaiResults, setDokkaiResults] = useState<Record<string, any>>({});
+  const [choukaiResults, setChoukaiResults] = useState<Record<string, any>>({});
 
   const level = currentLevel;
   const effectiveUserXp = getEffectiveUserXp(user, overallStats);
   const userLvl = calculateUserLevel(effectiveUserXp, language);
-  const [activeDay, setActiveDay] = useState(1);
-  const [activeDeckId, setActiveDeckId] = useState<number | string>(1);
-  const [targetWordsCount, setTargetWordsCount] = useState(30);
-  const [countdownDays, setCountdownDays] = useState<number>(49);
+  const userKey = getUserKey(user);
 
   useEffect(() => {
     async function loadCountdown() {
@@ -75,32 +77,15 @@ export const DashboardPage: React.FC = () => {
     loadCountdown();
   }, []);
 
-  const userKey = getUserKey(user);
-
   useEffect(() => {
     async function loadDeckProgress() {
       try {
         const res = await progressApi.getDeckProgress();
         const rawDecks = res?.data || [];
-        const mergedDecks = mergeDeckProgress(rawDecks, userKey);
-        if (mergedDecks.length > 0) {
-          const levelDecks = mergedDecks.filter((d) => d.jlpt_level === level);
-          const firstIncomplete = levelDecks.find((d) => (d.progress_percent || 0) < 100);
-          if (firstIncomplete) {
-            setActiveDay(firstIncomplete.day_number);
-            setActiveDeckId(firstIncomplete.deck_id);
-            setTargetWordsCount(firstIncomplete.total_kotoba || 30);
-          } else if (levelDecks.length > 0 && levelDecks[levelDecks.length - 1]) {
-            const lastDeck = levelDecks[levelDecks.length - 1]!;
-            setActiveDay(lastDeck.day_number);
-            setActiveDeckId(lastDeck.deck_id);
-            setTargetWordsCount(lastDeck.total_kotoba || 30);
-          }
-        }
+        const merged = mergeDeckProgress(rawDecks, userKey);
+        setMergedDecks(merged);
       } catch {
-        setActiveDay(1);
-        setActiveDeckId(1);
-        setTargetWordsCount(30);
+        setMergedDecks(mergeDeckProgress([], userKey));
       }
     }
     loadDeckProgress();
@@ -108,64 +93,35 @@ export const DashboardPage: React.FC = () => {
     const handleProgressUpdate = () => void loadDeckProgress();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [level, user, userKey]);
+  }, [user, userKey]);
 
-  // Level-specific progress evaluation for Bunpo, Dokkai & Choukai (user-isolated & completed today)
   useEffect(() => {
-    function loadModuleCompletion() {
+    function loadModuleResults() {
       try {
-        const todayStr = formatLocalYMD();
-
-        let isBunpo = false;
         const bSaved = localStorage.getItem(`kanarau_bunpo_results_${userKey}`);
-        if (bSaved) {
-          const parsed = JSON.parse(bSaved);
-          isBunpo = Boolean(parsed && Object.values(parsed).some((record: any) => {
-            const raw = record && typeof record === 'object' ? (record.completedAt || record.timestamp) : null;
-            return typeof raw === 'string' && raw.slice(0, 10) === todayStr;
-          }));
-        }
-        setBunpoDone(isBunpo);
-
-        let isDokkaiDone = false;
-        const dSaved = localStorage.getItem(`kanarau_dokkai_results_${userKey}`);
-        if (dSaved) {
-          const parsed = JSON.parse(dSaved);
-          isDokkaiDone = DOKKAI_PASSAGES.some((p) => {
-            if (p.level !== level) return false;
-            const rec = parsed[p.id];
-            if (!rec) return false;
-            const recDate = (rec.completedAt || rec.timestamp || '').slice(0, 10);
-            return recDate === todayStr;
-          });
-        }
-        setDokkaiDone(isDokkaiDone);
-
-        let isChoukaiDone = false;
-        const cSaved = localStorage.getItem(`kanarau_choukai_results_${userKey}`);
-        if (cSaved) {
-          const parsed = JSON.parse(cSaved);
-          isChoukaiDone = CHOUKAI_QUESTIONS.some((q) => {
-            if (q.level !== level) return false;
-            const rec = parsed[q.id];
-            if (!rec) return false;
-            const recDate = (rec.completedAt || rec.timestamp || '').slice(0, 10);
-            return recDate === todayStr;
-          });
-        }
-        setChoukaiDone(isChoukaiDone);
+        setBunpoResults(bSaved ? JSON.parse(bSaved) : {});
       } catch {
-        setBunpoDone(false);
-        setDokkaiDone(false);
-        setChoukaiDone(false);
+        setBunpoResults({});
+      }
+      try {
+        const dSaved = localStorage.getItem(`kanarau_dokkai_results_${userKey}`);
+        setDokkaiResults(dSaved ? JSON.parse(dSaved) : {});
+      } catch {
+        setDokkaiResults({});
+      }
+      try {
+        const cSaved = localStorage.getItem(`kanarau_choukai_results_${userKey}`);
+        setChoukaiResults(cSaved ? JSON.parse(cSaved) : {});
+      } catch {
+        setChoukaiResults({});
       }
     }
-    loadModuleCompletion();
+    loadModuleResults();
 
-    const handleProgressUpdate = () => loadModuleCompletion();
+    const handleProgressUpdate = () => loadModuleResults();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [level, user, userKey]);
+  }, [userKey]);
 
   useEffect(() => {
     async function loadStatsData() {
@@ -201,18 +157,138 @@ export const DashboardPage: React.FC = () => {
   const todayStr = formatLocalYMD();
   const dailyActivities = getLocalDailyActivity(userKey);
   const currentStreak = computeLocalStreak(userKey, overallStats?.current_streak ?? user?.streak);
-  const isGoiDoneToday = Boolean(
-    dailyActivities[todayStr]?.goiCompleted ||
-    (calendarDays.find((d) => d.date === todayStr)?.studied && (dailyActivities[todayStr]?.cardsStudied || 0) > 0)
-  );
-  const isBunpoDoneToday = Boolean(
-    bunpoDone ||
-    dailyActivities[todayStr]?.bunpoCompleted
-  );
-  const isReviewDoneToday = Boolean(
-    dailyActivities[todayStr]?.reviewCompleted ||
-    (dailyActivities[todayStr]?.cardsReviewed || 0) > 0
-  );
+
+  // Cycle Mastery: Calculate active target day and module completion status across the level
+  const cycleInfo = useMemo(() => {
+    const levelDecks = mergedDecks
+      .filter((d) => d.jlpt_level === level)
+      .sort((a, b) => (a.day_number || 1) - (b.day_number || 1));
+
+    const levelBunpo = BUNPO_UNITS.filter((u) => u.level === level);
+    const levelDokkai = DOKKAI_PASSAGES.filter((p) => p.level === level);
+    const levelChoukai = CHOUKAI_QUESTIONS.filter((q) => q.level === level);
+
+    const maxDays = Math.max(
+      30,
+      ...levelDecks.map((d) => d.day_number || 1),
+      ...levelBunpo.map((u) => u.dayNumber || 1),
+      ...levelDokkai.map((p) => p.dayNumber || 1),
+      ...levelChoukai.map((q) => q.dayNumber || 1)
+    );
+
+    // Find the first day where lesson content (Goi, Bunpo, Dokkai/Choukai) is not 100% completed
+    let activeDay = 1;
+    for (let d = 1; d <= maxDays; d++) {
+      const goiDeck = levelDecks.find((deck) => deck.day_number === d);
+      const isGoiDone = Boolean(goiDeck && (goiDeck.progress_percent || 0) >= 100);
+
+      const bunpoUnit = levelBunpo.find((u) => (u.dayNumber || 1) === d);
+      const isBunpoDone = bunpoUnit ? Boolean(bunpoResults && bunpoResults[bunpoUnit.id]) : true;
+
+      const dokkaiPassage = levelDokkai.find((p) => (p.dayNumber || 1) === d);
+      const choukaiQuestion = levelChoukai.find((q) => (q.dayNumber || 1) === d);
+      const hasReadingOrListening = Boolean(dokkaiPassage || choukaiQuestion);
+      const isDokkaiDone = Boolean(dokkaiPassage && dokkaiResults && dokkaiResults[dokkaiPassage.id]);
+      const isChoukaiDone = Boolean(choukaiQuestion && choukaiResults && choukaiResults[choukaiQuestion.id]);
+      const isDokkaiChoukaiDone = hasReadingOrListening ? (isDokkaiDone || isChoukaiDone) : true;
+
+      const isLessonContentDone = isGoiDone && isBunpoDone && isDokkaiChoukaiDone;
+      if (!isLessonContentDone || d === maxDays) {
+        activeDay = d;
+        break;
+      }
+    }
+
+    // Evaluate the 4 pillars for activeDay
+    const activeGoiDeck = levelDecks.find((d) => d.day_number === activeDay);
+    const activeDeckId = activeGoiDeck?.deck_id || activeDay;
+    const targetWordsCount = activeGoiDeck?.total_kotoba || 30;
+    const isGoiDoneInCycle = Boolean(activeGoiDeck && (activeGoiDeck.progress_percent || 0) >= 100);
+
+    const activeBunpoUnit = levelBunpo.find((u) => (u.dayNumber || 1) === activeDay);
+    const isBunpoDoneInCycle = activeBunpoUnit ? Boolean(bunpoResults && bunpoResults[activeBunpoUnit.id]) : true;
+
+    const activeDokkaiPassage = levelDokkai.find((p) => (p.dayNumber || 1) === activeDay);
+    const activeChoukaiQuestion = levelChoukai.find((q) => (q.dayNumber || 1) === activeDay);
+    const isDokkaiDoneInCycle = Boolean(activeDokkaiPassage && dokkaiResults && dokkaiResults[activeDokkaiPassage.id]);
+    const isChoukaiDoneInCycle = Boolean(activeChoukaiQuestion && choukaiResults && choukaiResults[activeChoukaiQuestion.id]);
+    const hasReadingOrListening = Boolean(activeDokkaiPassage || activeChoukaiQuestion);
+    const isDokkaiChoukaiDoneInCycle = hasReadingOrListening ? (isDokkaiDoneInCycle || isChoukaiDoneInCycle) : true;
+
+    // Review is complete if 0 cards pending or user completed a review session today
+    const isReviewDoneInCycle = pendingCount === 0 || Boolean(
+      dailyActivities[todayStr]?.reviewCompleted || (dailyActivities[todayStr]?.cardsReviewed || 0) > 0
+    );
+
+    const completedCount =
+      (isGoiDoneInCycle ? 1 : 0) +
+      (isBunpoDoneInCycle ? 1 : 0) +
+      (isDokkaiChoukaiDoneInCycle ? 1 : 0) +
+      (isReviewDoneInCycle ? 1 : 0);
+
+    const isDayFullyComplete = completedCount === 4;
+
+    const prevDay = activeDay > 1 ? activeDay - 1 : null;
+    const isPrevDayCompleted = Boolean(
+      prevDay && (
+        dailyActivities[todayStr]?.hasRealStudySession ||
+        dailyActivities[todayStr]?.dokkaiCompleted ||
+        dailyActivities[todayStr]?.bunpoCompleted ||
+        dailyActivities[todayStr]?.goiCompleted ||
+        dailyActivities[todayStr]?.reviewCompleted
+      )
+    );
+
+    return {
+      activeDay,
+      activeDeckId,
+      targetWordsCount,
+      isGoiDoneInCycle,
+      isBunpoDoneInCycle,
+      isDokkaiChoukaiDoneInCycle,
+      isDokkaiDoneInCycle,
+      isChoukaiDoneInCycle,
+      isReviewDoneInCycle,
+      completedCount,
+      isDayFullyComplete,
+      prevDay,
+      isPrevDayCompleted,
+    };
+  }, [mergedDecks, level, bunpoResults, dokkaiResults, choukaiResults, pendingCount, dailyActivities, todayStr]);
+
+  const handleQuickLaunch = () => {
+    if (!cycleInfo.isGoiDoneInCycle) {
+      navigate(cycleInfo.activeDeckId ? `/study-session/${cycleInfo.activeDeckId}` : '/belajar?tab=goi');
+    } else if (!cycleInfo.isBunpoDoneInCycle) {
+      navigate('/belajar?tab=bunpo');
+    } else if (!cycleInfo.isDokkaiChoukaiDoneInCycle) {
+      if (!cycleInfo.isDokkaiDoneInCycle) {
+        navigate('/belajar?tab=dokkai');
+      } else {
+        navigate('/belajar?tab=choukai');
+      }
+    } else if (pendingCount > 0) {
+      navigate('/review');
+    } else {
+      navigate('/belajar');
+    }
+  };
+
+  const quickLaunchLabel = useMemo(() => {
+    if (!cycleInfo.isGoiDoneInCycle) {
+      return `Mulai Goi DAY ${cycleInfo.activeDay}`;
+    }
+    if (!cycleInfo.isBunpoDoneInCycle) {
+      return `Lanjut Bunpo DAY ${cycleInfo.activeDay}`;
+    }
+    if (!cycleInfo.isDokkaiChoukaiDoneInCycle) {
+      return `Lanjut Dokkai DAY ${cycleInfo.activeDay}`;
+    }
+    if (pendingCount > 0) {
+      return `Review SRS (${pendingCount})`;
+    }
+    return `DAY ${cycleInfo.activeDay} Tuntas ✓`;
+  }, [cycleInfo, pendingCount]);
 
   const weekDays = useMemo(() => {
     const today = new Date();
@@ -288,7 +364,7 @@ export const DashboardPage: React.FC = () => {
               {t.dashboard.greeting((user?.name || (user?.email ? user.email.split('@')[0] : '')) || 'Pembelajar')}
             </h1>
             <p className="text-[11px] sm:text-xs text-[#78716C] dark:text-slate-400 shrink-0 ml-2">
-              {t.dashboard.focusPrefix} <strong className="text-[#1E1B18] dark:text-slate-100 font-bold">DAY {activeDay} {level}</strong>
+              {t.dashboard.focusPrefix} <strong className="text-[#1E1B18] dark:text-slate-100 font-bold">DAY {cycleInfo.activeDay} {level}</strong>
             </p>
           </div>
 
@@ -296,13 +372,13 @@ export const DashboardPage: React.FC = () => {
           <div className="mt-1.5 pt-1.5 border-t border-[#F2ECE3] dark:border-[#232F46] flex items-center justify-between">
             <div className="flex items-center space-x-1.5 text-[11px] sm:text-xs text-[#57534E] dark:text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{t.dashboard.todayTarget(targetWordsCount)}</span>
+              <span>{t.dashboard.todayTarget(cycleInfo.targetWordsCount)}</span>
             </div>
             <button
-              onClick={() => navigate(activeDeckId ? `/study-session/${activeDeckId}` : '/belajar')}
+              onClick={handleQuickLaunch}
               className="flex items-center space-x-1 text-[11px] sm:text-xs font-bold text-indigo-700 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer active:scale-95 py-0.5"
             >
-              <span>{t.dashboard.startDay(activeDay)}</span>
+              <span>{quickLaunchLabel}</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -329,7 +405,7 @@ export const DashboardPage: React.FC = () => {
           <ChevronRight className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
         </div>
 
-        {/* Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit Card */}
+        {/* Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit Card (Cycle-Based Mastery) */}
         <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 min-w-0">
@@ -340,15 +416,38 @@ export const DashboardPage: React.FC = () => {
                 <h3 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight truncate">
                   {t.dashboard.routineTitle}
                 </h3>
-                <p className="text-[9px] sm:text-[10px] text-[#78716C] dark:text-slate-400 leading-tight truncate">
-                  {t.dashboard.routineSubShort(level)}
+                <p className="text-[9px] sm:text-[10px] text-indigo-700 dark:text-indigo-300 font-medium leading-tight truncate">
+                  {t.dashboard.packageCycleSub(cycleInfo.activeDay, cycleInfo.completedCount)}
                 </p>
               </div>
             </div>
-            <span className="text-[8px] sm:text-[9px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2 py-0.5 rounded-full border border-indigo-200 shrink-0 ml-1">
-              {t.dashboard.routineBadge}
+            <span className={`text-[8px] sm:text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ml-1 ${
+              cycleInfo.isDayFullyComplete
+                ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/60'
+                : 'text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 border-indigo-200'
+            }`}>
+              {cycleInfo.isDayFullyComplete ? t.dashboard.packageCompleteBadge(cycleInfo.activeDay) : `DAY ${cycleInfo.activeDay}`}
             </span>
           </div>
+
+          {/* Celebratory Banner if package completed or prev day finished today */}
+          {cycleInfo.isDayFullyComplete ? (
+            <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between shadow-2xs">
+              <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-200">
+                {t.dashboard.cycleCelebration(cycleInfo.activeDay)}
+              </span>
+              <button
+                onClick={() => navigate('/belajar')}
+                className="text-[9px] font-extrabold text-emerald-900 bg-emerald-200/90 hover:bg-emerald-300 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0 ml-2"
+              >
+                Lanjut
+              </button>
+            </div>
+          ) : cycleInfo.isPrevDayCompleted && cycleInfo.prevDay ? (
+            <div className="px-2.5 py-1 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/40 text-[9.5px] font-semibold text-emerald-800 dark:text-emerald-300 shadow-2xs">
+              {t.dashboard.cycleCelebration(cycleInfo.prevDay)}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
             {/* BLOK 1: SESI PAGI (Input Materi Baru) */}
@@ -365,9 +464,9 @@ export const DashboardPage: React.FC = () => {
 
               <div className="space-y-1">
                 <div
-                  onClick={() => navigate(isGoiDoneToday ? '/belajar?tab=goi' : (activeDeckId ? `/study-session/${activeDeckId}` : '/belajar?tab=goi'))}
+                  onClick={() => navigate(cycleInfo.isGoiDoneInCycle ? '/belajar?tab=goi' : (cycleInfo.activeDeckId ? `/study-session/${cycleInfo.activeDeckId}` : '/belajar?tab=goi'))}
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
-                    isGoiDoneToday
+                    cycleInfo.isGoiDoneInCycle
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50'
                   }`}
@@ -375,38 +474,38 @@ export const DashboardPage: React.FC = () => {
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span
                       className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
-                        isGoiDoneToday
+                        cycleInfo.isGoiDoneInCycle
                           ? 'bg-emerald-600 text-white'
                           : 'bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800'
                       }`}
                     >
-                      {isGoiDoneToday ? '✓' : '1'}
+                      {cycleInfo.isGoiDoneInCycle ? '✓' : '1'}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1">
                         <p
                           className={`font-bold text-[10px] sm:text-[11px] truncate ${
-                            isGoiDoneToday
+                            cycleInfo.isGoiDoneInCycle
                               ? 'text-emerald-900 dark:text-emerald-200'
                               : 'text-[#1E1B18] dark:text-slate-100'
                           }`}
                         >
-                          語彙 Goi: D{isGoiDoneToday ? (activeDay > 1 ? activeDay - 1 : activeDay) : activeDay}
+                          語彙 Goi: D{cycleInfo.activeDay}
                         </p>
-                        {isGoiDoneToday && (
+                        {cycleInfo.isGoiDoneInCycle && (
                           <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
                             ✓ {t.dashboard.practiceDoneShort || 'Selesai'}
                           </span>
                         )}
                       </div>
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
-                        {isGoiDoneToday ? t.dashboard.practiceDoneShort : t.dashboard.goiDescShort(targetWordsCount)}
+                        {cycleInfo.isGoiDoneInCycle ? `✓ ${cycleInfo.targetWordsCount} kata tuntas` : t.dashboard.goiDescShort(cycleInfo.targetWordsCount)}
                       </p>
                     </div>
                   </div>
                   <ChevronRight
                     className={`w-3 h-3 shrink-0 transition-colors ${
-                      isGoiDoneToday
+                      cycleInfo.isGoiDoneInCycle
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400'
                     }`}
@@ -416,7 +515,7 @@ export const DashboardPage: React.FC = () => {
                 <div
                   onClick={() => navigate('/belajar?tab=bunpo')}
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
-                    isBunpoDoneToday
+                    cycleInfo.isBunpoDoneInCycle
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-amber-100 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-500/50'
                   }`}
@@ -424,38 +523,38 @@ export const DashboardPage: React.FC = () => {
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span
                       className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
-                        isBunpoDoneToday
+                        cycleInfo.isBunpoDoneInCycle
                           ? 'bg-emerald-600 text-white'
                           : 'bg-amber-100 dark:bg-amber-950 dark:text-amber-400 text-amber-800'
                       }`}
                     >
-                      {isBunpoDoneToday ? '✓' : '2'}
+                      {cycleInfo.isBunpoDoneInCycle ? '✓' : '2'}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1">
                         <p
                           className={`font-bold text-[10px] sm:text-[11px] truncate ${
-                            isBunpoDoneToday
+                            cycleInfo.isBunpoDoneInCycle
                               ? 'text-emerald-900 dark:text-emerald-200'
                               : 'text-[#1E1B18] dark:text-slate-100'
                           }`}
                         >
-                          文法 Bunpo ★
+                          文法 Bunpo ★: D{cycleInfo.activeDay}
                         </p>
-                        {isBunpoDoneToday && (
+                        {cycleInfo.isBunpoDoneInCycle && (
                           <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
                             ✓ {t.dashboard.practiceDoneShort || 'Selesai'}
                           </span>
                         )}
                       </div>
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
-                        {isBunpoDoneToday ? t.dashboard.practiceDoneShort : t.dashboard.bunpoDescShort(level)}
+                        {cycleInfo.isBunpoDoneInCycle ? '✓ Pola kalimat tuntas' : t.dashboard.bunpoDescShort(level)}
                       </p>
                     </div>
                   </div>
                   <ChevronRight
                     className={`w-3 h-3 shrink-0 transition-colors ${
-                      isBunpoDoneToday
+                      cycleInfo.isBunpoDoneInCycle
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-stone-400 dark:text-slate-500 group-hover:text-amber-700 dark:group-hover:text-amber-400'
                     }`}
@@ -478,9 +577,9 @@ export const DashboardPage: React.FC = () => {
 
               <div className="space-y-1">
                 <div
-                  onClick={() => navigate(dokkaiDone ? '/belajar?tab=choukai' : '/belajar?tab=dokkai')}
+                  onClick={() => navigate(cycleInfo.isDokkaiDoneInCycle ? '/belajar?tab=choukai' : '/belajar?tab=dokkai')}
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
-                    dokkaiDone || choukaiDone
+                    cycleInfo.isDokkaiChoukaiDoneInCycle
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
                   }`}
@@ -488,29 +587,42 @@ export const DashboardPage: React.FC = () => {
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <span
                       className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
-                        dokkaiDone || choukaiDone
+                        cycleInfo.isDokkaiChoukaiDoneInCycle
                           ? 'bg-emerald-600 text-white'
                           : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-400'
                       }`}
                     >
-                      {dokkaiDone || choukaiDone ? '✓' : '3'}
+                      {cycleInfo.isDokkaiChoukaiDoneInCycle ? '✓' : '3'}
                     </span>
                     <div className="min-w-0">
-                      <p
-                        className={`font-bold text-[10px] sm:text-[11px] truncate ${
-                          dokkaiDone || choukaiDone
-                            ? 'text-emerald-900 dark:text-emerald-200'
-                            : 'text-[#1E1B18] dark:text-slate-100'
-                        }`}
-                      >
-                        読解 / 聴解
-                      </p>
+                      <div className="flex items-center space-x-1">
+                        <p
+                          className={`font-bold text-[10px] sm:text-[11px] truncate ${
+                            cycleInfo.isDokkaiChoukaiDoneInCycle
+                              ? 'text-emerald-900 dark:text-emerald-200'
+                              : 'text-[#1E1B18] dark:text-slate-100'
+                          }`}
+                        >
+                          読解 / 聴解: D{cycleInfo.activeDay}
+                        </p>
+                        {cycleInfo.isDokkaiChoukaiDoneInCycle && (
+                          <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
+                            ✓ {t.dashboard.practiceDoneShort || 'Selesai'}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
-                        {dokkaiDone || choukaiDone ? t.dashboard.practiceDoneShort : t.dashboard.practicePendingShort(level)}
+                        {cycleInfo.isDokkaiChoukaiDoneInCycle
+                          ? (cycleInfo.isDokkaiDoneInCycle && cycleInfo.isChoukaiDoneInCycle ? '✓ Dokkai & Choukai tuntas' : '✓ 1 Latihan tuntas')
+                          : t.dashboard.practicePendingShort(level)}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-3 h-3 text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors shrink-0" />
+                  <ChevronRight className={`w-3 h-3 shrink-0 transition-colors ${
+                    cycleInfo.isDokkaiChoukaiDoneInCycle
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400'
+                  }`} />
                 </div>
 
                 <div
@@ -518,7 +630,7 @@ export const DashboardPage: React.FC = () => {
                   className={`p-1.5 sm:p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between shadow-2xs group active:scale-95 ${
                     pendingCount > 0
                       ? 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/70 ring-1 ring-amber-200 dark:ring-amber-800/40'
-                      : isReviewDoneToday
+                      : cycleInfo.isReviewDoneInCycle
                       ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60'
                       : 'bg-white dark:bg-[#0B0F19] border-indigo-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500/50'
                   }`}
@@ -528,18 +640,18 @@ export const DashboardPage: React.FC = () => {
                       className={`w-4 h-4 rounded text-[8px] sm:text-[9px] font-bold flex items-center justify-center shrink-0 ${
                         pendingCount > 0
                           ? 'bg-amber-500 text-white animate-pulse'
-                          : isReviewDoneToday
+                          : cycleInfo.isReviewDoneInCycle
                           ? 'bg-emerald-600 text-white'
                           : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-400'
                       }`}
                     >
-                      {isReviewDoneToday ? '✓' : '4'}
+                      {pendingCount > 0 ? '4' : (cycleInfo.isReviewDoneInCycle ? '✓' : '4')}
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1">
                         <p
                           className={`font-bold text-[10px] sm:text-[11px] truncate ${
-                            isReviewDoneToday
+                            cycleInfo.isReviewDoneInCycle && pendingCount === 0
                               ? 'text-emerald-900 dark:text-emerald-200'
                               : 'text-[#1E1B18] dark:text-slate-100'
                           }`}
@@ -550,7 +662,7 @@ export const DashboardPage: React.FC = () => {
                           <span className="text-[8px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-900/80 dark:text-amber-200 px-1 rounded-full border border-amber-300 shrink-0">
                             {pendingCount}
                           </span>
-                        ) : isReviewDoneToday ? (
+                        ) : cycleInfo.isReviewDoneInCycle ? (
                           <span className="text-[7.5px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-900/80 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
                             ✓ {t.dashboard.practiceDoneShort || 'Selesai'}
                           </span>
@@ -563,15 +675,15 @@ export const DashboardPage: React.FC = () => {
                       <p className="text-[8px] sm:text-[9px] text-[#78716C] dark:text-slate-400 truncate">
                         {pendingCount > 0
                           ? t.dashboard.srsPendingShort(pendingCount)
-                          : isReviewDoneToday
-                          ? (t.dashboard.practiceDoneShort || 'Selesai')
+                          : cycleInfo.isReviewDoneInCycle
+                          ? '✓ Semua kartu up to date'
                           : t.dashboard.srsUpToDateShort}
                       </p>
                     </div>
                   </div>
                   <ChevronRight
                     className={`w-3 h-3 shrink-0 transition-colors ${
-                      isReviewDoneToday
+                      cycleInfo.isReviewDoneInCycle && pendingCount === 0
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-stone-400 dark:text-slate-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-400'
                     }`}
