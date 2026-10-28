@@ -1,5 +1,7 @@
 import type { DeckProgress, OverallStats, DayStats } from '@/types';
 import { formatLocalYMD } from '@/utils';
+import { studyApi } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface LocalDeckProgressItem {
   deck_id: number;
@@ -220,11 +222,62 @@ export function recordLocalStudySession(
   }
 }
 
+export async function syncModuleXp(
+  module: 'bunpo' | 'dokkai' | 'choukai',
+  itemId: string,
+  xpGained: number,
+  durationSeconds: number = 30
+): Promise<number> {
+  if (xpGained <= 0) return 0;
+
+  // 1. Optimistic update in client auth store
+  useAuthStore.setState((state) => {
+    if (!state.user) return state;
+    return {
+      ...state,
+      user: {
+        ...state.user,
+        total_xp: (state.user.total_xp || 0) + xpGained,
+      },
+    };
+  });
+
+  // 2. Dispatch progress event so header, dashboard, and leaderboard update immediately
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
+  }
+
+  // 3. Sync with backend API
+  try {
+    const res = await studyApi.awardModuleXp(module, itemId, xpGained, durationSeconds);
+    const serverTotalXp = res?.data?.total_xp;
+    if (serverTotalXp !== undefined && serverTotalXp > 0) {
+      useAuthStore.setState((state) => {
+        if (!state.user) return state;
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            total_xp: serverTotalXp,
+            streak: res?.data?.streak ?? state.user.streak,
+          },
+        };
+      });
+    }
+    await useAuthStore.getState().fetchUser();
+    return xpGained;
+  } catch (err) {
+    console.warn(`Failed to sync module XP for ${module}:`, err);
+    return xpGained;
+  }
+}
+
 export function recordBunpoCompletion(
   userKey: string,
   unitId: string,
   questionCount: number = 6,
-  durationMinutes: number = 5
+  durationMinutes: number = 5,
+  earnedXp: number = 0
 ) {
   try {
     const todayStr = formatLocalYMD();
@@ -266,7 +319,12 @@ export function recordBunpoCompletion(
     };
     localStorage.setItem(activityKey, JSON.stringify(existingActivities));
 
-    // 3. Dispatch event
+    // 3. Award XP if not already completed today
+    if (!isDuplicateToday && earnedXp > 0) {
+      void syncModuleXp('bunpo', unitId, earnedXp, durationMinutes * 60);
+    }
+
+    // 4. Dispatch event
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
     }
@@ -355,6 +413,12 @@ export function recordDokkaiCompletion(
     };
     localStorage.setItem(activityKey, JSON.stringify(existingActivities));
 
+    // Award XP if not duplicate today (25 XP per correct question)
+    const earnedXp = correctCount * 25;
+    if (!isDuplicateToday && earnedXp > 0) {
+      void syncModuleXp('dokkai', passageId, earnedXp, seconds);
+    }
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));
     }
@@ -398,6 +462,12 @@ export function recordChoukaiCompletion(
       timestamp: Date.now(),
     };
     localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+
+    // Award XP if correct and not duplicate today (20 XP per question)
+    const earnedXp = isCorrect ? 20 : 0;
+    if (!isDuplicateToday && earnedXp > 0) {
+      void syncModuleXp('choukai', questionId, earnedXp, 30);
+    }
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('kanarau_progress_updated'));

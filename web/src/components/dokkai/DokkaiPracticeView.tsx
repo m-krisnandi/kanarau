@@ -46,6 +46,7 @@ import {
   RotateCcw,
   Lock,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 
 interface DokkaiPracticeViewProps {
@@ -1223,6 +1224,12 @@ INSTRUKSI MUTLAK UNTUK AI SENSEI:
                   <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
                     {t.modules.dokkai.saved}
                   </span>
+                  {correctCount > 0 && (
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 inline-flex items-center space-x-1">
+                      <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
+                      <span>+{correctCount * 25} EXP</span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-[#57534E] mt-0.5">
                   {t.modules.dokkai.scoreResult(correctCount, activePassage.questions.length, accuracy)} · {t.modules.dokkai.completedIn(formatTimer(secondsElapsed))}

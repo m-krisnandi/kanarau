@@ -40,6 +40,7 @@ import {
   SkipForward,
   Lock,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 
 interface ChoukaiPracticeViewProps {
@@ -910,14 +911,22 @@ INSTRUKSI WAJIB UNTUK AI SENSEI:
         {isAnswered && (
           <div className="card-washi rounded-2xl p-5 border border-[#EFEAE2] bg-white space-y-4 shadow-sm animate-slide-up">
             <div className="flex items-center justify-between border-b border-[#F2ECE3] pb-2.5">
-              <span className={`inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-full ${
-                isChoiceCorrect
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-rose-50 text-rose-700 border border-rose-200'
-              }`}>
-                {isChoiceCorrect ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
-                <span>{isChoiceCorrect ? t.modules.choukai.answerCorrect : t.modules.choukai.answerIncorrect}</span>
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className={`inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-full ${
+                  isChoiceCorrect
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                }`}>
+                  {isChoiceCorrect ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                  <span>{isChoiceCorrect ? t.modules.choukai.answerCorrect : t.modules.choukai.answerIncorrect}</span>
+                </span>
+                {isChoiceCorrect && (
+                  <span className="inline-flex items-center space-x-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                    <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                    <span>+20 EXP</span>
+                  </span>
+                )}
+              </div>
 
               <button
                 onClick={() => setShowScript(!showScript)}

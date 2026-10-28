@@ -11,6 +11,7 @@ import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useAuthStore } from '@/stores/authStore';
 import { recordReviewCompletion, getUserKey } from '@/utils/userProgressHelper';
+import { calculateUserLevel } from '@/utils/levelHelper';
 
 export const ReviewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export const ReviewPage: React.FC = () => {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [earnedXp, setEarnedXp] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   // Detail Modal State
@@ -179,6 +181,8 @@ export const ReviewPage: React.FC = () => {
       setCardStartTime(Date.now());
     } else {
       const finalAnswers = answersRef.current.length > 0 ? answersRef.current : answers;
+      const initialCalculatedXp = finalAnswers.filter((a) => a.is_correct).length * 15;
+      setEarnedXp(initialCalculatedXp);
       setIsFinished(true);
       try {
         const user = useAuthStore.getState().user;
@@ -188,7 +192,8 @@ export const ReviewPage: React.FC = () => {
       try {
         const res = await reviewApi.submitReview(finalAnswers);
         const serverXp = Number(res?.data?.xp_gained || 0);
-        const addedXp = serverXp > 0 ? serverXp : finalAnswers.filter((a) => a.is_correct).length * 15;
+        const addedXp = serverXp > 0 ? serverXp : initialCalculatedXp;
+        setEarnedXp(addedXp);
         useAuthStore.setState((state) => {
           if (!state.user) return state;
           return {
@@ -202,14 +207,14 @@ export const ReviewPage: React.FC = () => {
         await useAuthStore.getState().fetchUser();
       } catch (err) {
         console.error('Failed to submit reviews', err);
-        const addedXp = finalAnswers.filter((a) => a.is_correct).length * 15;
+        setEarnedXp(initialCalculatedXp);
         useAuthStore.setState((state) => {
           if (!state.user) return state;
           return {
             ...state,
             user: {
               ...state.user,
-              total_xp: (state.user.total_xp || 0) + addedXp,
+              total_xp: (state.user.total_xp || 0) + initialCalculatedXp,
             },
           };
         });
@@ -346,14 +351,16 @@ export const ReviewPage: React.FC = () => {
   // --- REVIEW FINISHED ---
   if (isFinished) {
     const displayedAnswers = answersRef.current.length > 0 ? answersRef.current : answers;
-    const accuracy = queue.length > 0
-      ? Math.round((displayedAnswers.filter((a) => a.is_correct).length / queue.length) * 100)
-      : 0;
+    const total = queue.length > 0 ? queue.length : displayedAnswers.length;
+    const correct = displayedAnswers.filter((a) => a.is_correct).length;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const user = useAuthStore.getState().user;
+    const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
 
     return (
-      <div className="space-y-5 pb-24 text-center max-w-md mx-auto pt-8 animate-fade-in">
-        <div className="w-16 h-16 bg-indigo-50 text-indigo-700 rounded-2xl mx-auto flex items-center justify-center border border-indigo-100 shadow-xs">
-          <RotateCcw className="w-8 h-8" />
+      <div className="space-y-5 pb-24 text-center max-w-md mx-auto pt-6 animate-fade-in">
+        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-3xl mx-auto flex items-center justify-center shadow-md">
+          <Zap className="w-8 h-8 fill-white" />
         </div>
 
         <div className="space-y-1">
@@ -363,9 +370,54 @@ export const ReviewPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="card-washi rounded-2xl p-5 border border-[#EFEAE2] max-w-xs mx-auto">
-          <div className="text-3xl font-extrabold text-indigo-700 font-mincho">{accuracy}%</div>
-          <p className="text-xs text-[#78716C] mt-0.5">{t.review.accuracy}</p>
+        {/* EXP Badge */}
+        <div className="card-washi rounded-2xl p-4 border border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 max-w-xs mx-auto shadow-xs">
+          <div className="flex items-center justify-center space-x-1.5 text-amber-700">
+            <Zap className="w-5 h-5 fill-amber-500 text-amber-500 animate-pulse" />
+            <span className="text-2xl font-black font-mincho">+{earnedXp} EXP</span>
+          </div>
+          <p className="text-[11px] text-amber-800/80 font-medium mt-0.5">
+            {language === 'my'
+              ? 'ပြန်လည်လေ့လာမှုမှ ရရှိသော EXP'
+              : language === 'en'
+              ? 'EXP earned from review session'
+              : 'EXP berhasil didapatkan dari sesi review'}
+          </p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+          <div className="card-washi rounded-2xl p-3.5 border border-[#EFEAE2]">
+            <div className="text-2xl font-extrabold text-indigo-700 font-mincho">{accuracy}%</div>
+            <p className="text-[11px] text-[#78716C] mt-0.5">{t.review.accuracy}</p>
+          </div>
+          <div className="card-washi rounded-2xl p-3.5 border border-[#EFEAE2]">
+            <div className="text-2xl font-extrabold text-emerald-700 font-mincho">{correct}/{total}</div>
+            <p className="text-[11px] text-[#78716C] mt-0.5">
+              {language === 'my' ? 'မှန်ကန်သော ကတ်' : language === 'en' ? 'Cards Correct' : 'Kartu Benar'}
+            </p>
+          </div>
+        </div>
+
+        {/* Level Progress */}
+        <div className="card-washi rounded-2xl p-4 border border-[#EFEAE2] max-w-xs mx-auto text-left space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-[#1E1B18]">
+            <span className="flex items-center space-x-1.5">
+              <span className="text-amber-500">Lv.{userLvl.level}</span>
+              <span className="text-[#78716C]">·</span>
+              <span className="text-[#57534E]">{userLvl.title}</span>
+            </span>
+            <span className="text-indigo-700 font-extrabold">{userLvl.totalXp} EXP</span>
+          </div>
+          <div className="w-full bg-[#EFEAE2] h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500"
+              style={{ width: `${userLvl.progressPercent}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-[#A8A29E] text-right font-medium">
+            {userLvl.progressPercent}% {language === 'my' ? 'နောက်အဆင့်သို့' : language === 'en' ? 'to next level' : 'menuju level berikutnya'}
+          </p>
         </div>
 
         <button
@@ -374,7 +426,7 @@ export const ReviewPage: React.FC = () => {
             setIsFinished(false);
             navigate('/');
           }}
-          className="px-6 py-3 bg-[#1E1B18] hover:bg-black text-white font-bold rounded-xl text-xs shadow-md cursor-pointer active:scale-98"
+          className="w-full max-w-xs mx-auto py-3.5 bg-[#1E1B18] hover:bg-black text-white font-bold rounded-xl text-xs shadow-md cursor-pointer active:scale-98 transition-all"
         >
           {t.review.backToDashboard}
         </button>

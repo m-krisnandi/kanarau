@@ -13,6 +13,7 @@ import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/stores/languageStore';
 import { recordBunpoCompletion, getUserKey } from '@/utils/userProgressHelper';
+import { calculateUserLevel } from '@/utils/levelHelper';
 import {
   Layers,
   Sparkles,
@@ -29,6 +30,7 @@ import {
   Lock,
   CheckCircle2,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 
 interface BunpoPracticeViewProps {
@@ -110,6 +112,12 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   }, []);
 
   const [sessionSeed, setSessionSeed] = useState(0);
+  const [unitCorrectCount, setUnitCorrectCount] = useState(0);
+  const [unitFinishedResult, setUnitFinishedResult] = useState<{
+    correctCount: number;
+    totalCount: number;
+    earnedXp: number;
+  } | null>(null);
 
   // Questions for the active unit
   const activeQuestions = useMemo(() => {
@@ -163,12 +171,15 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
     setSelectedUnitId(unit.id);
     setSessionSeed((prev) => prev + 1);
     setCurrentQuestionIndex(0);
+    setUnitCorrectCount(0);
+    setUnitFinishedResult(null);
     resetQuestionState();
   };
 
   const handleBackToUnits = () => {
     stopAudio();
     setSelectedUnitId(null);
+    setUnitFinishedResult(null);
     resetQuestionState();
   };
 
@@ -181,16 +192,26 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
       } catch (err) {
         console.error("Failed to save bunpo completion", err);
       }
-      recordBunpoCompletion(userKey, selectedUnitId, activeQuestions.length || 6, 5);
+      const totalQ = activeQuestions.length || 6;
+      // 15 EXP per correct question + 20 EXP bonus for perfect score
+      const earnedXp = unitCorrectCount * 15 + (unitCorrectCount === totalQ ? 20 : 0);
+      recordBunpoCompletion(userKey, selectedUnitId, totalQ, 5, earnedXp);
+      setUnitFinishedResult({
+        correctCount: unitCorrectCount,
+        totalCount: totalQ,
+        earnedXp,
+      });
     }
-    handleBackToUnits();
   };
 
   // Selection Logic
   const handleAnswerSelection = (choice: string) => {
-    if (isAnswered) return;
+    if (isAnswered || !currentQ) return;
     setSelectedChoice(choice);
     setIsAnswered(true);
+    if (choice === currentQ.correctAnswer) {
+      setUnitCorrectCount((prev) => prev + 1);
+    }
   };
 
   // Star Question Logic
@@ -215,6 +236,13 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
   const handleCheckStarAnswer = () => {
     if (placedSlots.includes(null) || isAnswered || !currentQ) return;
     setIsAnswered(true);
+    const chosenStarPartIndex = placedSlots[currentQ.starPosition!];
+    const correctStarPartIdx = currentQ.correctOrder && currentQ.starPosition !== undefined
+      ? currentQ.correctOrder[currentQ.starPosition]
+      : currentQ.correctChoiceIndex;
+    if (chosenStarPartIndex === correctStarPartIdx) {
+      setUnitCorrectCount((prev) => prev + 1);
+    }
   };
 
   // Audio Handler
@@ -431,7 +459,97 @@ export const BunpoPracticeView: React.FC<BunpoPracticeViewProps> = ({ currentLev
     );
   }
 
-  // ─── VIEW 2: INTERACTIVE PRACTICE SCREEN ───────────────────────────
+  // ─── VIEW 2: UNIT COMPLETED RESULT SCREEN ───────────────────────────
+  if (unitFinishedResult) {
+    const accuracy = unitFinishedResult.totalCount > 0
+      ? Math.round((unitFinishedResult.correctCount / unitFinishedResult.totalCount) * 100)
+      : 0;
+    const userLvl = calculateUserLevel(user?.total_xp ?? 0, language);
+
+    return (
+      <div className="space-y-6 pb-24 text-center max-w-md mx-auto pt-8 animate-fade-in">
+        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-3xl mx-auto flex items-center justify-center shadow-md">
+          <Zap className="w-8 h-8 fill-white" />
+        </div>
+
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold font-mincho text-[#1E1B18]">
+            {language === 'my' ? 'ယူနစ်ပြီးဆုံးပါပြီ!' : language === 'en' ? 'Unit Completed!' : 'Unit Selesai!'}
+          </h2>
+          <p className="text-xs text-[#78716C]">
+            {language === 'my'
+              ? 'သင်သည် ဤသဒ္ဒါယူနစ် လေ့ကျင့်ခန်းကို အောင်မြင်စွာ ပြီးဆုံးခဲ့သည်။'
+              : language === 'en'
+              ? 'You have successfully completed this grammar practice unit.'
+              : 'Kamu berhasil menyelesaikan latihan tata bahasa pada unit ini.'}
+          </p>
+        </div>
+
+        {/* EXP Reward Card */}
+        <div className="card-washi rounded-2xl p-4 border border-amber-200/80 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 max-w-xs mx-auto shadow-xs">
+          <div className="flex items-center justify-center space-x-1.5 text-amber-700">
+            <Zap className="w-5 h-5 fill-amber-500 text-amber-500 animate-pulse" />
+            <span className="text-2xl font-black font-mincho">+{unitFinishedResult.earnedXp} EXP</span>
+          </div>
+          <p className="text-[11px] text-amber-800/80 font-medium mt-0.5">
+            {language === 'my'
+              ? 'သဒ္ဒါလေ့ကျင့်မှုမှ ရရှိသော EXP'
+              : language === 'en'
+              ? 'EXP earned from grammar practice'
+              : 'EXP berhasil didapatkan dari latihan tata bahasa'}
+          </p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
+          <div className="card-washi rounded-2xl p-3.5 border border-[#EFEAE2]">
+            <div className="text-2xl font-extrabold text-indigo-700 font-mincho">{accuracy}%</div>
+            <p className="text-[11px] text-[#78716C] mt-0.5">
+              {language === 'my' ? 'တိကျမှု' : language === 'en' ? 'Accuracy' : 'Akurasi'}
+            </p>
+          </div>
+          <div className="card-washi rounded-2xl p-3.5 border border-[#EFEAE2]">
+            <div className="text-2xl font-extrabold text-emerald-700 font-mincho">
+              {unitFinishedResult.correctCount}/{unitFinishedResult.totalCount}
+            </div>
+            <p className="text-[11px] text-[#78716C] mt-0.5">
+              {language === 'my' ? 'မှန်ကန်သော အဖြေ' : language === 'en' ? 'Questions Correct' : 'Soal Benar'}
+            </p>
+          </div>
+        </div>
+
+        {/* Level Progress */}
+        <div className="card-washi rounded-2xl p-4 border border-[#EFEAE2] max-w-xs mx-auto text-left space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-[#1E1B18]">
+            <span className="flex items-center space-x-1.5">
+              <span className="text-amber-500">Lv.{userLvl.level}</span>
+              <span className="text-[#78716C]">·</span>
+              <span className="text-[#57534E]">{userLvl.title}</span>
+            </span>
+            <span className="text-indigo-700 font-extrabold">{userLvl.totalXp} EXP</span>
+          </div>
+          <div className="w-full bg-[#EFEAE2] h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500"
+              style={{ width: `${userLvl.progressPercent}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-[#A8A29E] text-right font-medium">
+            {userLvl.progressPercent}% {language === 'my' ? 'နောက်အဆင့်သို့' : language === 'en' ? 'to next level' : 'menuju level berikutnya'}
+          </p>
+        </div>
+
+        <button
+          onClick={handleBackToUnits}
+          className="w-full max-w-xs mx-auto py-3.5 bg-[#1E1B18] hover:bg-black text-white font-bold rounded-xl text-xs shadow-md cursor-pointer active:scale-98 transition-all"
+        >
+          {t.common.back}
+        </button>
+      </div>
+    );
+  }
+
+  // ─── VIEW 3: INTERACTIVE PRACTICE SCREEN ───────────────────────────
   if (!currentQ || !activeQ) {
     return (
       <div className="text-center py-12 space-y-3">

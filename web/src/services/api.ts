@@ -252,6 +252,18 @@ export const studyApi = {
       body: JSON.stringify(answer),
     });
   },
+
+  awardModuleXp(module: 'bunpo' | 'dokkai' | 'choukai', itemId: string, xpGained: number, durationSeconds: number = 30) {
+    return request<ApiResponse<{ xp_gained: number; total_xp: number; streak: number }>>('/study/module-xp', {
+      method: 'POST',
+      body: JSON.stringify({
+        module,
+        item_id: itemId,
+        xp_gained: xpGained,
+        duration_seconds: durationSeconds,
+      }),
+    });
+  },
 };
 
 // ─── Review ──────────────────────────────────────────────────────────

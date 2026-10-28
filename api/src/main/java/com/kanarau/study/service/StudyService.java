@@ -83,6 +83,40 @@ public class StudyService {
     }
 
     @Transactional
+    public Map<String, Object> awardModuleXp(Long userId, com.kanarau.study.dto.ModuleXpRequest req) {
+        if (userId == null || req == null || req.xpGained() <= 0) {
+            return Map.of("xp_gained", 0);
+        }
+
+        try {
+            StudySession session = new StudySession(userId, 1L);
+            long durationMs = req.durationSeconds() > 0 ? (req.durationSeconds() * 1000L) : 30000L;
+            session.setStartedAt(Instant.now().minusMillis(durationMs));
+            session.incrementStudied();
+            session.incrementCorrect();
+            session.setFinishedAt(Instant.now());
+            studySessionRepository.save(session);
+        } catch (Exception ignored) {
+            // Best-effort study session logging
+        }
+
+        int updatedStreak = progressService.computeStreak(userId);
+        java.util.concurrent.atomic.AtomicInteger currentTotalXp = new java.util.concurrent.atomic.AtomicInteger(0);
+        userRepository.findById(userId).ifPresent(user -> {
+            user.addXp(req.xpGained());
+            user.setStreak(updatedStreak);
+            userRepository.save(user);
+            currentTotalXp.set(user.getTotalXp());
+        });
+
+        return Map.of(
+                "xp_gained", req.xpGained(),
+                "total_xp", currentTotalXp.get(),
+                "streak", updatedStreak
+        );
+    }
+
+    @Transactional
     public void recordSingleAnswer(Long userId, QuizAnswerDto a) {
         if (userId == null || a.kotobaId() == null) return;
 
