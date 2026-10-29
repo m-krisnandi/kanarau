@@ -5547,7 +5547,7 @@ export function localizeNotes(notes: string | null | undefined, lang: Language):
   if (!notes) return '';
   if (lang === 'id') return notes;
 
-  const translated = notes.replace(/Kelas kata:\s*([a-zA-Z0-9\-_]+)/gi, (_match, pos) => {
+  let translated = notes.replace(/Kelas kata:\s*([a-zA-Z0-9\-_]+)/gi, (_match, pos) => {
     const p = pos.toLowerCase();
     if (lang === 'en') {
       const posMap: Record<string, string> = {
@@ -5584,42 +5584,69 @@ export function localizeNotes(notes: string | null | undefined, lang: Language):
     return notes;
   });
 
-  const likelyIndonesian = /\b(dipakai|berbeda|kesalahan|digunakan|mencegah|bagian|bentuk|kelas|contoh|jika|sangat|tidak|untuk|dengan|yang|dan|atau|dari|pada)\b/i.test(translated);
-  if (likelyIndonesian) {
-    return lang === 'my' ? 'မှတ်ချက် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable';
+  // Instead of dropping notes into 'Translation unavailable', translate common Indonesian patterns cleanly
+  if (lang === 'en') {
+    translated = translated
+      .replace(/dipakai untuk|digunakan untuk/gi, 'used for')
+      .replace(/berbeda dengan/gi, 'different from')
+      .replace(/kesalahan umum/gi, 'common mistake')
+      .replace(/bentuk/gi, 'form')
+      .replace(/contoh/gi, 'example')
+      .replace(/bagian/gi, 'part')
+      .replace(/khusus/gi, 'special')
+      .replace(/perhatikan/gi, 'note');
+  } else if (lang === 'my') {
+    translated = translated
+      .replace(/dipakai untuk|digunakan untuk/gi, 'အတွက် အသုံးပြုသည်')
+      .replace(/berbeda dengan/gi, 'နှင့် ကွဲပြားသည်')
+      .replace(/kesalahan umum/gi, 'အမှားများ')
+      .replace(/bentuk/gi, 'ပုံစံ')
+      .replace(/contoh/gi, 'ဥပမာ')
+      .replace(/bagian/gi, 'အစိတ်အပိုင်း')
+      .replace(/khusus/gi, 'အထူး')
+      .replace(/perhatikan/gi, 'သတိပြုရန်');
   }
+
   return translated;
 }
 
 export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
-  if (lang === 'id') return k;
+  if (lang === 'id' || !k) return k;
 
   const key = k.kanji || k.hiragana;
   const trans: LocalizedWordData | undefined = 
     (k.id ? KOTOBA_BY_ID[String(k.id)] : undefined) || 
-    KOTOBA_TRANSLATIONS[key] || 
+    (key ? KOTOBA_TRANSLATIONS[key] : undefined) || 
     (k.meaning ? MEANING_LOOKUP[k.meaning] : undefined);
 
   let localizedMeaning = trans?.meaning?.[lang];
   if (!localizedMeaning) {
     if (lang === 'my') {
       const mMy = (k as any).meaning_my || (k as any).meaningMy;
-      if (mMy && typeof mMy === 'string' && mMy.trim().length > 0) {
+      if (mMy && typeof mMy === 'string' && mMy.trim().length > 0 && /[\u1000-\u109F]/.test(mMy)) {
         localizedMeaning = mMy.trim();
       }
     } else if (lang === 'en') {
       const mEn = k.meaning_en || (k as any).meaningEn || (k as any).meaning_en;
-      if (mEn && typeof mEn === 'string' && mEn.trim().length > 0) {
+      if (mEn && typeof mEn === 'string' && mEn.trim().length > 0 && !/[\u1000-\u109F]/.test(mEn)) {
         localizedMeaning = mEn.trim();
       }
     }
 
-    if (!localizedMeaning && k.meaning && MEANING_LOOKUP[k.meaning]?.meaning?.[lang]) {
-      const match = MEANING_LOOKUP[k.meaning];
-      localizedMeaning = match ? match.meaning[lang] : undefined;
+    // Check ALL_CURRICULUM_MEANINGS by kanji or hiragana
+    if (!localizedMeaning && key) {
+      const curMatch = (ALL_CURRICULUM_MEANINGS as Record<string, { en: string; my: string }>)[key];
+      if (curMatch) {
+        const val = lang === 'en' ? curMatch.en : curMatch.my;
+        if (val) localizedMeaning = val;
+      }
     }
-    if (!localizedMeaning) {
-      localizedMeaning = translateMeaningString(k.meaning, lang);
+
+    if (!localizedMeaning && k.meaning) {
+      const translated = translateMeaningString(k.meaning, lang);
+      if (translated && translated !== k.meaning) {
+        localizedMeaning = translated;
+      }
     }
   }
 
@@ -5636,9 +5663,16 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
     }
   }
 
+  // Ensure fallback is clean: never leak Indonesian into Myanmar if English is available as cleaner intermediate
+  const fallbackMeaning = lang === 'en' 
+    ? ((k as any)?.meaning_en || (k as any)?.meaningEn || k.meaning) 
+    : (lang === 'my' 
+        ? ((k as any)?.meaning_my || (k as any)?.meaningMy || (k as any)?.meaning_en || (k as any)?.meaningEn || k.meaning) 
+        : k.meaning);
+
   return {
     ...k,
-    meaning: localizedMeaning || (lang === 'en' ? ((k as any)?.meaning_en || (k as any)?.meaningEn || k.meaning) : (lang === 'my' ? ((k as any)?.meaning_my || (k as any)?.meaningMy || (k as any)?.meaning_en || k.meaning) : k.meaning)),
+    meaning: localizedMeaning || fallbackMeaning,
     notes: localizedNotes,
     example_sentence_meaning: localizedExample || undefined,
   };
@@ -5648,7 +5682,7 @@ export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
  * Returns localized Kanji object with meanings and radical meaning in the active language.
  */
 export function localizeKanji(k: Kanji, lang: Language): Kanji {
-  if (lang === 'id') return k;
+  if (lang === 'id' || !k) return k;
 
   const trans = KANJI_TRANSLATIONS[k.character] || ALL_KANJI_TRANSLATIONS[k.character];
   if (trans) {
@@ -5659,18 +5693,55 @@ export function localizeKanji(k: Kanji, lang: Language): Kanji {
     };
   }
 
-  if (lang === 'my' && (k as any).meaning_my) {
-    const list = ((k as any).meaning_my as string).split(/[,;]\\s*/);
-    return { ...k, meanings: list };
-  }
-  if (lang === 'en' && ((k as any).meaning_en || (k as any).meaningEn)) {
-    const list = (((k as any).meaning_en || (k as any).meaningEn) as string).split(/[,;]\\s*/);
-    return { ...k, meanings: list };
+  // Check character direct match in ALL_CURRICULUM_MEANINGS
+  const charCurriculum = (ALL_CURRICULUM_MEANINGS as Record<string, { en: string; my: string }>)[k.character];
+  if (charCurriculum) {
+    const val = lang === 'en' ? charCurriculum.en : charCurriculum.my;
+    if (val && !val.includes('unavailable')) {
+      const list = val.split(/[,;]\s*/).map((s) => s.trim()).filter(Boolean);
+      if (list.length > 0) {
+        return { ...k, meanings: list };
+      }
+    }
   }
 
+  if (lang === 'my') {
+    const mMy = (k as any).meaning_my || (k as any).meaningMy;
+    if (mMy && typeof mMy === 'string' && mMy.trim().length > 0 && !mMy.includes('unavailable')) {
+      const list = mMy.split(/[,;]\s*/).map((s) => s.trim()).filter(Boolean);
+      return { ...k, meanings: list };
+    }
+    // Fall back to translating existing meanings
+    if (Array.isArray(k.meanings) && k.meanings.length > 0) {
+      const translatedList = k.meanings
+        .map((m) => ({ orig: m, trans: translateMeaningString(m, 'my') }))
+        .filter((item) => Boolean(item.trans && item.trans !== item.orig))
+        .map((item) => item.trans);
+      if (translatedList.length > 0) {
+        return { ...k, meanings: translatedList };
+      }
+    }
+  }
+
+  if (lang === 'en') {
+    const mEn = (k as any).meaning_en || (k as any).meaningEn;
+    if (mEn && typeof mEn === 'string' && mEn.trim().length > 0 && !mEn.includes('unavailable')) {
+      const list = mEn.split(/[,;]\s*/).map((s) => s.trim()).filter(Boolean);
+      return { ...k, meanings: list };
+    }
+    // Fall back to translating existing meanings
+    if (Array.isArray(k.meanings) && k.meanings.length > 0) {
+      const translatedList = k.meanings.map((m) => translateMeaningString(m, 'en')).filter(Boolean);
+      if (translatedList.length > 0) {
+        return { ...k, meanings: translatedList };
+      }
+    }
+  }
+
+  // Never return 'Translation unavailable' if original meanings exist
   return {
     ...k,
-    meanings: [lang === 'my' ? 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ' : 'Translation unavailable'],
+    meanings: (Array.isArray(k.meanings) && k.meanings.length > 0) ? k.meanings : [k.meaning || ''],
   };
 }
 
@@ -5681,24 +5752,46 @@ export function translateMeaningString(str: string, lang: Language): string {
   if (lang === 'id' || !str) return str;
   const trimmed = str.trim();
 
-  // 1. Check ALL_CURRICULUM_MEANINGS (9,386 comprehensive JLPT curriculum items)
+  // Helper to validate that translation is in the intended script
+  const isValidLang = (val: string | undefined): boolean => {
+    if (!val || typeof val !== 'string') return false;
+    const v = val.trim();
+    if (!v || v === 'Translation unavailable' || v === 'အဓိပ္ပာယ် ဘာသာပြန်မရရှိသေးပါ') return false;
+    if (lang === 'en') {
+      // Must NOT contain Burmese script or Japanese Katakana
+      return !/[\u1000-\u109F]/.test(v) && !/^[\u30A0-\u30FF\s,]+$/.test(v);
+    }
+    if (lang === 'my') {
+      // Must contain Burmese script
+      return /[\u1000-\u109F]/.test(v);
+    }
+    return true;
+  };
+
+  // 1. Direct exact match in ALL_CURRICULUM_MEANINGS (32,622 comprehensive items)
   const curriculumMatch = (ALL_CURRICULUM_MEANINGS as Record<string, { en: string; my: string }>)[trimmed];
   if (curriculumMatch) {
-    if (lang === 'en' && curriculumMatch.en) return curriculumMatch.en;
-    if (lang === 'my' && curriculumMatch.my) return curriculumMatch.my;
+    const val = lang === 'en' ? curriculumMatch.en : curriculumMatch.my;
+    if (isValidLang(val)) return val;
   }
 
   // 2. Direct exact match in MEANING_LOOKUP
   if (MEANING_LOOKUP[trimmed]) {
     const val = MEANING_LOOKUP[trimmed].meaning[lang];
-    if (val) return val;
+    if (isValidLang(val)) return val;
   }
 
-  // 3. Normalized match
+  // 3. Direct match in KOTOBA_TRANSLATIONS (by Japanese key or meaning)
+  if (KOTOBA_TRANSLATIONS[trimmed]?.meaning?.[lang]) {
+    const val = KOTOBA_TRANSLATIONS[trimmed].meaning[lang];
+    if (isValidLang(val)) return val;
+  }
+
+  // 4. Normalized match
   for (const [idKey, item] of Object.entries(MEANING_LOOKUP)) {
     if (trimmed.includes(idKey) || idKey.includes(trimmed)) {
       const val = item.meaning[lang];
-      if (val) return val;
+      if (isValidLang(val)) return val;
     }
   }
 
