@@ -15,7 +15,8 @@ public record UserDto(
         @JsonProperty("created_at") String createdAt,
         @JsonProperty("discord_username") String discordUsername,
         @JsonProperty("discord_webhook_url") String discordWebhookUrl,
-        @JsonProperty("discord_notifications_enabled") boolean discordNotificationsEnabled
+        @JsonProperty("discord_notifications_enabled") boolean discordNotificationsEnabled,
+        @JsonProperty("preferred_language") String preferredLanguage
 ) {
     public static UserDto from(User user) {
         return new UserDto(
@@ -29,7 +30,8 @@ public record UserDto(
                 user.getCreatedAt() != null ? user.getCreatedAt().toString() : "",
                 user.getDiscordUsername(),
                 user.getDiscordWebhookUrl(),
-                user.isDiscordNotificationsEnabled()
+                user.isDiscordNotificationsEnabled(),
+                user.getPreferredLanguage()
         );
     }
 }

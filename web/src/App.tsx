@@ -65,10 +65,10 @@ export const App: React.FC = () => {
   const { fetchUser, token, user } = useAuthStore();
 
   useEffect(() => {
-    if (token && !user) {
+    if (token) {
       fetchUser().catch(() => {});
     }
-  }, [token, user, fetchUser]);
+  }, [token, fetchUser]);
 
   useEffect(() => {
     void flushPendingStudyData();

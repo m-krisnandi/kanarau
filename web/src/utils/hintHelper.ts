@@ -164,7 +164,7 @@ const POS_LABELS: Record<string, Record<Language, string>> = {
 /**
  * Converts raw part-of-speech codes (e.g. "Kelas kata: v1, vi") into human-friendly descriptions.
  */
-export function formatHumanPartOfSpeech(rawNotes?: string, lang: Language = 'id'): string {
+export function formatHumanPartOfSpeech(rawNotes?: string, lang: Language = 'en'): string {
   if (!rawNotes || !rawNotes.trim()) return '';
 
   const clean = rawNotes.trim();

@@ -207,6 +207,20 @@ export const authApi = {
   testDiscord(discordWebhookUrl?: string | null) {
     return this.testDiscordNotification(discordWebhookUrl);
   },
+
+  updateLanguage(language: string) {
+    return request<ApiResponse<User>>('/auth/language', {
+      method: 'PUT',
+      body: JSON.stringify({ language }),
+    });
+  },
+
+  refreshToken(token?: string | null) {
+    return request<ApiResponse<AuthResponse>>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ token: token || undefined }),
+    });
+  },
 };
 
 // ─── Decks ───────────────────────────────────────────────────────────

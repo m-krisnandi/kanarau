@@ -24,7 +24,7 @@ kanarau:
     timezone: ${JLPT_TIMEZONE:Asia/Jakarta}
   jwt:
     secret: ${JWT_SECRET:kanarau-dev-secret-key-that-is-at-least-256-bits-long-for-hs256-signing}
-    expiration-ms: 86400000  # 24 hours
+    expiration-ms: 31536000000  # 365 days (1 year persistent session)
   cors:
     allowed-origins: ${KANARAU_CORS_ORIGINS:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://*.vercel.app}
 
@@ -86,6 +86,6 @@ spring:
 kanarau:
   jwt:
     secret: ${JWT_SECRET}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    expiration-ms: ${JWT_EXPIRATION_MS:31536000000}  # 365 days
   cors:
     allowed-origins: ${KANARAU_CORS_ORIGINS:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://*.vercel.app}

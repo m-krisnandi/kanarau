@@ -27,7 +27,7 @@ const LEVEL_TITLES: Record<number, Record<Language, string>> = {
 /**
  * Calculates user gamification level, level title, and progress toward the next level based on total XP.
  */
-export function calculateUserLevel(totalXp: number = 0, lang: Language = 'id'): UserLevelInfo {
+export function calculateUserLevel(totalXp: number = 0, lang: Language = 'en'): UserLevelInfo {
   const xp = Math.max(0, totalXp);
 
   const thresholds = [

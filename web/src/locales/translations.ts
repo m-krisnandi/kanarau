@@ -8,9 +8,9 @@ export interface LanguageOption {
 }
 
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
-  { code: 'id', name: 'Bahasa Indonesia', nativeName: 'Indonesia', flagCode: 'ID' },
   { code: 'en', name: 'English', nativeName: 'English', flagCode: 'EN' },
   { code: 'my', name: 'Burmese', nativeName: 'မြန်မာ', flagCode: 'MM' },
+  { code: 'id', name: 'Bahasa Indonesia', nativeName: 'Indonesia', flagCode: 'ID' },
 ];
 
 export const translations = {

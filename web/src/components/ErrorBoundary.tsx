@@ -46,15 +46,20 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {(() => {
-              const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('kanarau-language') : null;
-              let lang = 'id';
-              try {
-                const parsed = storedLanguage ? JSON.parse(storedLanguage) : null;
-                if (parsed?.state?.language === 'en' || parsed?.state?.language === 'my' || parsed?.state?.language === 'id') {
-                  lang = parsed.state.language;
+              let lang = 'en';
+              if (typeof window !== 'undefined') {
+                const direct = localStorage.getItem('kanarau_lang');
+                if (direct === 'en' || direct === 'my' || direct === 'id') {
+                  lang = direct;
+                } else {
+                  const storedLanguage = localStorage.getItem('kanarau-language');
+                  try {
+                    const parsed = storedLanguage ? JSON.parse(storedLanguage) : null;
+                    if (parsed?.state?.language === 'en' || parsed?.state?.language === 'my' || parsed?.state?.language === 'id') {
+                      lang = parsed.state.language;
+                    }
+                  } catch {}
                 }
-              } catch {
-                lang = 'id';
               }
               const title = lang === 'my' ? 'စာမျက်နှာ ဖော်ပြရာတွင် အခက်အခဲရှိနေသည်' : lang === 'en' ? 'Unable to Load View' : 'Terjadi Kendala Memuat Tampilan';
               const sub = lang === 'my' ? 'ဤစာမျက်နှာကို တင်ယူရာတွင် ယာယီ ချို့ယွင်းချက် ဖြစ်ပေါ်နေပါသည်။ အောက်ပါခလုတ်ကို နှိပ်၍ ပြန်လည်စတင်ပါ။' : lang === 'en' ? 'The application encountered a temporary issue while loading this view. Click below to reload the session.' : 'Aplikasi mengalami gangguan sementara saat memuat rute. Klik tombol di bawah untuk menyegarkan sesi.';

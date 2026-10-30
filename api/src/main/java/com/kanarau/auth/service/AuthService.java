@@ -153,4 +153,33 @@ public class AuthService {
         user = userRepository.save(user);
         return UserDto.from(user);
     }
+
+    @Transactional
+    public UserDto updateLanguage(Long userId, String language) {
+        User user = getUserEntity(userId);
+        if (language != null && !language.isBlank()) {
+            String cleanLang = language.trim().toLowerCase();
+            if ("my".equals(cleanLang) || "id".equals(cleanLang) || "en".equals(cleanLang)) {
+                user.setPreferredLanguage(cleanLang);
+                user = userRepository.save(user);
+            }
+        }
+        return UserDto.from(user);
+    }
+
+    public AuthResponse refreshToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Token tidak boleh kosong");
+        }
+        try {
+            Long userId = tokenProvider.getUserIdFromTokenAllowingExpired(token, 90L * 24 * 3600 * 1000L);
+            User user = getUserEntity(userId);
+            String newToken = tokenProvider.generateToken(user.getId(), user.getEmail());
+            return new AuthResponse(UserDto.from(user), newToken);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Sesi kadaluarsa. Silakan login kembali.");
+        }
+    }
 }

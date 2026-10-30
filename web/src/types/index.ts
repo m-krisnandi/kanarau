@@ -15,6 +15,7 @@ export interface User {
   discord_username?: string;
   discord_webhook_url?: string;
   discord_notifications_enabled?: boolean;
+  preferred_language?: 'id' | 'en' | 'my';
 }
 
 export interface AuthResponse {

@@ -43,6 +43,9 @@ public class User {
     @Column(name = "discord_notifications_enabled")
     private boolean discordNotificationsEnabled = false;
 
+    @Column(name = "preferred_language", nullable = false)
+    private String preferredLanguage = "en";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -56,6 +59,7 @@ public class User {
         this.role = "USER";
         this.streak = 0;
         this.totalXp = 0;
+        this.preferredLanguage = "en";
         this.createdAt = Instant.now();
     }
 
@@ -77,6 +81,7 @@ public class User {
     public String getDiscordUsername() { return discordUsername; }
     public String getDiscordWebhookUrl() { return discordWebhookUrl; }
     public boolean isDiscordNotificationsEnabled() { return discordNotificationsEnabled; }
+    public String getPreferredLanguage() { return preferredLanguage != null ? preferredLanguage : "en"; }
     public Instant getCreatedAt() { return createdAt; }
 
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
@@ -89,4 +94,5 @@ public class User {
     public void setDiscordUsername(String discordUsername) { this.discordUsername = discordUsername; }
     public void setDiscordWebhookUrl(String discordWebhookUrl) { this.discordWebhookUrl = discordWebhookUrl; }
     public void setDiscordNotificationsEnabled(boolean discordNotificationsEnabled) { this.discordNotificationsEnabled = discordNotificationsEnabled; }
+    public void setPreferredLanguage(String preferredLanguage) { this.preferredLanguage = preferredLanguage != null ? preferredLanguage : "en"; }
 }

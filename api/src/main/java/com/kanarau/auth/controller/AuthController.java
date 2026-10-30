@@ -12,6 +12,7 @@ import com.kanarau.common.model.JlptLevel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -186,5 +187,42 @@ public class AuthController {
                 "mode", "simulated",
                 "message", "Simulasi notifikasi pengingat Discord berhasil disiapkan untuk akun @" + username
         )));
+    }
+
+    public record UpdateLanguageRequest(
+            @NotBlank(message = "Language tidak boleh kosong")
+            String language
+    ) {}
+
+    @PutMapping("/language")
+    public ResponseEntity<ApiResponse<UserDto>> updateLanguage(
+            @Valid @RequestBody UpdateLanguageRequest req,
+            Authentication authentication
+    ) {
+        Long userId = getRequiredUserId(authentication);
+        UserDto user = authService.updateLanguage(userId, req.language());
+        return ResponseEntity.ok(ApiResponse.ok(user, "Preferensi bahasa berhasil disimpan"));
+    }
+
+    public record RefreshTokenRequest(String token) {}
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
+            @RequestBody(required = false) RefreshTokenRequest req,
+            HttpServletRequest request
+    ) {
+        String token = (req != null && req.token() != null && !req.token().isBlank())
+                ? req.token().trim()
+                : null;
+
+        if (token == null) {
+            String bearer = request.getHeader("Authorization");
+            if (bearer != null && bearer.startsWith("Bearer ")) {
+                token = bearer.substring(7).trim();
+            }
+        }
+
+        AuthResponse response = authService.refreshToken(token);
+        return ResponseEntity.ok(ApiResponse.ok(response, "Token berhasil diperbarui"));
     }
 }

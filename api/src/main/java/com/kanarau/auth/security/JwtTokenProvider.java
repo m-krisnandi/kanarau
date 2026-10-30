@@ -19,7 +19,7 @@ public class JwtTokenProvider {
 
     public JwtTokenProvider(
             @Value("${kanarau.jwt.secret}") String secret,
-            @Value("${kanarau.jwt.expiration-ms:86400000}") long expirationMs
+            @Value("${kanarau.jwt.expiration-ms:31536000000}") long expirationMs
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
@@ -45,6 +45,27 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return Long.parseLong(claims.getSubject());
+    }
+
+    public Long getUserIdFromTokenAllowingExpired(String token, long maxExpiredAgeMs) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Long.parseLong(claims.getSubject());
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            Claims claims = e.getClaims();
+            Date expiration = claims.getExpiration();
+            if (expiration != null) {
+                long expiredAgo = System.currentTimeMillis() - expiration.getTime();
+                if (expiredAgo <= maxExpiredAgeMs) {
+                    return Long.parseLong(claims.getSubject());
+                }
+            }
+            throw new IllegalArgumentException("Token kadaluarsa melebihi batas waktu toleransi");
+        }
     }
 
     public String getEmailFromToken(String token) {

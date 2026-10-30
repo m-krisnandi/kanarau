@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, JLPTLevel } from '@/types';
 import { authApi, setAuthToken } from '@/services/api';
+import { useLanguageStore } from '@/stores/languageStore';
 
 function getInitialLevel(): JLPTLevel {
   try {
@@ -70,6 +71,16 @@ export const useAuthStore = create<AuthState>()(
             token: res.data.token,
             isLoading: false,
           });
+
+          // Sync language preference
+          const localLang = localStorage.getItem('kanarau_lang');
+          if (localLang && (localLang === 'my' || localLang === 'en' || localLang === 'id')) {
+            // User already has an explicit local choice on this device; save to backend
+            authApi.updateLanguage(localLang).catch(() => {});
+          } else if (res.data.user.preferred_language) {
+            // Restore saved preference from account
+            useLanguageStore.getState().setLanguage(res.data.user.preferred_language, false);
+          }
         } catch (err) {
           set({
             error: err instanceof Error ? err.message : 'Login gagal',
@@ -94,6 +105,10 @@ export const useAuthStore = create<AuthState>()(
             token: res.data.token,
             isLoading: false,
           });
+
+          // Sync current device language to newly registered account
+          const currentLang = useLanguageStore.getState().language;
+          authApi.updateLanguage(currentLang).catch(() => {});
         } catch (err) {
           set({
             error: err instanceof Error ? err.message : 'Registrasi gagal',
@@ -136,10 +151,35 @@ export const useAuthStore = create<AuthState>()(
                 currentLevel: lvl,
               };
             });
+
+            // If account has preferred language and local has not been explicitly customized, sync it
+            if (res.data.preferred_language) {
+              const localLang = localStorage.getItem('kanarau_lang');
+              if (!localLang) {
+                useLanguageStore.getState().setLanguage(res.data.preferred_language, false);
+              }
+            }
           }
         } catch (err: any) {
           const errMsg = err?.message || '';
           if (errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized')) {
+            // Attempt seamless token refresh before logging user out
+            try {
+              const refreshRes = await authApi.refreshToken(token);
+              if (refreshRes?.data?.token) {
+                const newToken = refreshRes.data.token;
+                setAuthToken(newToken);
+                set({
+                  token: newToken,
+                  user: refreshRes.data.user,
+                  currentLevel: refreshRes.data.user.current_level || 'N2',
+                });
+                return;
+              }
+            } catch {
+              // Refresh genuinely failed (e.g. invalid signature or past 90-day grace period)
+            }
+
             setAuthToken(null);
             set({ user: null, token: null });
             try {
