@@ -65,13 +65,93 @@ export const DailyFocusRoutineCard: React.FC<DailyFocusRoutineCardProps> = ({
 
   // Dynamic badge and text for current track
   const trackFlag = targetLanguage === 'id' ? '🇮🇩' : targetLanguage === 'my' ? '🇲🇲' : targetLanguage === 'ja' ? '🇯🇵' : '🇬🇧';
-  const trackName = targetLanguage === 'id'
-    ? 'Bahasa Indonesia (BIPA)'
-    : targetLanguage === 'my'
-    ? 'Bahasa Myanmar (Burmese)'
-    : targetLanguage === 'ja'
-    ? 'Bahasa Jepang (JLPT)'
-    : 'Bahasa Inggris (TOEIC/IELTS)';
+  const trackName = isMyanmarLang
+    ? (targetLanguage === 'id'
+      ? 'Bahasa Indonesia (BIPA)'
+      : targetLanguage === 'my'
+      ? 'မြန်မာဘာသာစကား'
+      : targetLanguage === 'ja'
+      ? 'ဂျပန်ဘာသာစကား (JLPT)'
+      : 'အင်္ဂလိပ်ဘာသာစကား')
+    : isEnLang
+    ? (targetLanguage === 'id'
+      ? 'Indonesian (BIPA)'
+      : targetLanguage === 'my'
+      ? 'Burmese'
+      : targetLanguage === 'ja'
+      ? 'Japanese (JLPT)'
+      : 'English')
+    : (targetLanguage === 'id'
+      ? 'Bahasa Indonesia (BIPA)'
+      : targetLanguage === 'my'
+      ? 'Bahasa Myanmar (Burmese)'
+      : targetLanguage === 'ja'
+      ? 'Bahasa Jepang (JLPT)'
+      : 'Bahasa Inggris (TOEIC/IELTS)');
+
+  const PILLAR_I18N: Record<
+    string,
+    Record<'my' | 'en' | 'id', { title: string; subtitle: string }>
+  > = {
+    vocab: {
+      my: {
+        title: 'အခြေခံနှင့် နေ့စဉ်ဝေါဟာရ',
+        subtitle: 'အသံထွက်ဖြင့် စကားလုံးနှင့် အက္ခရာများ လေ့ကျင့်ရန်',
+      },
+      en: {
+        title: 'Foundation & Daily Vocabulary',
+        subtitle: 'Word & alphabet recognition with native audio',
+      },
+      id: {
+        title: 'Fondasi & Kosakata Harian',
+        subtitle: 'Pengenalan kata & huruf dengan audio native',
+      },
+    },
+    grammar: {
+      my: {
+        title: 'သဒ္ဒါနှင့် ဝါကျတည်ဆောက်ပုံ',
+        subtitle: 'ဝါကျဖွဲ့စည်းပုံ စည်းမျဉ်းများကို ကျွမ်းကျင်အောင် လေ့လာရန်',
+      },
+      en: {
+        title: 'Grammar & Sentence Patterns',
+        subtitle: 'Master essential sentence rules & key differences',
+      },
+      id: {
+        title: 'Tata Bahasa & Pola Kalimat',
+        subtitle: 'Kuasai aturan kalimat & perbedaan esensial',
+      },
+    },
+    practice: {
+      my: {
+        title: 'လက်တွေ့စကားပြောနှင့် အခြေအနေ လေ့ကျင့်ခန်း',
+        subtitle: 'နေ့စဉ်စကားပြောခန်းနှင့် မေးခွန်းများ လေ့ကျင့်ရန်',
+      },
+      en: {
+        title: 'Real Context & Dialogue Practice',
+        subtitle: 'Daily conversation simulations & interactive quiz',
+      },
+      id: {
+        title: 'Latihan Konteks & Dialog Nyata',
+        subtitle: 'Simulasi percakapan sehari-hari & kuis',
+      },
+    },
+    ai: {
+      my: {
+        title: 'AI ဆရာနှင့် စကားပြောလေ့ကျင့်ခြင်း',
+        subtitle: 'တိုက်ရိုက်အပြန်အလှန် စကားပြောဆိုပြီး အမှားပြင်ဆင်ရန်',
+      },
+      en: {
+        title: 'AI Tutor Conversation Partner',
+        subtitle: 'Interactive Q&A & real-time pronunciation feedback',
+      },
+      id: {
+        title: 'AI Sensei Partner Bicara',
+        subtitle: 'Tanya jawab interaktif & koreksi langsung',
+      },
+    },
+  };
+
+  const activeLangKey = (currentLanguage === 'my' || currentLanguage === 'en' ? currentLanguage : 'id') as 'my' | 'en' | 'id';
 
   return (
     <div className="bg-white dark:bg-[#151D2E] rounded-3xl p-4 sm:p-5 border border-stone-200/90 dark:border-[#232F46] shadow-md space-y-4">
@@ -176,14 +256,14 @@ export const DailyFocusRoutineCard: React.FC<DailyFocusRoutineCardProps> = ({
                 <div>
                   <div className="flex items-center space-x-1.5">
                     <span className={`text-xs font-bold leading-tight ${isDone ? 'line-through text-stone-400 dark:text-slate-500' : 'text-stone-900 dark:text-white'}`}>
-                      {pillar.title}
+                      {PILLAR_I18N[pillar.id]?.[activeLangKey]?.title || pillar.title}
                     </span>
                     <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-md bg-stone-100 dark:bg-slate-800 text-stone-500 dark:text-slate-400">
                       {pillar.minutes}m
                     </span>
                   </div>
                   <p className="text-[10px] text-stone-500 dark:text-slate-400 line-clamp-1 mt-0.5">
-                    {pillar.subtitle}
+                    {PILLAR_I18N[pillar.id]?.[activeLangKey]?.subtitle || pillar.subtitle}
                   </p>
                 </div>
               </div>

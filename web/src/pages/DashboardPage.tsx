@@ -338,6 +338,10 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleQuickLaunch = () => {
+    if (activeTrack !== 'JA') {
+      navigate('/belajar');
+      return;
+    }
     if (cycleInfo.isDayFullyComplete && cycleInfo.activeDay < cycleInfo.maxDays) {
       advanceToNextDay(cycleInfo.activeDay);
       return;
@@ -360,6 +364,14 @@ export const DashboardPage: React.FC = () => {
   };
 
   const quickLaunchLabel = useMemo(() => {
+    if (activeTrack !== 'JA') {
+      if (language === 'my') {
+        return `DAY ${cycleInfo.activeDay} လေ့လာမှု စတင်ရန်`;
+      } else if (language === 'en') {
+        return `Start DAY ${cycleInfo.activeDay} Study`;
+      }
+      return `Mulai Belajar DAY ${cycleInfo.activeDay}`;
+    }
     if (cycleInfo.isDayFullyComplete) {
       return cycleInfo.activeDay < cycleInfo.maxDays
         ? `Lanjut DAY ${cycleInfo.activeDay + 1} →`
@@ -378,7 +390,7 @@ export const DashboardPage: React.FC = () => {
       return `Review SRS (${pendingCount})`;
     }
     return `DAY ${cycleInfo.activeDay} Tuntas ✓`;
-  }, [cycleInfo, pendingCount]);
+  }, [activeTrack, language, cycleInfo, pendingCount]);
 
   const weekDays = useMemo(() => {
     const today = new Date();
@@ -448,11 +460,19 @@ export const DashboardPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="text-right shrink-0">
-              <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2 sm:px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
-                {t.dashboard.countdown(countdownDays)}
-              </span>
-            </div>
+            {activeTrack === 'JA' ? (
+              <div className="text-right shrink-0">
+                <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-amber-50 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60 px-2 sm:px-2.5 py-0.5 rounded-lg border border-amber-200 block shadow-2xs">
+                  {t.dashboard.countdown(countdownDays)}
+                </span>
+              </div>
+            ) : (
+              <div className="text-right shrink-0">
+                <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-lg border border-indigo-200 block shadow-2xs">
+                  {activeTrack} {activeLevel}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mt-1.5 flex items-baseline justify-between">
@@ -498,18 +518,32 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="min-w-0">
               <h4 className="font-bold text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 font-mincho leading-tight">
-                {t.dashboard.tanyaAiTitle}
+                {activeTrack === 'JA'
+                  ? t.dashboard.tanyaAiTitle
+                  : language === 'my'
+                  ? 'AI ဆရာကို မေးမြန်းပါ'
+                  : language === 'en'
+                  ? 'Ask AI Tutor'
+                  : 'Tanya AI'}
               </h4>
               <p className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 truncate mt-0.5">
-                {t.dashboard.tanyaAiDesc}
+                {activeTrack === 'JA'
+                  ? t.dashboard.tanyaAiDesc
+                  : language === 'my'
+                  ? 'စကားပြောဆိုမှု၊ သဒ္ဒါနှင့် အသုံးအနှုန်းများကို AI ဆရာအား မေးမြန်းပါ'
+                  : language === 'en'
+                  ? 'Ask AI tutor about grammar, vocabulary and conversation.'
+                  : 'Tanyakan tata bahasa, percakapan, dan kosakata ke AI.'}
               </p>
             </div>
           </div>
           <ChevronRight className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-2" />
         </div>
 
-        {/* Pola 2 Sesi Harian: Pagi 15 Menit + Malam 15 Menit Card (Cycle-Based Mastery) */}
-        <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-1.5">
+        {/* Pola 2 Sesi Harian & 4 Pilar Ujian (Exclusively for Japanese JLPT track) */}
+        {activeTrack === 'JA' && (
+          <>
+            <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-indigo-200/90 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/40 via-white to-amber-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-slate-900 shadow-xs space-y-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 min-w-0">
               <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
@@ -867,8 +901,10 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
         </div>
+      </>
+    )}
 
-        {/* 5. Aktivitas Belajar Minggu Ini & Ringkasan Progres */}
+    {/* 5. Aktivitas Belajar Minggu Ini & Ringkasan Progres */}
         <div
           onClick={() => navigate('/progress')}
           className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] bg-white dark:bg-[#151D2E] shadow-2xs space-y-1.5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 transition-all group active:scale-98"

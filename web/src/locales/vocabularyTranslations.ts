@@ -5613,6 +5613,17 @@ export function localizeNotes(notes: string | null | undefined, lang: Language):
 export function localizeKotoba(k: Kotoba, lang: Language): Kotoba {
   if (lang === 'id' || !k) return k;
 
+  // Multi-language course tracks (ID BIPA, Myanmar, English) have their own authentic translations
+  // Never collide them with Japanese JLPT IDs or vocabulary tables
+  if (
+    (k as any).isCourseItem ||
+    (k as any).track_code ||
+    (k as any).target_language ||
+    !['N1', 'N2', 'N3', 'N4', 'N5'].includes((k as any).jlpt_level)
+  ) {
+    return k;
+  }
+
   const key = k.kanji || k.hiragana;
   const trans: LocalizedWordData | undefined = 
     (k.id ? KOTOBA_BY_ID[String(k.id)] : undefined) || 

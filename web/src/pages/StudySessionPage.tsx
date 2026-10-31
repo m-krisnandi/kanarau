@@ -7,6 +7,7 @@ import { playUniversalAudio } from '@/utils/audioPlayer';
 import { useCourseStore } from '@/stores/courseStore';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { KotobaDetailModal } from '@/components/KotobaDetailModal';
+import { CourseCardDetailModal, type CourseCardDetailItem } from '@/components/CourseCardDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
 import type { Kotoba } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
@@ -49,7 +50,7 @@ export const StudySessionPage: React.FC = () => {
   const currentLevel = storeLevel || user?.current_level || 'N2';
   const studyMode = searchParams.get('mode');
   const trackParam = searchParams.get('track');
-  const { activeTrack: storeTrack, targetLanguage } = useCourseStore();
+  const { activeTrack: storeTrack, targetLanguage, activeLevel } = useCourseStore();
   const track = trackParam || storeTrack || 'JA';
   const isExamMode = studyMode === 'exam' || studyMode === 'diagnostic';
 
@@ -72,6 +73,7 @@ export const StudySessionPage: React.FC = () => {
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [aiInitialDisplay, setAiInitialDisplay] = useState('');
   const [selectedKotobaForDetail, setSelectedKotobaForDetail] = useState<Kotoba | null>(null);
+  const [selectedCourseItemForDetail, setSelectedCourseItemForDetail] = useState<CourseCardDetailItem | null>(null);
   const [selectedKanjiChar, setSelectedKanjiChar] = useState<string | null>(null);
   const [deckTitle, setDeckTitle] = useState<string>("");
   const [deckTotalCards, setDeckTotalCards] = useState<number>(0);
@@ -145,12 +147,17 @@ export const StudySessionPage: React.FC = () => {
                 kanji: c.target_text,
                 hiragana: c.reading || '',
                 meaning: c.meaning,
-                jlpt_level: 'N2',
+                jlpt_level: track as any,
                 part_of_speech: c.item_type || 'vocab',
                 example_sentence: c.example_sentence,
                 example_sentence_meaning: c.example_meaning,
                 notes: c.notes,
-              },
+                isCourseItem: true,
+                track_code: track,
+                target_text: c.target_text,
+                romanization: c.reading || '',
+                item_type: c.item_type,
+              } as any,
             }));
             setCards(mappedCards);
             setInitialCards(mappedCards);
@@ -605,7 +612,25 @@ export const StudySessionPage: React.FC = () => {
                 return (
                   <div
                     key={card.id || idx}
-                    onClick={() => kotoba && setSelectedKotobaForDetail(kotoba)}
+                    onClick={() => {
+                      if (!kotoba) return;
+                      if (track !== 'JA' || (kotoba as any)?.isCourseItem) {
+                        setSelectedCourseItemForDetail({
+                          id: kotoba.id,
+                          target_text: (kotoba as any).target_text || kotoba.kanji,
+                          romanization: (kotoba as any).romanization || kotoba.hiragana,
+                          meaning: kotoba.meaning,
+                          notes: kotoba.notes,
+                          example_target: kotoba.example_sentence,
+                          example_meaning: kotoba.example_sentence_meaning,
+                          item_type: (kotoba as any).item_type || kotoba.part_of_speech,
+                          track_code: track,
+                          level_code: activeLevel,
+                        });
+                      } else {
+                        setSelectedKotobaForDetail(kotoba);
+                      }
+                    }}
                     className="card-washi card-washi-hover rounded-xl p-3 flex items-center justify-between border border-[#EFEAE2] cursor-pointer transition-all hover:border-indigo-300 dark:hover:border-indigo-700 group active:scale-[0.99]"
                     title={t.studySession.detailAndConjugation}
                   >
@@ -656,12 +681,21 @@ export const StudySessionPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Kotoba Detail & Conjugation Modal */}
-        <KotobaDetailModal
-          kotoba={selectedKotobaForDetail}
-          onClose={() => setSelectedKotobaForDetail(null)}
-          onViewKanji={(char) => setSelectedKanjiChar(char)}
-        />
+        {/* Kotoba & Course Detail Modals */}
+        {track === 'JA' ? (
+          <KotobaDetailModal
+            kotoba={selectedKotobaForDetail}
+            onClose={() => setSelectedKotobaForDetail(null)}
+            onViewKanji={(char) => setSelectedKanjiChar(char)}
+          />
+        ) : (
+          <CourseCardDetailModal
+            item={selectedCourseItemForDetail}
+            onClose={() => setSelectedCourseItemForDetail(null)}
+            targetLanguage={targetLanguage}
+            myLanguage={language}
+          />
+        )}
 
         {/* Kanji Detail Modal */}
         {selectedKanjiChar && (
@@ -980,7 +1014,26 @@ export const StudySessionPage: React.FC = () => {
               </div>
               <div className="flex items-center space-x-1.5">
                 <button
-                  onClick={() => currentCard && setSelectedKotobaForDetail(currentCard.kotoba)}
+                  onClick={() => {
+                    if (!currentCard?.kotoba) return;
+                    const k = currentCard.kotoba;
+                    if (track !== 'JA' || (k as any)?.isCourseItem) {
+                      setSelectedCourseItemForDetail({
+                        id: k.id,
+                        target_text: (k as any).target_text || k.kanji,
+                        romanization: (k as any).romanization || k.hiragana,
+                        meaning: k.meaning,
+                        notes: k.notes,
+                        example_target: k.example_sentence,
+                        example_meaning: k.example_sentence_meaning,
+                        item_type: (k as any).item_type || k.part_of_speech,
+                        track_code: track,
+                        level_code: activeLevel,
+                      });
+                    } else {
+                      setSelectedKotobaForDetail(k);
+                    }
+                  }}
                   className="inline-flex items-center space-x-1 text-[10px] font-bold text-stone-700 bg-white hover:bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200 shadow-2xs transition-colors cursor-pointer"
                 >
                   <BookOpen className="w-3 h-3 text-stone-600" />
@@ -1046,12 +1099,21 @@ export const StudySessionPage: React.FC = () => {
         </div>
       )}
 
-      {/* Kotoba Detail & Conjugation Modal */}
-      <KotobaDetailModal
-        kotoba={selectedKotobaForDetail}
-        onClose={() => setSelectedKotobaForDetail(null)}
-        onViewKanji={(char) => setSelectedKanjiChar(char)}
-      />
+      {/* Kotoba & Course Detail Modals */}
+      {track === 'JA' ? (
+        <KotobaDetailModal
+          kotoba={selectedKotobaForDetail}
+          onClose={() => setSelectedKotobaForDetail(null)}
+          onViewKanji={(char) => setSelectedKanjiChar(char)}
+        />
+      ) : (
+        <CourseCardDetailModal
+          item={selectedCourseItemForDetail}
+          onClose={() => setSelectedCourseItemForDetail(null)}
+          targetLanguage={targetLanguage}
+          myLanguage={language}
+        />
+      )}
 
       {/* Kanji Detail Modal */}
       {selectedKanjiChar && (

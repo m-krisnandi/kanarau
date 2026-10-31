@@ -7,6 +7,7 @@ import { deckApi, progressApi, courseApi } from '@/services/api';
 import { useCourseStore } from '@/stores/courseStore';
 import type { Deck, Kotoba, JLPTLevel } from '@/types';
 import { KotobaDetailModal } from '@/components/KotobaDetailModal';
+import { CourseCardDetailModal, type CourseCardDetailItem } from '@/components/CourseCardDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { BunpoPracticeView } from '@/components/bunpo/BunpoPracticeView';
 import { DokkaiPracticeView } from '@/components/dokkai/DokkaiPracticeView';
@@ -33,7 +34,7 @@ export const BelajarPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = (storeLevel || user?.current_level || 'N2') as JLPTLevel;
-  const { activeTrack, activeLevel } = useCourseStore();
+  const { activeTrack, activeLevel, targetLanguage } = useCourseStore();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab') as 'goi' | 'bunpo' | 'dokkai' | 'choukai' | null;
@@ -65,6 +66,7 @@ export const BelajarPage: React.FC = () => {
   const [deckKotobas, setDeckKotobas] = useState<Kotoba[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
   const [activeKotoba, setActiveKotoba] = useState<Kotoba | null>(null);
+  const [activeCourseItem, setActiveCourseItem] = useState<CourseCardDetailItem | null>(null);
   const [activeKanjiChar, setActiveKanjiChar] = useState<string | null>(null);
 
   const [currentTodayDay, setCurrentTodayDay] = useState<number>(1);
@@ -220,7 +222,12 @@ export const BelajarPage: React.FC = () => {
             notes: c.notes,
             example_sentence: c.example_sentence,
             example_sentence_meaning: c.example_meaning,
-          }));
+            isCourseItem: true,
+            track_code: activeTrack,
+            target_text: c.target_text,
+            romanization: c.reading || '',
+            item_type: c.item_type,
+          } as any));
           setDeckKotobas(mapped);
         }
       }
@@ -691,21 +698,40 @@ export const BelajarPage: React.FC = () => {
                 </div>
               ) : (
                 deckKotobas.map((rawK) => {
-                  const k = localizeKotoba(rawK, language);
+                  const k = activeTrack === 'JA' ? localizeKotoba(rawK, language) : rawK;
                   return (
                     <div
                       key={k.id}
-                      onClick={() => setActiveKotoba(k)}
+                      onClick={() => {
+                        if (activeTrack === 'JA') {
+                          setActiveKotoba(k);
+                        } else {
+                          setActiveCourseItem({
+                            id: k.id,
+                            target_text: (k as any).target_text || k.kanji,
+                            romanization: (k as any).romanization || k.hiragana,
+                            meaning: k.meaning,
+                            notes: k.notes,
+                            example_target: k.example_sentence,
+                            example_meaning: k.example_sentence_meaning,
+                            item_type: (k as any).item_type || k.part_of_speech,
+                            track_code: activeTrack,
+                            level_code: activeLevel,
+                          });
+                        }
+                      }}
                       className="card-washi rounded-xl p-3 border border-[#EFEAE2] hover:border-indigo-300 cursor-pointer flex items-center justify-between"
                     >
                       <div>
                         <div className="flex items-baseline space-x-2">
-                          <span className="font-bold font-jp text-base text-[#1E1B18]">
+                          <span className={`font-bold ${activeTrack === 'JA' ? 'font-jp' : ''} text-base text-[#1E1B18]`}>
                             {k.kanji || k.hiragana}
                           </span>
-                          <span className="text-xs font-jp text-indigo-600 font-semibold">
-                            {k.hiragana}
-                          </span>
+                          {k.hiragana && (
+                            <span className={`text-xs ${activeTrack === 'JA' ? 'font-jp' : 'font-mono'} text-indigo-600 font-semibold`}>
+                              {k.hiragana}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-[#57534E] line-clamp-1">{k.meaning}</p>
                       </div>
@@ -719,15 +745,24 @@ export const BelajarPage: React.FC = () => {
         </div>
       )}
 
-      {/* Kotoba & Kanji Detail Modals */}
-      <KotobaDetailModal
-        kotoba={activeKotoba}
-        onClose={() => setActiveKotoba(null)}
-        onViewKanji={(char) => {
-          setActiveKotoba(null);
-          setActiveKanjiChar(char);
-        }}
-      />
+      {/* Kotoba & Course Modals */}
+      {activeTrack === 'JA' ? (
+        <KotobaDetailModal
+          kotoba={activeKotoba}
+          onClose={() => setActiveKotoba(null)}
+          onViewKanji={(char) => {
+            setActiveKotoba(null);
+            setActiveKanjiChar(char);
+          }}
+        />
+      ) : (
+        <CourseCardDetailModal
+          item={activeCourseItem}
+          onClose={() => setActiveCourseItem(null)}
+          targetLanguage={targetLanguage}
+          myLanguage={language}
+        />
+      )}
 
       {activeKanjiChar && (
         <KanjiDetailView

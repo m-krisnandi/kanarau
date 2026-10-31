@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { askGemini, type ChatMessage } from '@/services/geminiService';
 import { useAuthStore } from '@/stores/authStore';
+import { useCourseStore } from '@/stores/courseStore';
 import { useMistakesStore } from '@/stores/mistakesStore';
 import { useTranslation } from '@/stores/languageStore';
 import {
   playNaturalJapaneseVoice,
+  playUniversalAudio,
   stopAudio,
   hasJapaneseText,
 } from '@/utils/audioPlayer';
@@ -37,6 +39,8 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = storeLevel || user?.current_level || 'N2';
+  const targetLanguage = useCourseStore((state) => state.targetLanguage) || 'ja';
+  const activeLevel = useCourseStore((state) => state.activeLevel) || 'BIPA-1';
   const mistakes = useMistakesStore((state) => state.mistakes);
   const { language, t } = useTranslation();
 
@@ -73,26 +77,105 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
     }
   }, [isOpen]);
 
-  // Initialize welcome message tailored to user level
+  // Initialize welcome message tailored to user level and learning track
   useEffect(() => {
+    let welcomeText = t.ai.welcome(currentLevel);
+    if (targetLanguage === 'id') {
+      if (language === 'my') {
+        welcomeText = `မင်္ဂလာပါ! ကျွန်ုပ်သည် Kanarau AI ဆရာ ဖြစ်ပါသည်။ အင်ဒိုနီးရှားဘာသာစကား (${activeLevel}) ဝေါဟာရ၊ သဒ္ဒါနှင့် နေ့စဉ်စကားပြောခန်းများကို မေးမြန်းနိုင်ပါသည်။`;
+      } else if (language === 'en') {
+        welcomeText = `Hello! I am your Kanarau AI Tutor. Ask me anything about Indonesian (${activeLevel}) vocabulary, sentence structures, and daily expressions!`;
+      } else {
+        welcomeText = `Halo! Saya AI Tutor Kanarau. Silakan tanyakan kosakata, tata bahasa BIPA (${activeLevel}), dan percakapan bahasa Indonesia!`;
+      }
+    } else if (targetLanguage === 'my') {
+      if (language === 'id') {
+        welcomeText = `Halo! Saya AI Tutor Kanarau. Silakan tanyakan huruf abjad Myanmar (${activeLevel}), sistem nada, kosakata, atau percakapan sehari-hari bahasa Myanmar!`;
+      } else if (language === 'en') {
+        welcomeText = `Hello! I am your Kanarau AI Tutor. Ask me anything about Burmese (${activeLevel}) alphabet, tone rules, vocabulary, and phrases!`;
+      } else {
+        welcomeText = `မင်္ဂလာပါ! မြန်မာဘာသာစကား (${activeLevel}) အက္ခရာ၊ အသံထွက်နှင့် နေ့စဉ်သုံးစကားများကို မေးမြန်းနိုင်ပါသည်။`;
+      }
+    } else if (targetLanguage === 'en') {
+      if (language === 'my') {
+        welcomeText = `မင်္ဂလာပါ! အင်္ဂလိပ်စာ (${activeLevel}) ဝေါဟာရ၊ သဒ္ဒါနှင့် စကားပြောလေ့ကျင့်ခန်းများကို မေးမြန်းနိုင်ပါသည်။`;
+      } else if (language === 'id') {
+        welcomeText = `Halo! Silakan tanyakan kosakata, tata bahasa bahasa Inggris (${activeLevel}), atau persiapan percakapan kerja.`;
+      } else {
+        welcomeText = `Hello! I am your AI Tutor. Ask me anything about English (${activeLevel}) vocabulary, grammar, and fluency!`;
+      }
+    }
+
     setMessages((prev) => {
       if (prev.length === 0 || prev.every((m) => m.id === 'welcome')) {
         return [
           {
             id: 'welcome',
             role: 'assistant',
-            content: t.ai.welcome(currentLevel),
+            content: welcomeText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ];
       }
       return prev;
     });
-  }, [currentLevel, language, t]);
+  }, [currentLevel, targetLanguage, activeLevel, language, t]);
 
-  // Dynamic suggestions tailored to user level and weak kanji mistakes
+  // Dynamic suggestions tailored to active track, level, and user mistakes
   const quickPrompts = useMemo(() => {
     const list: string[] = [];
+
+    // Track-specific questions
+    if (targetLanguage === 'id') {
+      if (language === 'my') {
+        list.push(
+          '"Selamat pagi" နှင့် "Selamat siang" အသုံးပြုပုံ ကွာခြားချက်',
+          'အင်ဒိုနီးရှား နာမ်စား "Kami" နှင့် "Kita" ခွဲခြားနည်း',
+          'အခြေခံ ဝါကျဖွဲ့စည်းပုံ (S-P-O) ဥပမာများနှင့် ရှင်းလင်းချက်',
+          'နေ့စဉ်သုံး နှုတ်ဆက်စကားများနှင့် မိတ်ဆက်ပုံ ဥပမာများ'
+        );
+      } else if (language === 'en') {
+        list.push(
+          'Difference between "Kami" and "Kita"',
+          'When to use "Selamat pagi" vs "Selamat siang"',
+          'Indonesian basic word order and pronouns',
+          'How to introduce myself in Indonesian'
+        );
+      } else {
+        list.push(
+          'Pola dasar kalimat SPO Bahasa Indonesia',
+          'Perbedaan kata ganti kami dan kita dalam konteks formal',
+          'Contoh dialog perkenalan diri dan salam sehari-hari',
+          'Aturan imbuhan me- dan ber- dalam percakapan'
+        );
+      }
+      return list.slice(0, 4);
+    }
+
+    if (targetLanguage === 'my') {
+      if (language === 'id') {
+        list.push(
+          'Cara membedakan konsonan က (Ka-Gyi) dan ခ (Kha-Gwe)',
+          'Penjelasan 3 sistem nada dalam Bahasa Myanmar',
+          'Contoh ungkapan salam sehari-hari di Myanmar',
+          'Struktur kalimat dasar Burma (S-O-V)'
+        );
+      } else if (language === 'en') {
+        list.push(
+          'How to pronounce Burmese consonants က and ခ',
+          'Explanation of the 3 tones in Burmese language',
+          'Daily greeting phrases in Myanmar',
+          'Basic Burmese sentence structure (SOV)'
+        );
+      } else {
+        list.push(
+          'အခြေခံ ဗျည်း ၃၃ လုံး အသံထွက် ကွာခြားချက်',
+          'အခြေခံ ဝါကျတည်ဆောက်ပုံ (SOV) ဥပမာများ',
+          'နေ့စဉ်သုံး နှုတ်ဆက်စကား လေ့ကျင့်ခန်း'
+        );
+      }
+      return list.slice(0, 4);
+    }
 
     // 1. Prioritize weak kanji from user actual mistakes
     if (weakWords.length > 0) {
@@ -308,9 +391,11 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
       return;
     }
 
-    playNaturalJapaneseVoice(
+    setPlayingId(id);
+    playUniversalAudio(
       text,
-      () => setPlayingId(id),
+      targetLanguage,
+      1.0,
       () => setPlayingId(null)
     );
   };
