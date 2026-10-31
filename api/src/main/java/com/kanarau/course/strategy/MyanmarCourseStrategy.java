@@ -114,7 +114,7 @@ public class MyanmarCourseStrategy implements CourseTrackStrategy {
         List<CourseCardDto> cards = new ArrayList<>();
         for (CourseItem item : items) {
             String meaning = item.getLocalizedMeaning(myLang);
-            List<String> choices = generateChoices(meaning, allTrackItems, myLang);
+            List<String> choices = generateChoices(meaning, item.getItemType(), allTrackItems, myLang);
 
             cards.add(new CourseCardDto(
                     item.getId(),
@@ -131,18 +131,38 @@ public class MyanmarCourseStrategy implements CourseTrackStrategy {
         return cards;
     }
 
-    private List<String> generateChoices(String correctAnswer, List<CourseItem> pool, String myLang) {
+    private List<String> generateChoices(String correctAnswer, String itemType, List<CourseItem> pool, String myLang) {
         Set<String> options = new LinkedHashSet<>();
         options.add(correctAnswer);
 
-        List<CourseItem> shuffledPool = new ArrayList<>(pool);
-        Collections.shuffle(shuffledPool);
+        // 1. Prioritize distractors with the exact same item_type (e.g. ALPHABET vs ALPHABET)
+        if (itemType != null) {
+            List<CourseItem> sameTypePool = pool.stream()
+                    .filter(c -> itemType.equalsIgnoreCase(c.getItemType()))
+                    .toList();
+            List<CourseItem> shuffledSame = new ArrayList<>(sameTypePool);
+            Collections.shuffle(shuffledSame);
 
-        for (CourseItem cand : shuffledPool) {
-            String candMeaning = cand.getLocalizedMeaning(myLang);
-            if (candMeaning != null && !candMeaning.equalsIgnoreCase(correctAnswer)) {
-                options.add(candMeaning);
-                if (options.size() >= 4) break;
+            for (CourseItem cand : shuffledSame) {
+                String candMeaning = cand.getLocalizedMeaning(myLang);
+                if (candMeaning != null && !candMeaning.equalsIgnoreCase(correctAnswer)) {
+                    options.add(candMeaning);
+                    if (options.size() >= 4) break;
+                }
+            }
+        }
+
+        // 2. Fallback if not enough candidates of same type
+        if (options.size() < 4) {
+            List<CourseItem> shuffledPool = new ArrayList<>(pool);
+            Collections.shuffle(shuffledPool);
+
+            for (CourseItem cand : shuffledPool) {
+                String candMeaning = cand.getLocalizedMeaning(myLang);
+                if (candMeaning != null && !candMeaning.equalsIgnoreCase(correctAnswer)) {
+                    options.add(candMeaning);
+                    if (options.size() >= 4) break;
+                }
             }
         }
 

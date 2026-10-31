@@ -800,16 +800,25 @@ export const StudySessionPage: React.FC = () => {
       })
     : null;
 
+  const isAlphabetItem =
+    currentCard?.direction === 'ALPHABET' ||
+    (currentCard?.kotoba as any)?.item_type === 'ALPHABET';
+
   const hasKanji = (text?: string) => !!text && /[\u4e00-\u9faf]/.test(text);
 
-  const directionLabel =
-    currentCard?.direction === 'kanji_to_hiragana'
-      ? t.studySession.pickHiragana
-      : currentCard?.direction === 'kanji_to_meaning'
-      ? t.studySession.pickMeaning
-      : hasKanji(currentCard?.correct_answer)
-      ? t.studySession.pickKanji
-      : t.studySession.pickWord;
+  const directionLabel = isAlphabetItem
+    ? language === 'my'
+      ? 'မှန်ကန်သော ဗျည်းအသံထွက်ကို ရွေးပါ'
+      : language === 'en'
+      ? 'Identify the Correct Consonant Sound'
+      : 'Pilih Nama / Bunyi Konsonan yang Tepat'
+    : currentCard?.direction === 'kanji_to_hiragana'
+    ? t.studySession.pickHiragana
+    : currentCard?.direction === 'kanji_to_meaning'
+    ? t.studySession.pickMeaning
+    : hasKanji(currentCard?.correct_answer)
+    ? t.studySession.pickKanji
+    : t.studySession.pickWord;
 
   return (
     <>
@@ -890,7 +899,10 @@ export const StudySessionPage: React.FC = () => {
             <h1 className="text-4xl sm:text-5xl font-bold font-jp text-[#1E1B18] tracking-wider select-none leading-tight">
               {currentCard?.question}
             </h1>
-            {currentCard?.kotoba?.hiragana && currentCard.kotoba.hiragana !== currentCard.question && (
+            {currentCard?.kotoba?.hiragana &&
+              currentCard.kotoba.hiragana !== currentCard.question &&
+              currentCard.direction !== 'kanji_to_hiragana' &&
+              !isAlphabetItem && (
               <p className="text-xs font-semibold text-indigo-600 font-jp mt-1">
                 {currentCard.kotoba.hiragana}
               </p>
