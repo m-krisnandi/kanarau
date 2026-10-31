@@ -96,8 +96,12 @@ export const BelajarPage: React.FC = () => {
             const mergedDecks = mergeTrackDeckProgress(courseDecks, userKey, activeTrack);
             setDecks(mergedDecks);
             setMaxUnlockedDay(999);
-            setCurrentTodayDay(courseDecks[0]?.day_number || 1);
-            setOpenWeeks({ 1: true });
+            const weeksMap: Record<number, boolean> = { 1: true };
+            courseDecks.forEach((d) => {
+              const w = Math.ceil(d.day_number / 7);
+              weeksMap[w] = true;
+            });
+            setOpenWeeks(weeksMap);
           } else {
             setDecks([]);
           }
