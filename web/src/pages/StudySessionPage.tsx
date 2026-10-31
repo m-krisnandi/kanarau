@@ -465,32 +465,82 @@ export const StudySessionPage: React.FC = () => {
 
   const handleAskAiAboutCurrent = () => {
     if (!currentCard) return;
-    const word = currentCard.kotoba.kanji || currentCard.kotoba.hiragana;
-    const reading = currentCard.kotoba.hiragana;
-    const cardLevel = currentCard.kotoba.jlpt_level || currentLevel;
-    const prompt = language === 'my'
-      ? `JLPT ${cardLevel} ဝေါဟာရ "${word}" (${reading}) အကြောင်းကို အကျဉ်းချုပ်ရှင်းပြပါ။ သုံးစွဲပုံ အဓိပ္ပာယ်၊ JLPT အဓိကအချက်များ၊ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် စာမေးပွဲလှည့်ကွက်များကို ရှင်းပြပါ။`
-      : language === 'en'
-      ? `Briefly explain the JLPT ${cardLevel} vocabulary "${word}" (${reading}). Provide usage nuances, JLPT key collocations, 1 practical example sentence with translation, and exam tips.`
-      : `Jelaskan secara ringkas kosakata "${word}" (bacaan hiragana baku: "${reading}") untuk JLPT ${cardLevel}. Berikan nuansa pemakaian, kunci JLPT (pasangan kata / lawan kata), 1 contoh kalimat praktis beserta terjemahannya, dan trik ujian.`;
+    const word = currentCard.kotoba.kanji || currentCard.kotoba.hiragana || currentCard.question;
+    const reading = currentCard.kotoba.hiragana || (currentCard.kotoba as any).romanization || '';
+    const cardLevel = currentCard.kotoba.jlpt_level || activeLevel || currentLevel;
+
+    let prompt = '';
+    let display = '';
+
+    if (targetLanguage === 'id') {
+      prompt = language === 'my'
+        ? `အင်ဒိုနီးရှားဘာသာ (${activeLevel}) ဝေါဟာရ "${word}" အကြောင်းကို ရှင်းပြပေးပါ။\n၁။ အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ (ဖော်မလ်/အလွတ်သဘော)\n၂။ ဝါကျဖွဲ့စည်းပုံ (S-P-O vs S-O-V): အင်ဒိုနီးရှားတွင် ကြိယာသည် ကံရှေ့တွင်လာပြီး မြန်မာစကားနှင့် အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ\n၃။ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် မြန်မာဘာသာပြန်\nကျေးဇူးပြု၍ JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်။`
+        : language === 'en'
+        ? `Explain the Indonesian (${activeLevel}) word "${word}". Provide meaning, sentence structure breakdown (SPO order vs SOV), and 1 practical example with translation. Do not mention JLPT or Japanese.`
+        : `Jelaskan secara ringkas kosakata Bahasa Indonesia (${activeLevel}) "${word}". Berikan nuansa pemakaian, analisis pola kalimat (SPO), dan 1 contoh praktis kalimat.`;
+      display = language === 'my'
+        ? `"${word}" ဝါကျဖွဲ့စည်းပုံ (S-P-O) နှင့် အဓိပ္ပာယ်`
+        : language === 'en'
+        ? `"${word}" Meaning & SPO Sentence Structure`
+        : `Arti & Pola SPO "${word}"`;
+    } else if (targetLanguage === 'my') {
+      prompt = language === 'id'
+        ? `Jelaskan kosakata / huruf Myanmar (${activeLevel}) "${word}". Berikan cara baca fonetik latin untuk orang Indonesia, arti, dan pola kalimat dasar Burma (S-O-V). Jangan sebutkan JLPT.`
+        : language === 'en'
+        ? `Explain the Burmese (${activeLevel}) word/letter "${word}". Provide romanized pronunciation, meaning, and SOV sentence pattern. Do not mention JLPT.`
+        : `မြန်မာစကားလုံး "${word}" ၏ အဓိပ္ပာယ်၊ အသံထွက်နှင့် သုံးစွဲပုံကို ရှင်းပြပါ။`;
+      display = language === 'id' ? `Tanya bahasa Myanmar: ${word}` : `Ask Burmese: ${word}`;
+    } else {
+      prompt = language === 'my'
+        ? `JLPT ${cardLevel} ဝေါဟာရ "${word}" (${reading}) အကြောင်းကို အကျဉ်းချုပ်ရှင်းပြပါ။ သုံးစွဲပုံ အဓိပ္ပာယ်၊ JLPT အဓိကအချက်များ၊ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် စာမေးပွဲလှည့်ကွက်များကို ရှင်းပြပါ။`
+        : language === 'en'
+        ? `Briefly explain the JLPT ${cardLevel} vocabulary "${word}" (${reading}). Provide usage nuances, JLPT key collocations, 1 practical example sentence with translation, and exam tips.`
+        : `Jelaskan secara ringkas kosakata "${word}" (bacaan hiragana baku: "${reading}") untuk JLPT ${cardLevel}. Berikan nuansa pemakaian, kunci JLPT (pasangan kata / lawan kata), 1 contoh kalimat praktis beserta terjemahannya, dan trik ujian.`;
+      display = language === 'my' ? `ဝေါဟာရ မေးမြန်းရန် (${cardLevel}) - ${word} (${reading})` : language === 'en' ? `Ask Vocabulary (${cardLevel}): ${word} (${reading})` : `Tanya kosakata ${cardLevel}: ${word} (${reading})`;
+    }
+
     setAiInitialPrompt(prompt);
-    setAiInitialDisplay(language === 'my' ? `ဝေါဟာရ မေးမြန်းရန် (${cardLevel}) - ${word} (${reading})` : language === 'en' ? `Ask Vocabulary (${cardLevel}): ${word} (${reading})` : `Tanya kosakata ${cardLevel}: ${word} (${reading})`);
+    setAiInitialDisplay(display);
     setAiModalOpen(true);
   };
 
   const handleAskAiWhyWrong = () => {
     if (!currentCard || !selectedChoice) return;
     const word = currentCard.question;
-    const reading = currentCard.kotoba.hiragana;
+    const reading = currentCard.kotoba.hiragana || (currentCard.kotoba as any).romanization || '';
     const meaning = currentCard.kotoba.meaning;
-    const cardLevel = currentCard.kotoba.jlpt_level || currentLevel;
-    const prompt = language === 'my'
-      ? `ကျွန်ုပ်သည် JLPT ${cardLevel} မေးခွန်း "${word}" (အသံထွက်: ${reading}, အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်ကွဲပြားပုံနှင့် စာမေးပွဲအတွက် မှတ်သားနည်းကို တိုတိုရှင်းရှင်း ရှင်းပြပါ။ (ကျေးဇူးပြု၍ furigana/hiragana မှန်ကန်မှုရှိစေရန် သတိပြုပါ)`
-      : language === 'en'
-      ? `I answered a JLPT ${cardLevel} question about "${word}" (reading: ${reading}, meaning: "${meaning}"). I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was incorrect, the nuance difference, and memory tips for the exam. Ensure all Japanese furigana/hiragana readings are strictly accurate.`
-      : `Saya menjawab soal JLPT ${cardLevel} tentang "${word}" (bacaan hiragana baku: "${reading}", arti: "${meaning}"). Pilihan saya "${selectedChoice}", jawaban yang benar adalah "${currentCard.correct_answer}". Jelaskan secara singkat to-the-point mengapa pilihan saya keliru, apa perbedaan nuansanya, dan trik mengingatnya untuk ujian. Pastikan furigana / hiragana kanji 100% akurat sesuai kamus baku (misal: 憧れる dibaca あこがれる, bukan あがれる).`;
+    const cardLevel = currentCard.kotoba.jlpt_level || activeLevel || currentLevel;
+
+    let prompt = '';
+    let display = '';
+
+    if (targetLanguage === 'id') {
+      prompt = language === 'my'
+        ? `ကျွန်ုပ်သည် အင်ဒိုနီးရှားဘာသာ (${activeLevel}) မေးခွန်း "${word}" (အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်နှင့် ဝါကျဖွဲ့စည်းပုံ (S-P-O) ကွာခြားချက်ကို မြန်မာဘာသာဖြင့် တိုတိုရှင်းရှင်း ရှင်းပြပေးပါ။ (JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်)`
+        : language === 'en'
+        ? `I answered an Indonesian (${activeLevel}) question about "${word}". I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was wrong and the usage/SPO word order difference.`
+        : `Saya menjawab soal Bahasa Indonesia (${activeLevel}) tentang "${word}". Pilihan saya "${selectedChoice}", jawaban benar "${currentCard.correct_answer}". Jelaskan singkat mengapa pilihan saya keliru dan apa perbedaannya.`;
+      display = language === 'my'
+        ? `အဘယ်ကြောင့် မှားယွင်းသနည်း "${selectedChoice}"? အဖြေမှန် - "${currentCard.correct_answer}"`
+        : language === 'en'
+        ? `Why is "${selectedChoice}" wrong? Correct answer: "${currentCard.correct_answer}"`
+        : `Kenapa keliru "${selectedChoice}"? Jawaban benar: "${currentCard.correct_answer}"`;
+    } else if (targetLanguage === 'my') {
+      prompt = language === 'id'
+        ? `Saya menjawab soal bahasa Myanmar (${activeLevel}) "${word}". Pilihan saya "${selectedChoice}", jawaban benar "${currentCard.correct_answer}". Jelaskan singkat letak kekeliruan dan cara mengingatnya.`
+        : `I answered a Burmese (${activeLevel}) question about "${word}". I chose "${selectedChoice}", correct answer is "${currentCard.correct_answer}". Explain why it is wrong.`;
+      display = `Koreksi Pilihan: "${selectedChoice}" vs "${currentCard.correct_answer}"`;
+    } else {
+      prompt = language === 'my'
+        ? `ကျွန်ုပ်သည် JLPT ${cardLevel} မေးခွန်း "${word}" (အသံထွက်: ${reading}, အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်ကွဲပြားပုံနှင့် စာမေးပွဲအတွက် မှတ်သားနည်းကို တိုတိုရှင်းရှင်း ရှင်းပြပါ။ (ကျေးဇူးပြု၍ furigana/hiragana မှန်ကန်မှုရှိစေရန် သတိပြုပါ)`
+        : language === 'en'
+        ? `I answered a JLPT ${cardLevel} question about "${word}" (reading: ${reading}, meaning: "${meaning}"). I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was incorrect, the nuance difference, and memory tips for the exam. Ensure all Japanese furigana/hiragana readings are strictly accurate.`
+        : `Saya menjawab soal JLPT ${cardLevel} tentang "${word}" (bacaan hiragana baku: "${reading}", arti: "${meaning}"). Pilihan saya "${selectedChoice}", jawaban yang benar adalah "${currentCard.correct_answer}". Jelaskan secara singkat to-the-point mengapa pilihan saya keliru, apa perbedaan nuansanya, dan trik mengingatnya untuk ujian. Pastikan furigana / hiragana kanji 100% akurat sesuai kamus baku (misal: 憧れる dibaca あこがれる, bukan あがれる).`;
+      display = language === 'my' ? `အဘယ်ကြောင့် မှားယွင်းသနည်း "${selectedChoice}"? အဖြေမှန် - "${currentCard.correct_answer}"` : language === 'en' ? `Why is "${selectedChoice}" wrong? Correct answer: "${currentCard.correct_answer}"` : `Kenapa keliru "${selectedChoice}"? Jawaban benar: "${currentCard.correct_answer}"`;
+    }
+
     setAiInitialPrompt(prompt);
-    setAiInitialDisplay(language === 'my' ? `အဘယ်ကြောင့် မှားယွင်းသနည်း "${selectedChoice}"? အဖြေမှန် - "${currentCard.correct_answer}"` : language === 'en' ? `Why is "${selectedChoice}" wrong? Correct answer: "${currentCard.correct_answer}"` : `Kenapa keliru "${selectedChoice}"? Jawaban benar: "${currentCard.correct_answer}"`);
+    setAiInitialDisplay(display);
     setAiModalOpen(true);
   };
 
@@ -694,6 +744,11 @@ export const StudySessionPage: React.FC = () => {
             onClose={() => setSelectedCourseItemForDetail(null)}
             targetLanguage={targetLanguage}
             myLanguage={language}
+            onAskAi={(prompt, display) => {
+              setAiInitialPrompt(prompt);
+              setAiInitialDisplay(display);
+              setAiModalOpen(true);
+            }}
           />
         )}
 
@@ -1112,6 +1167,11 @@ export const StudySessionPage: React.FC = () => {
           onClose={() => setSelectedCourseItemForDetail(null)}
           targetLanguage={targetLanguage}
           myLanguage={language}
+          onAskAi={(prompt, display) => {
+            setAiInitialPrompt(prompt);
+            setAiInitialDisplay(display);
+            setAiModalOpen(true);
+          }}
         />
       )}
 

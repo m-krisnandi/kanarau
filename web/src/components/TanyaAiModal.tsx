@@ -129,27 +129,28 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
     if (targetLanguage === 'id') {
       if (language === 'my') {
         list.push(
-          '"Selamat pagi" နှင့် "Selamat siang" အသုံးပြုပုံ ကွာခြားချက်',
+          'အခြေခံ ဝါကျဖွဲ့စည်းပုံ (S-P-O vs S-O-V) ကွာခြားချက်နှင့် ဥပမာများ',
+          'အင်ဒိုနီးရှားတွင် ကြိယာ (Predikat) နှင့် ကံ (Objek) အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ',
           'အင်ဒိုနီးရှား နာမ်စား "Kami" နှင့် "Kita" ခွဲခြားနည်း',
-          'အခြေခံ ဝါကျဖွဲ့စည်းပုံ (S-P-O) ဥပမာများနှင့် ရှင်းလင်းချက်',
-          'နေ့စဉ်သုံး နှုတ်ဆက်စကားများနှင့် မိတ်ဆက်ပုံ ဥပမာများ'
+          '"Selamat pagi" နှင့် "Selamat siang" အသုံးပြုပုံ ကွာခြားချက်',
+          'Subjek, Predikat, Objek, Keterangan (S-P-O-K) အသုံးပြုပုံ'
         );
       } else if (language === 'en') {
         list.push(
+          'Indonesian Word Order (S-P-O vs S-O-V) and sentence structure',
           'Difference between "Kami" and "Kita"',
           'When to use "Selamat pagi" vs "Selamat siang"',
-          'Indonesian basic word order and pronouns',
-          'How to introduce myself in Indonesian'
+          'Basic Subjek, Predikat, Objek, Keterangan breakdown'
         );
       } else {
         list.push(
-          'Pola dasar kalimat SPO Bahasa Indonesia',
+          'Pola dasar kalimat S-P-O Bahasa Indonesia vs S-O-V',
           'Perbedaan kata ganti kami dan kita dalam konteks formal',
-          'Contoh dialog perkenalan diri dan salam sehari-hari',
+          'Contoh pembagian Subjek, Predikat, Objek, Keterangan',
           'Aturan imbuhan me- dan ber- dalam percakapan'
         );
       }
-      return list.slice(0, 4);
+      return list.slice(0, 5);
     }
 
     if (targetLanguage === 'my') {
@@ -426,7 +427,13 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
                   {t.ai.title}
                 </h3>
                 <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
-                   {t.common.level} {currentLevel}
+                  {targetLanguage === 'id'
+                    ? `🇮🇩 ${activeLevel}`
+                    : targetLanguage === 'my'
+                    ? `🇲🇲 ${activeLevel}`
+                    : targetLanguage === 'en'
+                    ? `🇬🇧 ${activeLevel}`
+                    : `${t.common.level} ${currentLevel}`}
                 </span>
               </div>
               <p className="text-[11px] text-[#78716C] dark:text-zinc-400">
@@ -453,7 +460,19 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
           <div className="flex items-center space-x-1.5 text-[10px] font-bold text-[#A8A29E] dark:text-zinc-400 uppercase tracking-wider">
             <HelpCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
             <span>
-              {weakWords.length > 0
+              {targetLanguage === 'id'
+                ? language === 'my'
+                  ? `အကြံပြုထားသော ခေါင်းစဉ်များ (${activeLevel})-`
+                  : language === 'en'
+                  ? `Recommended Topics (${activeLevel}):`
+                  : `Rekomendasi Topik (${activeLevel}):`
+                : targetLanguage === 'my'
+                ? language === 'id'
+                  ? `Rekomendasi Topik (${activeLevel}):`
+                  : `အကြံပြုထားသော ခေါင်းစဉ်များ (${activeLevel})-`
+                : targetLanguage === 'en'
+                ? `Recommended Topics (${activeLevel}):`
+                : weakWords.length > 0
                 ? t.ai.weakLabel(currentLevel)
                 : t.ai.suggestionLabel(currentLevel)}
             </span>
@@ -520,8 +539,8 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
                     <div className="pt-2.5 mt-3 border-t border-[#F2ECE3] dark:border-[#28354D] flex items-center justify-between text-[11px] text-[#A8A29E] dark:text-zinc-400">
                       <span>{msg.timestamp}</span>
                       <div className="flex items-center space-x-2">
-                        {/* Audio speaker only shown when message contains Japanese text to pronounce */}
-                        {hasJapanese && (
+                        {/* Audio speaker shown for Japanese or non-Japanese speech */}
+                        {(hasJapanese || targetLanguage !== 'ja') && (
                           <button
                             type="button"
                             onClick={() => handlePlaySpeech(msg.id, msg.content)}
@@ -597,7 +616,21 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
               autoFocus
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={t.ai.placeholder(currentLevel)}
+              placeholder={
+                targetLanguage === 'id'
+                  ? language === 'my'
+                    ? 'အင်ဒိုနီးရှား ဝေါဟာရ၊ ဝါကျဖွဲ့စည်းပုံ (S-P-O) သို့မဟုတ် သဒ္ဒါကို မေးမြန်းပါ...'
+                    : language === 'en'
+                    ? 'Ask about Indonesian vocabulary, SPO sentence structure, or grammar...'
+                    : 'Tanyakan kosakata, struktur kalimat S-P-O, atau tata bahasa BIPA...'
+                  : targetLanguage === 'my'
+                  ? language === 'id'
+                    ? 'Tanyakan aksara Burma, sistem nada, atau pola kalimat SOV...'
+                    : 'မြန်မာ အက္ခရာ၊ သဒ္ဒါ သို့မဟုတ် စကားပြောကို မေးမြန်းပါ...'
+                  : targetLanguage === 'en'
+                  ? 'Ask about English vocabulary, grammar, or conversation...'
+                  : t.ai.placeholder(currentLevel)
+              }
               disabled={loading}
               className="flex-1 px-4 py-2.5 bg-[#FAF8F5] dark:bg-[#151D2E] rounded-xl border border-[#EFEAE2] dark:border-[#232F46] text-xs sm:text-sm text-[#1E1B18] dark:text-slate-100 placeholder:text-[#A8A29E] dark:placeholder:text-zinc-500 focus:outline-hidden focus:border-indigo-500 focus:bg-white dark:focus:bg-[#151D2E] transition-all shadow-inner"
             />

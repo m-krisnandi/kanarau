@@ -12,6 +12,7 @@ import { KanjiDetailView } from '@/components/KanjiDetailView';
 import { BunpoPracticeView } from '@/components/bunpo/BunpoPracticeView';
 import { DokkaiPracticeView } from '@/components/dokkai/DokkaiPracticeView';
 import { ChoukaiPracticeView } from '@/components/choukai/ChoukaiPracticeView';
+import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { getUserKey } from '@/utils/userProgressHelper';
 import {
   ArrowLeft,
@@ -68,6 +69,9 @@ export const BelajarPage: React.FC = () => {
   const [activeKotoba, setActiveKotoba] = useState<Kotoba | null>(null);
   const [activeCourseItem, setActiveCourseItem] = useState<CourseCardDetailItem | null>(null);
   const [activeKanjiChar, setActiveKanjiChar] = useState<string | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiDisplayText, setAiDisplayText] = useState('');
 
   const [currentTodayDay, setCurrentTodayDay] = useState<number>(1);
   const [maxUnlockedDay, setMaxUnlockedDay] = useState<number>(1);
@@ -775,6 +779,11 @@ export const BelajarPage: React.FC = () => {
           onClose={() => setActiveCourseItem(null)}
           targetLanguage={targetLanguage}
           myLanguage={language}
+          onAskAi={(prompt, display) => {
+            setAiPrompt(prompt);
+            setAiDisplayText(display);
+            setIsAiModalOpen(true);
+          }}
         />
       )}
 
@@ -785,6 +794,14 @@ export const BelajarPage: React.FC = () => {
           onSelectKotoba={(k) => setActiveKotoba(k)}
         />
       )}
+
+      {/* Tanya AI Modal */}
+      <TanyaAiModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        initialPrompt={aiPrompt}
+        initialDisplayText={aiDisplayText}
+      />
     </div>
   );
 };

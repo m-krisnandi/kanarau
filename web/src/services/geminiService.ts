@@ -189,26 +189,57 @@ export async function askGemini(prompt: string, history: ChatMessage[] = []): Pr
   let strictDirective = '';
 
   if (targetLang === 'id') {
-    // Learning Indonesian
+    // Learning Indonesian (BIPA)
     if (lang === 'my') {
-      chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, teaching Bahasa Indonesia to native Myanmar (Burmese) speakers.
-Your mission is to explain Indonesian vocabulary, pronunciation, grammar, and affixes (me-, ber-, di-, pe-, ke-an) using clear, natural MYANMAR (BURMESE) SCRIPT.
-Provide practical everyday examples and contrast Indonesian sentence structure (SPO) with Burmese (SOV) when helpful.
-Do not use emojis. Be direct, clear, and educational.`;
+      chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, a language specialist teaching Bahasa Indonesia to native Myanmar (Burmese) speakers.
+Your mission is to explain Indonesian vocabulary, pronunciation, grammar rules, affixes, and sentence structures using clear, natural, and polite MYANMAR (BURMESE) SCRIPT.
+
+CRITICAL RULES:
+1. STRICTLY NO JAPANESE / ZERO JLPT: You are teaching BAHASA INDONESIA (BIPA). NEVER mention "JLPT", "Kanji", "N1", "N2", "N3", "N4", "N5", or Japanese exam terms under any circumstances.
+2. SENTENCE STRUCTURE & WORD ORDER CONTRAST (S-P-O vs S-O-V):
+   - Burmese speakers struggle because Indonesian word order is S-P-O (Subjek - Predikat - Objek), whereas Burmese is S-O-V (Subjek - Objek - Predikat).
+   - In Indonesian, the Predikat / Verb comes BEFORE the Object. In Burmese, the Verb is always at the END.
+   - ALWAYS explain the sentence structure clearly using these terms:
+     • Subjek (ကတ္တား - ဝါကျ၏ လုပ်ဆောင်သူ)
+     • Predikat (ကြိယာ/နာမဝိသေသန - လုပ်ဆောင်ချက် သို့မဟုတ် အခြေအနေ)
+     • Objek (ကံ - ခံရသူ/ပစ္စည်း)
+     • Keterangan (အခြေအနေပြ - အချိန်/နေရာ/အခြား)
+   - Highlight the inversion clearly so the learner understands why Indonesian order is reversed from Burmese!
+3. RESPONSE FORMAT (Follow this clean structure in Myanmar script):
+   ### **[Indonesian Word / Sentence]**
+   • **အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ:** [Clear definition, formal vs informal usage in Myanmar script]
+   • **ဝါကျဖွဲ့စည်းပုံ (S-P-O ဝါကျအစီအစဉ်):**
+     - Subjek (ကတ္တား): [Who is performing the action]
+     - Predikat (ကြိယာ/နာမဝိသေသန): [Action or state, noting it comes BEFORE the object]
+     - Objek (ကံ): [Object or recipient]
+     - Keterangan (အခြေအနေပြ): [Adverbial/place/time, if applicable]
+     - မြန်မာလို အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ: [Direct contrast with Burmese S-O-V order]
+   • **လက်တွေ့ကျသော ဥပမာ စာကြောင်း:**
+     > **[Natural Indonesian sentence]**
+     > ဘာသာပြန်: [Natural Burmese translation]
+   • **သတိပြုရန် အဓိက အချက်:** [Essential practical tip for Myanmar learners]
+4. TONE & STYLE:
+   - Educational, polite, highly encouraging, and to-the-point.
+   - No emojis. Pure clean markdown.`;
       userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
-      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA to a MYANMAR native speaker. Explain in natural MYANMAR SCRIPT. No Japanese.]\n\n';
+      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA to a MYANMAR native speaker. Explain in natural MYANMAR SCRIPT. NEVER mention JLPT or Japanese. Explain S-P-O vs S-O-V.]\n\n';
     } else if (lang === 'en') {
       chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, teaching Bahasa Indonesia to English speakers.
-Explain Indonesian vocabulary, pronunciation, grammar, and affixes clearly in ENGLISH with natural examples.
-Do not use emojis. Be direct, clear, and educational.`;
+CRITICAL INSTRUCTIONS:
+1. NEVER mention "JLPT", "Kanji", "N1-N5", or anything Japanese. This is strictly a BAHASA INDONESIA (BIPA) course.
+2. Explain Indonesian vocabulary, sentence structure (S-P-O: Subject - Predicate - Object), and affixes clearly in ENGLISH.
+3. Provide practical everyday examples and grammatical role breakdown (Subjek, Predikat, Objek, Keterangan).
+4. Do not use emojis.`;
       userPrefix = 'User Question:\n';
-      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA in ENGLISH. No Japanese.]\n\n';
+      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA in ENGLISH. NEVER mention JLPT or Japanese. Explain S-P-O word order.]\n\n';
     } else {
       chosenSystemInstruction = `Kamu adalah "AI Sensei" di aplikasi Kanarau, pembimbing kemahiran Bahasa Indonesia (BIPA/UKBI).
-Jelaskan kosakata, tata bahasa baku KBBI, dan struktur kalimat secara tajam, lugas, dan edukatif dalam Bahasa Indonesia.
-DILARANG menggunakan emoji.`;
+INSTRUKSI PENTING:
+1. JANGAN PERNAH menyebut "JLPT", "Kanji", atau level ujian bahasa Jepang (N1-N5). Ini adalah modul pembelajaran BAHASA INDONESIA.
+2. Jelaskan struktur kalimat SPOK (Subjek, Predikat, Objek, Keterangan), perbandingannya dengan bahasa lain (seperti bahasa berpola SOV), kelas kata, serta kaidah baku KBBI secara lugas dan edukatif.
+3. DILARANG menggunakan emoji.`;
       userPrefix = 'Pertanyaan pengguna:\n';
-      strictDirective = '[STRICT DIRECTIVE: Jelaskan kaidah BAHASA INDONESIA secara mendalam.]\n\n';
+      strictDirective = '[STRICT DIRECTIVE: Jelaskan kaidah BAHASA INDONESIA secara mendalam dengan analisis struktur kalimat SPOK. Dilarang menyebut JLPT.]\n\n';
     }
   } else if (targetLang === 'my') {
     // Learning Burmese
@@ -306,34 +337,45 @@ Do not use emojis.`;
         .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
         .trim();
 
-      // 2. Post-processing purifier: Eliminate any stray Indonesian keywords for Burmese or English
-      if (lang === 'my') {
+      // 2. Post-processing purifier: Eliminate any stray keywords or format headers
+      if (targetLang === 'ja') {
+        if (lang === 'my') {
+          cleanText = cleanText
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **သဘောသဘာဝ (Nuance):** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT အဓိက သော့ချက်:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Menemukan Kunci|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **စာမေးပွဲ သော့ချက်:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **မှန်ကန်သော အဖြေ:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika|Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **ယုတ္တိနည်းကျ အကြောင်းပြချက်:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah|Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **အခြားရွေးချယ်စရာများ မှားယွင်းရသောအချက်:** ')
+            .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> ဘာသာပြန်: ')
+            .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai လေ့လာဆန်းစစ်ချက်:**')
+            .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai လေ့လာဆန်းစစ်ချက်:**')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **ဥပမာ စာကြောင်း:** ');
+        } else if (lang === 'en') {
+          cleanText = cleanText
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **Nuance:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT Key Points:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **Exam Tips:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Menemukan Kunci|trik menemukan kunci)(?:\*{0,2})\s*[:：]/gmi, '\n• **Key Strategy:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **Correct Answer:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika)(?:\*{0,2})\s*[:：]/gmi, '\n• **Logical Reason:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Reason:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah)(?:\*{0,2})\s*[:：]/gmi, '\n• **Why Other Options Are Wrong:** ')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Trap Analysis:** ')
+            .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> Translation: ')
+            .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai Analysis:**')
+            .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai Analysis:**')
+            .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **Example Sentence:** ');
+        }
+      } else {
+        // Non-Japanese tracks: PURGE any accidental JLPT or Japanese exam terms
         cleanText = cleanText
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **သဘောသဘာဝ (Nuance):** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT အဓိက သော့ချက်:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Menemukan Kunci|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **စာမေးပွဲ သော့ချက်:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **မှန်ကန်သော အဖြေ:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika|Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **ယုတ္တိနည်းကျ အကြောင်းပြချက်:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah|Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **အခြားရွေးချယ်စရာများ မှားယွင်းရသောအချက်:** ')
-          .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> ဘာသာပြန်: ')
-          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai လေ့လာဆန်းစစ်ချက်:**')
-          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai လေ့လာဆန်းစစ်ချက်:**')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **ဥပမာ စာကြောင်း:** ');
-      } else if (lang === 'en') {
-        cleanText = cleanText
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, '\n• **Nuance:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt)(?:\*{0,2})\s*[:：]/gmi, '\n• **JLPT Key Points:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian|Trik Dokkai|Trik Choukai)(?:\*{0,2})\s*[:：]/gmi, '\n• **Exam Tips:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Menemukan Kunci|trik menemukan kunci)(?:\*{0,2})\s*[:：]/gmi, '\n• **Key Strategy:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jawaban Benar|jawaban benar)(?:\*{0,2})\s*[:：]/gmi, '\n• **Correct Answer:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan Logika|alasan logika)(?:\*{0,2})\s*[:：]/gmi, '\n• **Logical Reason:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Alasan|alasan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Reason:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kenapa Opsi Lain Salah|kenapa opsi lain salah)(?:\*{0,2})\s*[:：]/gmi, '\n• **Why Other Options Are Wrong:** ')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Jebakan|jebakan|Bedah Jebakan)(?:\*{0,2})\s*[:：]/gmi, '\n• **Trap Analysis:** ')
-          .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, '\n> Translation: ')
-          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Dokkai|analisis dokkai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Dokkai Analysis:**')
-          .replace(/(?:^|\n)\s*###\s*(?:\*{0,2})(?:Analisis Choukai|analisis choukai)\s*[:：]?(?:\*{0,2})/gmi, '\n### **Choukai Analysis:**')
-          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Contoh Kalimat|contoh kalimat)(?:\*{0,2})\s*[:：]/gmi, '\n• **Example Sentence:** ');
+          .replace(/JLPT\s*(?:အဓိက\s*အချက်များ|အဓိက\s*သော့ချက်|အဓိက\s*အချက်)?/gi, lang === 'my' ? 'ဝါကျဖွဲ့စည်းပုံ (S-P-O)' : 'Struktur SPO')
+          .replace(/\bJLPT\s*(?:N[1-5])?\b/gi, targetLang === 'id' ? 'BIPA' : 'Level')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Kunci JLPT|kunci jlpt|Kunci Utama|kunci utama)(?:\*{0,2})\s*[:：]/gmi, lang === 'my' ? '\n• **အဓိက သော့ချက် (ဝါကျအစီအစဉ် S-P-O):** ' : '\n• **Kunci Pola Kalimat (SPO):** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Nuansa|nuansa)(?:\*{0,2})\s*[:：]/gmi, lang === 'my' ? '\n• **သဘောသဘာဝ (Nuance):** ' : '\n• **Nuansa Pemakaian:** ')
+          .replace(/(?:^|\n)\s*(?:[•\-\x2a]\s*)?(?:\*{0,2})(?:Trik Ujian|trik ujian)(?:\*{0,2})\s*[:：]/gmi, lang === 'my' ? '\n• **သတိပြုရန် အချက်:** ' : '\n• **Tips Praktis:** ')
+          .replace(/(?:^|\n)\s*(?:>\s*)?Terjemahan\s*[:：]/gmi, lang === 'my' ? '\n> ဘာသာပြန်: ' : '\n> Terjemahan: ');
       }
 
       return cleanText;
