@@ -20,6 +20,8 @@ import { useReviewStore } from '@/stores/reviewStore';
 import { useTranslation } from '@/stores/languageStore';
 import { reviewApi, progressApi } from '@/services/api';
 import type { OverallStats, DayStats } from '@/types';
+import { useCourseStore } from '@/stores/courseStore';
+import { DailyFocusRoutineCard } from '@/components/DailyFocusRoutineCard';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { calculateUserLevel } from '@/utils/levelHelper';
@@ -43,6 +45,7 @@ export const DashboardPage: React.FC = () => {
   const currentLevel = useAuthStore((state) => state.currentLevel) || user?.current_level || 'N2';
   const { pendingCount, setPendingCount } = useReviewStore();
   const { t, language } = useTranslation();
+  const { activeTrack, activeLevel, targetLanguage, setModalOpen } = useCourseStore();
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
@@ -419,9 +422,15 @@ export const DashboardPage: React.FC = () => {
         <div className="card-washi rounded-2xl p-2.5 sm:p-3 border border-[#EFEAE2] dark:border-[#232F46] relative overflow-hidden bg-gradient-to-br from-white via-white to-indigo-50/20 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/30 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center flex-wrap gap-1.5">
-              <span className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-100/80">
-                 {t.common.level} {level}
-              </span>
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="text-[10px] sm:text-[11px] font-extrabold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/70 dark:text-indigo-300 dark:border-indigo-800/60 px-2 sm:px-2.5 py-0.5 rounded-full border border-indigo-100/80 cursor-pointer hover:bg-indigo-100 transition-colors flex items-center space-x-1"
+                title="Ganti Program Belajar"
+              >
+                <span>{targetLanguage === 'id' ? '🇮🇩' : targetLanguage === 'my' ? '🇲🇲' : targetLanguage === 'en' ? '🇬🇧' : '🇯🇵'}</span>
+                <span>{activeTrack === 'JA' ? `${t.common.level} ${level}` : `${activeTrack} ${activeLevel}`}</span>
+              </button>
               <span className="text-[10px] sm:text-[11px] text-[#78716C] dark:text-slate-400 flex items-center space-x-1">
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                 <span>{t.dashboard.streak(currentStreak)}</span>
@@ -451,7 +460,7 @@ export const DashboardPage: React.FC = () => {
               {t.dashboard.greeting((user?.name || (user?.email ? user.email.split('@')[0] : '')) || 'Pembelajar')}
             </h1>
             <p className="text-[11px] sm:text-xs text-[#78716C] dark:text-slate-400 shrink-0 ml-2">
-              {t.dashboard.focusPrefix} <strong className="text-[#1E1B18] dark:text-slate-100 font-bold">DAY {cycleInfo.activeDay} {level}</strong>
+              {t.dashboard.focusPrefix} <strong className="text-[#1E1B18] dark:text-slate-100 font-bold">DAY {cycleInfo.activeDay} {activeTrack === 'JA' ? level : activeLevel}</strong>
             </p>
           </div>
 
@@ -470,6 +479,13 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* 30-Minute Daily Focus Routine Card */}
+        <DailyFocusRoutineCard
+          onStartStudy={handleQuickLaunch}
+          onOpenAi={() => setAiModalOpen(true)}
+          onOpenCourseModal={() => setModalOpen(true)}
+        />
 
         {/* Tanya AI Card */}
         <div

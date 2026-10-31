@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { deckApi, studyApi } from '@/services/api';
+import { deckApi, studyApi, courseApi } from '@/services/api';
 import type { QuizCard, QuizAnswer, SessionResult } from '@/types';
 import { rateByTime } from '@/utils';
+import { playUniversalAudio } from '@/utils/audioPlayer';
+import { useCourseStore } from '@/stores/courseStore';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
 import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
@@ -25,6 +27,7 @@ import {
   BookOpen,
   Trophy,
   RotateCcw,
+  Volume2,
 } from 'lucide-react';
 import { LeaderboardModal } from '@/components/LeaderboardModal';
 import { calculateUserLevel } from '@/utils/levelHelper';
@@ -45,6 +48,9 @@ export const StudySessionPage: React.FC = () => {
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = storeLevel || user?.current_level || 'N2';
   const studyMode = searchParams.get('mode');
+  const trackParam = searchParams.get('track');
+  const { activeTrack: storeTrack, targetLanguage } = useCourseStore();
+  const track = trackParam || storeTrack || 'JA';
   const isExamMode = studyMode === 'exam' || studyMode === 'diagnostic';
 
   const [cards, setCards] = useState<QuizCard[]>([]);
@@ -119,6 +125,50 @@ export const StudySessionPage: React.FC = () => {
           }
           setLoading(false);
           return;
+        }
+
+        if (track !== 'JA') {
+          const [cardsRes, decksRes] = await Promise.allSettled([
+            courseApi.getCards(track, id, language),
+            courseApi.getDecks(track, undefined, language),
+          ]);
+          if (cardsRes.status === 'fulfilled' && cardsRes.value?.data && cardsRes.value.data.length > 0) {
+            const mappedCards: QuizCard[] = cardsRes.value.data.map((c) => ({
+              id: c.id,
+              kotoba_id: c.id,
+              question: c.target_text,
+              correct_answer: c.meaning,
+              choices: c.choices && c.choices.length > 0 ? c.choices : [c.meaning],
+              direction: c.item_type || 'vocab',
+              kotoba: {
+                id: c.id,
+                kanji: c.target_text,
+                hiragana: c.reading || '',
+                meaning: c.meaning,
+                jlpt_level: 'N2',
+                part_of_speech: c.item_type || 'vocab',
+                example_sentence: c.example_sentence,
+                example_sentence_meaning: c.example_meaning,
+                notes: c.notes,
+              },
+            }));
+            setCards(mappedCards);
+            setInitialCards(mappedCards);
+            setDeckTotalCards(mappedCards.length);
+
+            if (decksRes.status === 'fulfilled' && decksRes.value?.data) {
+              const foundDeck = decksRes.value.data.find((d) => String(d.id) === String(id));
+              if (foundDeck) {
+                setDeckTitle(foundDeck.title || foundDeck.title_target);
+              } else {
+                setDeckTitle(`Deck ${id}`);
+              }
+            } else {
+              setDeckTitle(`Deck ${id}`);
+            }
+            setLoading(false);
+            return;
+          }
         }
 
         const [cardsRes, deckRes] = await Promise.allSettled([
@@ -734,11 +784,27 @@ export const StudySessionPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Center Huge Kanji */}
+          {/* Center Huge Question Word */}
           <div className="py-2">
             <h1 className="text-4xl sm:text-5xl font-bold font-jp text-[#1E1B18] tracking-wider select-none leading-tight">
               {currentCard?.question}
             </h1>
+            {currentCard?.kotoba?.hiragana && currentCard.kotoba.hiragana !== currentCard.question && (
+              <p className="text-xs font-semibold text-indigo-600 font-jp mt-1">
+                {currentCard.kotoba.hiragana}
+              </p>
+            )}
+            <div className="flex items-center justify-center space-x-2 mt-2.5">
+              <button
+                type="button"
+                onClick={() => playUniversalAudio(currentCard?.question || '', targetLanguage)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs border border-indigo-200/60 dark:border-indigo-800/60"
+                title="Dengarkan Pengucapan / Listen"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Audio</span>
+              </button>
+            </div>
             <p className="text-xs text-[#78716C] mt-2 font-medium">
               {directionLabel}
             </p>

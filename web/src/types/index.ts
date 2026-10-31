@@ -16,6 +16,8 @@ export interface User {
   discord_webhook_url?: string;
   discord_notifications_enabled?: boolean;
   preferred_language?: 'id' | 'en' | 'my';
+  target_language?: string;
+  current_track_level?: string;
 }
 
 export interface AuthResponse {
@@ -274,5 +276,52 @@ export interface LeaderboardData {
   top_users: LeaderboardEntry[];
   current_user_entry?: LeaderboardEntry | null;
   total_learners: number;
+}
+
+// === Multi-Language Courses & Tracks ===
+export interface CourseTrackDto {
+  code: string;
+  title: string;
+  target_language: string;
+  icon: string;
+  description: string;
+}
+
+export interface CourseLevelDto {
+  track_code: string;
+  level_code: string;
+  level_name: string;
+  description: string;
+  sort_order: number;
+}
+
+export interface CourseDeckDto {
+  id: number;
+  track_code: string;
+  level_code: string;
+  day_number: number;
+  title_target: string;
+  title: string;
+  item_count: number;
+  progress_percent?: number;
+}
+
+export interface CourseCardDto {
+  id: number;
+  target_text: string;
+  reading?: string;
+  item_type?: string;
+  meaning: string;
+  notes?: string;
+  example_sentence?: string;
+  example_meaning?: string;
+  choices: string[];
+}
+
+export interface SwitchCoursePayload {
+  my_language: string;
+  target_language: string;
+  track_code: string;
+  level_code: string;
 }
 

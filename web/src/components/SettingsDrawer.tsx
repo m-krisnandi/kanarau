@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useCourseStore } from '@/stores/courseStore';
 import { authApi, feedbackApi } from '@/services/api';
 import { useTranslation } from '@/stores/languageStore';
 import { LANGUAGE_OPTIONS } from '@/locales/translations';
@@ -51,6 +52,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
 
   const { theme, setTheme } = useThemeStore();
   const { language, setLanguage, t } = useTranslation();
+  const { activeTrack, activeLevel, targetLanguage, setModalOpen } = useCourseStore();
   const [tanyaAiOpen, setTanyaAiOpen] = useState(false);
   const [activeSubModal, setActiveSubModal] = useState<SubModalType>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -289,7 +291,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
               仮習う
             </span>
             <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800/60 px-2 py-0.5 rounded-full border border-indigo-100">
-              JLPT {currentLevel}
+              {activeTrack === 'JA' ? `JLPT ${currentLevel}` : `${activeTrack} ${activeLevel}`}
             </span>
           </div>
           <button
@@ -343,6 +345,41 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
                 {language === 'my' ? 'ဝင်ရန်' : language === 'en' ? 'Login' : 'Masuk'}
               </span>
             )}
+          </div>
+
+          {/* Multi-Language Learning Track Switcher Card */}
+          <div
+            onClick={() => {
+              onClose();
+              setModalOpen(true);
+            }}
+            className="card-washi rounded-2xl p-3 border border-indigo-200/90 dark:border-indigo-800/70 bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/50 dark:from-[#151D2E] dark:via-[#151D2E] dark:to-indigo-950/40 flex items-center justify-between cursor-pointer hover:border-indigo-300 transition-all shadow-2xs group"
+          >
+            <div className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-xs">
+                {targetLanguage === 'id' ? '🇮🇩' : targetLanguage === 'my' ? '🇲🇲' : targetLanguage === 'en' ? '🇬🇧' : '🇯🇵'}
+              </div>
+              <div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                    {language === 'my' ? 'လေ့လာမှု ပရိုဂရမ်' : language === 'en' ? 'Learning Track' : 'Program Belajar'}
+                  </span>
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                    {activeLevel}
+                  </span>
+                </div>
+                <p className="text-[10px] text-stone-500 dark:text-slate-400">
+                  {targetLanguage === 'id'
+                    ? 'Bahasa Indonesia (BIPA)'
+                    : targetLanguage === 'my'
+                    ? 'Burmese (Myanmar)'
+                    : targetLanguage === 'en'
+                    ? 'English (TOEIC/IELTS)'
+                    : 'Japanese (JLPT N5-N1)'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
           </div>
 
           {/* Quick Access Menu */}
@@ -509,52 +546,91 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose 
             </p>
           </div>
 
-          {/* Level Switcher Section (5-Level Grid) */}
+          {/* Level Switcher Section */}
           <div className="space-y-2.5 pt-2 border-t border-[#EFEAE2] dark:border-[#1E293B]">
-            <span className="text-[10px] font-bold text-[#A8A29E] dark:text-slate-500 uppercase tracking-wider block px-1">
-              {t.settings.changeLevelTitle}
-            </span>
-
-            <div className="grid grid-cols-5 gap-1.5 p-1 bg-stone-100 dark:bg-[#0B0F19] rounded-xl">
-              {(['N5', 'N4', 'N3', 'N2', 'N1'] as const).map((lvl) => {
-                const isActive = currentLevel === lvl;
-                return (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => handleSelectLevel(lvl)}
-                    className={`py-2 px-1 rounded-lg font-bold text-xs transition-all flex flex-col items-center justify-center cursor-pointer ${
-                      isActive
-                        ? "bg-indigo-600 text-white shadow-xs"
-                        : "text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200 hover:bg-stone-200/60 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <span className="text-xs font-black">{lvl}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-bold text-[#A8A29E] dark:text-slate-500 uppercase tracking-wider block">
+                {t.settings.changeLevelTitle}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  setModalOpen(true);
+                }}
+                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                {language === 'my' ? 'အဆင့် အားလုံးကြည့်ရန်' : language === 'en' ? 'View All' : 'Ubah Program'}
+              </button>
             </div>
 
-            <div className="card-washi rounded-xl p-3 border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-2xs">
-                  {currentLevel}
+            {activeTrack === 'JA' ? (
+              <>
+                <div className="grid grid-cols-5 gap-1.5 p-1 bg-stone-100 dark:bg-[#0B0F19] rounded-xl">
+                  {(['N5', 'N4', 'N3', 'N2', 'N1'] as const).map((lvl) => {
+                    const isActive = (activeLevel || currentLevel) === lvl;
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => handleSelectLevel(lvl)}
+                        className={`py-2 px-1 rounded-lg font-bold text-xs transition-all flex flex-col items-center justify-center cursor-pointer ${
+                          isActive
+                            ? "bg-indigo-600 text-white shadow-xs"
+                            : "text-stone-600 dark:text-slate-400 hover:text-stone-900 dark:hover:text-slate-200 hover:bg-stone-200/60 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <span className="text-xs font-black">{lvl}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <h4 className="font-bold text-xs text-indigo-950 dark:text-indigo-200">
-                    {t.settings.levelActiveLabel(currentLevel)}
-                  </h4>
-                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                    {currentLevel === 'N5' ? t.settings.levelDescN5 :
-                     currentLevel === 'N4' ? t.settings.levelDescN4 :
-                     currentLevel === 'N3' ? t.settings.levelDescN3 :
-                     currentLevel === 'N2' ? t.settings.levelDescN2 :
-                     t.settings.levelDescN1}
-                  </p>
+
+                <div className="card-washi rounded-xl p-3 border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-2xs">
+                      {activeLevel || currentLevel}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-indigo-950 dark:text-indigo-200">
+                        {t.settings.levelActiveLabel((activeLevel || currentLevel) as JLPTLevel)}
+                      </h4>
+                      <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                        {currentLevel === 'N5' ? t.settings.levelDescN5 :
+                         currentLevel === 'N4' ? t.settings.levelDescN4 :
+                         currentLevel === 'N3' ? t.settings.levelDescN3 :
+                         currentLevel === 'N2' ? t.settings.levelDescN2 :
+                         t.settings.levelDescN1}
+                      </p>
+                    </div>
+                  </div>
+                  <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 </div>
+              </>
+            ) : (
+              <div
+                onClick={() => {
+                  onClose();
+                  setModalOpen(true);
+                }}
+                className="card-washi rounded-xl p-3 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 flex items-center justify-between cursor-pointer hover:border-indigo-300 transition-colors"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-2xs">
+                    {targetLanguage === 'id' ? '🇮🇩' : targetLanguage === 'my' ? '🇲🇲' : '🇬🇧'}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-indigo-950 dark:text-indigo-200">
+                      {activeTrack} {activeLevel}
+                    </h4>
+                    <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                      {language === 'my' ? 'ပရိုဂရမ် သို့မဟုတ် အဆင့် ပြောင်းရန် နှိပ်ပါ' : language === 'en' ? 'Click to switch level or track' : 'Klik untuk mengubah level / program'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
               </div>
-              <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            </div>
+            )}
           </div>
         </div>
 

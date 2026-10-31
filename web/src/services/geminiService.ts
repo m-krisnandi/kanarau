@@ -1,4 +1,5 @@
 import { useLanguageStore } from '@/stores/languageStore';
+import { useCourseStore } from '@/stores/courseStore';
 const GEMINI_API_KEY =
   (typeof import.meta !== 'undefined' &&
     import.meta.env &&
@@ -181,23 +182,68 @@ export interface ChatMessage {
 
 export async function askGemini(prompt: string, history: ChatMessage[] = []): Promise<string> {
   const lang = useLanguageStore.getState().language;
+  const targetLang = useCourseStore.getState().targetLanguage || 'ja';
 
   let chosenSystemInstruction = SYSTEM_INSTRUCTION_ID;
   let userPrefix = 'Pertanyaan pengguna:\n';
-
-  if (lang === 'en') {
-    chosenSystemInstruction = SYSTEM_INSTRUCTION_EN;
-    userPrefix = 'User Question:\n';
-  } else if (lang === 'my') {
-    chosenSystemInstruction = SYSTEM_INSTRUCTION_MY;
-    userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
-  }
-
   let strictDirective = '';
-  if (lang === 'en') {
-    strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in ENGLISH only. No Indonesian language allowed. Explain Japanese in English.]\n\n';
-  } else if (lang === 'my') {
-    strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in MYANMAR (BURMESE) language only. No Indonesian language allowed. Explain Japanese in Myanmar script.]\n\n';
+
+  if (targetLang === 'id') {
+    // Learning Indonesian
+    if (lang === 'my') {
+      chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, teaching Bahasa Indonesia to native Myanmar (Burmese) speakers.
+Your mission is to explain Indonesian vocabulary, pronunciation, grammar, and affixes (me-, ber-, di-, pe-, ke-an) using clear, natural MYANMAR (BURMESE) SCRIPT.
+Provide practical everyday examples and contrast Indonesian sentence structure (SPO) with Burmese (SOV) when helpful.
+Do not use emojis. Be direct, clear, and educational.`;
+      userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
+      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA to a MYANMAR native speaker. Explain in natural MYANMAR SCRIPT. No Japanese.]\n\n';
+    } else if (lang === 'en') {
+      chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, teaching Bahasa Indonesia to English speakers.
+Explain Indonesian vocabulary, pronunciation, grammar, and affixes clearly in ENGLISH with natural examples.
+Do not use emojis. Be direct, clear, and educational.`;
+      userPrefix = 'User Question:\n';
+      strictDirective = '[STRICT DIRECTIVE: Teach BAHASA INDONESIA in ENGLISH. No Japanese.]\n\n';
+    } else {
+      chosenSystemInstruction = `Kamu adalah "AI Sensei" di aplikasi Kanarau, pembimbing kemahiran Bahasa Indonesia (BIPA/UKBI).
+Jelaskan kosakata, tata bahasa baku KBBI, dan struktur kalimat secara tajam, lugas, dan edukatif dalam Bahasa Indonesia.
+DILARANG menggunakan emoji.`;
+      userPrefix = 'Pertanyaan pengguna:\n';
+      strictDirective = '[STRICT DIRECTIVE: Jelaskan kaidah BAHASA INDONESIA secara mendalam.]\n\n';
+    }
+  } else if (targetLang === 'my') {
+    // Learning Burmese
+    if (lang === 'id') {
+      chosenSystemInstruction = `Kamu adalah "AI Sensei" di aplikasi Kanarau, mengajarkan Bahasa Myanmar (Burmese) kepada penutur Bahasa Indonesia.
+Tugasmu adalah menjelaskan huruf abjad Burma (33 konsonan), vokal, tanda nada (tones), pembentukan suku kata medial, dan percakapan sehari-hari.
+Selalu sertakan aksara asli Burma, cara baca fonetik latin untuk orang Indonesia, dan arti dalam Bahasa Indonesia.
+DILARANG menggunakan emoji.`;
+      userPrefix = 'Pertanyaan pengguna:\n';
+      strictDirective = '[STRICT DIRECTIVE: Ajarkan BAHASA MYANMAR kepada penutur BAHASA INDONESIA. Berikan aksara Burma, cara baca fonetik latin, dan penjelasan Bahasa Indonesia. No Japanese.]\n\n';
+    } else if (lang === 'en') {
+      chosenSystemInstruction = `You are "AI Sensei" in the Kanarau app, teaching Burmese (Myanmar language) to English speakers.
+Teach Burmese alphabet, vowels, tones, medials, and daily conversation in ENGLISH with clear romanized phonetics.
+Do not use emojis.`;
+      userPrefix = 'User Question:\n';
+      strictDirective = '[STRICT DIRECTIVE: Teach BURMESE in ENGLISH with phonetic transliteration. No Japanese.]\n\n';
+    } else {
+      chosenSystemInstruction = SYSTEM_INSTRUCTION_MY;
+      userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
+    }
+  } else {
+    // Learning Japanese (default JLPT track)
+    if (lang === 'en') {
+      chosenSystemInstruction = SYSTEM_INSTRUCTION_EN;
+      userPrefix = 'User Question:\n';
+      strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in ENGLISH only. No Indonesian language allowed. Explain Japanese in English.]\n\n';
+    } else if (lang === 'my') {
+      chosenSystemInstruction = SYSTEM_INSTRUCTION_MY;
+      userPrefix = 'အသုံးပြုသူ၏ မေးခွန်း:\n';
+      strictDirective = '[STRICT LANGUAGE DIRECTIVE: Output MUST be 100% in MYANMAR (BURMESE) language only. No Indonesian language allowed. Explain Japanese in Myanmar script.]\n\n';
+    } else {
+      chosenSystemInstruction = SYSTEM_INSTRUCTION_ID;
+      userPrefix = 'Pertanyaan pengguna:\n';
+      strictDirective = '';
+    }
   }
 
   const currentTurn = {

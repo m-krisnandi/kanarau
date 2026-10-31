@@ -16,7 +16,9 @@ public record UserDto(
         @JsonProperty("discord_username") String discordUsername,
         @JsonProperty("discord_webhook_url") String discordWebhookUrl,
         @JsonProperty("discord_notifications_enabled") boolean discordNotificationsEnabled,
-        @JsonProperty("preferred_language") String preferredLanguage
+        @JsonProperty("preferred_language") String preferredLanguage,
+        @JsonProperty("target_language") String targetLanguage,
+        @JsonProperty("current_track_level") String currentTrackLevel
 ) {
     public static UserDto from(User user) {
         return new UserDto(
@@ -31,7 +33,9 @@ public record UserDto(
                 user.getDiscordUsername(),
                 user.getDiscordWebhookUrl(),
                 user.isDiscordNotificationsEnabled(),
-                user.getPreferredLanguage()
+                user.getPreferredLanguage(),
+                user.getTargetLanguage(),
+                user.getCurrentTrackLevel()
         );
     }
 }

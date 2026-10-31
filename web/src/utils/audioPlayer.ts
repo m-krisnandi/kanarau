@@ -946,3 +946,71 @@ function fallbackPlayDokkaiViaTTS(
 
   speakNextSentence();
 }
+
+/**
+ * Universal Audio Player supporting multiple learning targets (Indonesian, Burmese, English, Japanese)
+ */
+export function playUniversalAudio(
+  text: string,
+  targetLanguage: string = 'ja',
+  speed: number = 1.0,
+  onEnd?: () => void
+): void {
+  stopAudio();
+  isPlaybackCancelled = false;
+
+  const cleanText = text
+    .replace(/^([>#\u2022\-*]+|\d+[\.\)])\s*/, '')
+    .replace(/[*_`]/g, '')
+    .trim();
+
+  if (!cleanText) {
+    onEnd?.();
+    return;
+  }
+
+  const lang = targetLanguage.toLowerCase();
+
+  // If Japanese or contains Japanese characters, use the dedicated Japanese neural / TTS engine
+  if (lang === 'ja' || hasJapaneseText(cleanText)) {
+    playNaturalJapaneseVoice(cleanText, undefined, onEnd, speed);
+    return;
+  }
+
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    onEnd?.();
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.rate = Math.min(2.0, Math.max(0.5, speed));
+  utterance.pitch = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+
+  if (lang === 'id') {
+    utterance.lang = 'id-ID';
+    const idVoice = voices.find((v) => v.lang === 'id-ID' || v.lang.startsWith('id') || v.name.toLowerCase().includes('indonesia'));
+    if (idVoice) utterance.voice = idVoice;
+  } else if (lang === 'my') {
+    utterance.lang = 'my-MM';
+    const myVoice = voices.find((v) => v.lang === 'my-MM' || v.lang.startsWith('my') || v.name.toLowerCase().includes('myanmar') || v.name.toLowerCase().includes('burmese'));
+    if (myVoice) utterance.voice = myVoice;
+  } else if (lang === 'en') {
+    utterance.lang = 'en-US';
+    const enVoice = voices.find((v) => v.lang === 'en-US' || v.lang.startsWith('en'));
+    if (enVoice) utterance.voice = enVoice;
+  } else {
+    utterance.lang = lang;
+  }
+
+  utterance.onend = () => {
+    onEnd?.();
+  };
+
+  utterance.onerror = () => {
+    onEnd?.();
+  };
+
+  window.speechSynthesis.speak(utterance);
+}

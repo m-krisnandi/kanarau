@@ -20,6 +20,11 @@ import type {
   UserFeedbackItem,
   SubmitFeedbackPayload,
   LeaderboardData,
+  CourseTrackDto,
+  CourseLevelDto,
+  CourseDeckDto,
+  CourseCardDto,
+  SwitchCoursePayload,
 } from '@/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -416,3 +421,31 @@ export const leaderboardApi = {
     return request<ApiResponse<LeaderboardData>>('/leaderboard');
   },
 };
+
+// ─── Courses & Multi-Language Tracks ──────────────────────────────────
+export const courseApi = {
+  getTracks(lang: string = 'en') {
+    return request<ApiResponse<CourseTrackDto[]>>(`/courses/tracks?lang=${encodeURIComponent(lang)}`);
+  },
+
+  getLevels(trackCode: string, lang: string = 'en') {
+    return request<ApiResponse<CourseLevelDto[]>>(`/courses/${trackCode}/levels?lang=${encodeURIComponent(lang)}`);
+  },
+
+  getDecks(trackCode: string, level?: string, lang: string = 'en') {
+    const qLevel = level ? `&level=${encodeURIComponent(level)}` : '';
+    return request<ApiResponse<CourseDeckDto[]>>(`/courses/${trackCode}/decks?lang=${encodeURIComponent(lang)}${qLevel}`);
+  },
+
+  getCards(trackCode: string, deckId: number | string, lang: string = 'en') {
+    return request<ApiResponse<CourseCardDto[]>>(`/courses/${trackCode}/decks/${deckId}/cards?lang=${encodeURIComponent(lang)}`);
+  },
+
+  switchCourse(payload: SwitchCoursePayload) {
+    return request<ApiResponse<User>>('/courses/switch', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+

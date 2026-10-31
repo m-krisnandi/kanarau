@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/stores/languageStore';
 import { localizeKotoba } from '@/locales/vocabularyTranslations';
-import { deckApi, progressApi } from '@/services/api';
+import { deckApi, progressApi, courseApi } from '@/services/api';
+import { useCourseStore } from '@/stores/courseStore';
 import type { Deck, Kotoba, JLPTLevel } from '@/types';
 import { KotobaDetailModal } from '@/components/KotobaDetailModal';
 import { KanjiDetailView } from '@/components/KanjiDetailView';
@@ -32,6 +33,7 @@ export const BelajarPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const storeLevel = useAuthStore((state) => state.currentLevel);
   const currentLevel = (storeLevel || user?.current_level || 'N2') as JLPTLevel;
+  const { activeTrack, activeLevel } = useCourseStore();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab') as 'goi' | 'bunpo' | 'dokkai' | 'choukai' | null;
@@ -72,6 +74,29 @@ export const BelajarPage: React.FC = () => {
     async function loadCurriculum() {
       setLoading(true);
       try {
+        if (activeTrack !== 'JA') {
+          const res = await courseApi.getDecks(activeTrack, activeLevel, language);
+          if (res?.data && res.data.length > 0) {
+            const courseDecks: Deck[] = res.data.map((cd) => ({
+              id: cd.id,
+              name: cd.title || cd.title_target,
+              jlpt_level: activeLevel as any,
+              day_number: cd.day_number,
+              kotoba_count: cd.item_count,
+              total_cards: cd.item_count,
+              progress_percent: cd.progress_percent || 0,
+            }));
+            setDecks(courseDecks);
+            setMaxUnlockedDay(999);
+            setCurrentTodayDay(courseDecks[0]?.day_number || 1);
+            setOpenWeeks({ 1: true });
+          } else {
+            setDecks([]);
+          }
+          setLoading(false);
+          return;
+        }
+
         const [decksRes, progressRes, countdownRes] = await Promise.allSettled([
           deckApi.list(currentLevel),
           progressApi.getDeckProgress(),
@@ -152,21 +177,21 @@ export const BelajarPage: React.FC = () => {
     const handleProgressUpdate = () => void loadCurriculum();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [currentLevel, user]);
+  }, [currentLevel, activeTrack, activeLevel, language, user]);
 
   const handleOpenDeck = (deck: Deck) => {
-    if (deck.day_number > maxUnlockedDay && deck.day_number < 90) {
+    if (activeTrack === 'JA' && deck.day_number > maxUnlockedDay && deck.day_number < 90) {
       setLockedAlert(
         t.belajar.lockedDeckJump(deck.name, maxUnlockedDay, currentLevel)
       );
       return;
     }
-    navigate(`/study-session/${deck.id}`);
+    navigate(`/study-session/${deck.id}?track=${activeTrack}`);
   };
 
   const handlePreviewDeck = async (e: React.MouseEvent, deck: Deck) => {
     e.stopPropagation();
-    if (deck.day_number > maxUnlockedDay && deck.day_number < 90) {
+    if (activeTrack === 'JA' && deck.day_number > maxUnlockedDay && deck.day_number < 90) {
       setLockedAlert(
         t.belajar.lockedDeckPreview(deck.name, maxUnlockedDay, currentLevel)
       );
@@ -176,22 +201,43 @@ export const BelajarPage: React.FC = () => {
     setActiveDeckModal(deck);
     setLoadingCards(true);
     try {
-      const res = await deckApi.getKotoba(deck.id);
-      setDeckKotobas(res.data);
+      if (activeTrack === 'JA') {
+        const res = await deckApi.getKotoba(deck.id);
+        setDeckKotobas(res.data);
+      } else {
+        const res = await courseApi.getCards(activeTrack, String(deck.id), language);
+        if (res?.data) {
+          const mapped: Kotoba[] = res.data.map((c) => ({
+            id: c.id,
+            kanji: c.target_text,
+            hiragana: c.reading || '',
+            meaning: c.meaning,
+            meaning_id: c.meaning,
+            meaning_my: c.meaning,
+            meaning_en: c.meaning,
+            jlpt_level: activeLevel as any,
+            part_of_speech: c.item_type || 'vocab',
+            notes: c.notes,
+            example_sentence: c.example_sentence,
+            example_sentence_meaning: c.example_meaning,
+          }));
+          setDeckKotobas(mapped);
+        }
+      }
     } catch (err) {
-      console.error('Error loading deck kotoba', err);
+      console.error('Error loading deck cards', err);
     } finally {
       setLoadingCards(false);
     }
   };
 
   // Group decks dynamically into weeks of 7 days each
-  const standardDecks = decks.filter(
-    (d) => d.day_number < 90 && d.jlpt_level === currentLevel
-  );
-  const foundationDecks = decks.filter(
-    (d) => d.day_number >= 90 && d.jlpt_level === currentLevel
-  );
+  const standardDecks = activeTrack === 'JA'
+    ? decks.filter((d) => d.day_number < 90 && d.jlpt_level === currentLevel)
+    : decks;
+  const foundationDecks = activeTrack === 'JA'
+    ? decks.filter((d) => d.day_number >= 90 && d.jlpt_level === currentLevel)
+    : [];
 
   const maxDay = standardDecks.length > 0 ? Math.max(...standardDecks.map((d) => d.day_number)) : 7;
   const totalWeeks = Math.max(1, Math.ceil(maxDay / 7));
@@ -339,79 +385,98 @@ export const BelajarPage: React.FC = () => {
           <span className="font-mincho text-sm">{t.common.back}</span>
         </button>
 
-        <span className="text-base font-bold font-mincho text-[#1E1B18]">
-          {t.belajar.pageTitle(currentLevel)}
+        <span className="text-base font-bold font-mincho text-[#1E1B18] dark:text-slate-100">
+          {activeTrack === 'JA' ? t.belajar.pageTitle(currentLevel) : `${activeTrack} ${activeLevel}`}
         </span>
 
         <div className="w-16" />
       </div>
 
-      {/* 4 JLPT Pillars Tab Navigation Bar */}
-      <div className="p-1 bg-[#EFEAE2]/60 rounded-2xl border border-[#E5DFD5] grid grid-cols-4 gap-1 shadow-inner">
-        {/* Tab 1: Goi */}
-        <button
-          onClick={() => handleTabChange('goi')}
-          className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
-            activeTab === 'goi'
-              ? 'bg-white text-indigo-700 font-bold shadow-xs'
-              : 'text-[#78716C] hover:text-[#1E1B18]'
-          }`}
-        >
-          <div className="flex items-center space-x-1">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span className="text-xs">語彙</span>
-          </div>
-          <span className="text-[10px] tracking-tight">Goi</span>
-        </button>
+      {activeTrack === 'JA' ? (
+        /* 4 JLPT Pillars Tab Navigation Bar */
+        <div className="p-1 bg-[#EFEAE2]/60 dark:bg-[#1E293B]/60 rounded-2xl border border-[#E5DFD5] dark:border-[#2A374E] grid grid-cols-4 gap-1 shadow-inner">
+          {/* Tab 1: Goi */}
+          <button
+            onClick={() => handleTabChange('goi')}
+            className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
+              activeTab === 'goi'
+                ? 'bg-white dark:bg-[#151D2E] text-indigo-700 dark:text-indigo-300 font-bold shadow-xs'
+                : 'text-[#78716C] dark:text-slate-400 hover:text-[#1E1B18] dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span className="text-xs">語彙</span>
+            </div>
+            <span className="text-[10px] tracking-tight">Goi</span>
+          </button>
 
-        {/* Tab 2: Bunpo */}
-        <button
-          onClick={() => handleTabChange('bunpo')}
-          className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
-            activeTab === 'bunpo'
-              ? 'bg-white text-indigo-700 font-bold shadow-xs'
-              : 'text-[#78716C] hover:text-[#1E1B18]'
-          }`}
-        >
-          <div className="flex items-center space-x-1">
-            <Layers className="w-3.5 h-3.5" />
-            <span className="text-xs">文法</span>
-          </div>
-          <span className="text-[10px] tracking-tight">Bunpo ★</span>
-        </button>
+          {/* Tab 2: Bunpo */}
+          <button
+            onClick={() => handleTabChange('bunpo')}
+            className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
+              activeTab === 'bunpo'
+                ? 'bg-white dark:bg-[#151D2E] text-indigo-700 dark:text-indigo-300 font-bold shadow-xs'
+                : 'text-[#78716C] dark:text-slate-400 hover:text-[#1E1B18] dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1">
+              <Layers className="w-3.5 h-3.5" />
+              <span className="text-xs">文法</span>
+            </div>
+            <span className="text-[10px] tracking-tight">Bunpo ★</span>
+          </button>
 
-        {/* Tab 3: Dokkai */}
-        <button
-          onClick={() => handleTabChange('dokkai')}
-          className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
-            activeTab === 'dokkai'
-              ? 'bg-white text-emerald-700 font-bold shadow-xs'
-              : 'text-[#78716C] hover:text-[#1E1B18]'
-          }`}
-        >
-          <div className="flex items-center space-x-1">
-            <FileText className="w-3.5 h-3.5" />
-            <span className="text-xs">読解</span>
-          </div>
-          <span className="text-[10px] tracking-tight">Dokkai</span>
-        </button>
+          {/* Tab 3: Dokkai */}
+          <button
+            onClick={() => handleTabChange('dokkai')}
+            className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
+              activeTab === 'dokkai'
+                ? 'bg-white dark:bg-[#151D2E] text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
+                : 'text-[#78716C] dark:text-slate-400 hover:text-[#1E1B18] dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1">
+              <FileText className="w-3.5 h-3.5" />
+              <span className="text-xs">読解</span>
+            </div>
+            <span className="text-[10px] tracking-tight">Dokkai</span>
+          </button>
 
-        {/* Tab 4: Choukai */}
-        <button
-          onClick={() => handleTabChange('choukai')}
-          className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
-            activeTab === 'choukai'
-              ? 'bg-white text-violet-700 font-bold shadow-xs'
-              : 'text-[#78716C] hover:text-[#1E1B18]'
-          }`}
-        >
-          <div className="flex items-center space-x-1">
-            <Headphones className="w-3.5 h-3.5" />
-            <span className="text-xs">聴解</span>
+          {/* Tab 4: Choukai */}
+          <button
+            onClick={() => handleTabChange('choukai')}
+            className={`py-2 px-1 rounded-xl text-center transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer ${
+              activeTab === 'choukai'
+                ? 'bg-white dark:bg-[#151D2E] text-violet-700 dark:text-violet-300 font-bold shadow-xs'
+                : 'text-[#78716C] dark:text-slate-400 hover:text-[#1E1B18] dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1">
+              <Headphones className="w-3.5 h-3.5" />
+              <span className="text-xs">聴解</span>
+            </div>
+            <span className="text-[10px] tracking-tight">Choukai</span>
+          </button>
+        </div>
+      ) : (
+        <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center space-x-2.5">
+            <span className="text-xl">{activeTrack === 'ID' ? '🇮🇩' : activeTrack === 'MY' ? '🇲🇲' : '🇬🇧'}</span>
+            <div>
+              <h3 className="font-extrabold text-xs text-indigo-950 dark:text-indigo-200">
+                {activeTrack === 'ID' ? 'Kurikulum Bahasa Indonesia (BIPA)' : activeTrack === 'MY' ? 'Kurikulum Bahasa Myanmar (Burmese)' : 'English Proficiency Track'}
+              </h3>
+              <p className="text-[10px] text-indigo-700 dark:text-indigo-300">
+                Level {activeLevel} · Modul Bertahap & Audio Pengucapan
+              </p>
+            </div>
           </div>
-          <span className="text-[10px] tracking-tight">Choukai</span>
-        </button>
-      </div>
+          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
+            {decks.length} Deck
+          </span>
+        </div>
+      )}
 
       {/* Locked Alert Banner */}
       {lockedAlert && (

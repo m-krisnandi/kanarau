@@ -46,6 +46,12 @@ public class User {
     @Column(name = "preferred_language", nullable = false)
     private String preferredLanguage = "en";
 
+    @Column(name = "target_language", nullable = false)
+    private String targetLanguage = "ja";
+
+    @Column(name = "current_track_level", nullable = false)
+    private String currentTrackLevel = "N2";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -60,6 +66,8 @@ public class User {
         this.streak = 0;
         this.totalXp = 0;
         this.preferredLanguage = "en";
+        this.targetLanguage = "ja";
+        this.currentTrackLevel = "N2";
         this.createdAt = Instant.now();
     }
 
@@ -82,6 +90,8 @@ public class User {
     public String getDiscordWebhookUrl() { return discordWebhookUrl; }
     public boolean isDiscordNotificationsEnabled() { return discordNotificationsEnabled; }
     public String getPreferredLanguage() { return preferredLanguage != null ? preferredLanguage : "en"; }
+    public String getTargetLanguage() { return targetLanguage != null ? targetLanguage : "ja"; }
+    public String getCurrentTrackLevel() { return currentTrackLevel != null ? currentTrackLevel : (currentLevel != null ? currentLevel.name() : "N2"); }
     public Instant getCreatedAt() { return createdAt; }
 
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
@@ -95,4 +105,6 @@ public class User {
     public void setDiscordWebhookUrl(String discordWebhookUrl) { this.discordWebhookUrl = discordWebhookUrl; }
     public void setDiscordNotificationsEnabled(boolean discordNotificationsEnabled) { this.discordNotificationsEnabled = discordNotificationsEnabled; }
     public void setPreferredLanguage(String preferredLanguage) { this.preferredLanguage = preferredLanguage != null ? preferredLanguage : "en"; }
+    public void setTargetLanguage(String targetLanguage) { this.targetLanguage = targetLanguage != null ? targetLanguage : "ja"; }
+    public void setCurrentTrackLevel(String currentTrackLevel) { this.currentTrackLevel = currentTrackLevel != null ? currentTrackLevel : "N2"; }
 }
