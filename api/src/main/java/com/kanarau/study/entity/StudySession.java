@@ -29,11 +29,19 @@ public class StudySession {
     @Column(name = "cards_correct", nullable = false)
     private Integer cardsCorrect;
 
+    @Column(name = "track_code")
+    private String trackCode = "JA";
+
     protected StudySession() {}
 
     public StudySession(Long userId, Long deckId) {
+        this(userId, deckId, "JA");
+    }
+
+    public StudySession(Long userId, Long deckId, String trackCode) {
         this.userId = userId;
         this.deckId = deckId;
+        this.trackCode = trackCode != null ? trackCode.trim().toUpperCase() : "JA";
         this.startedAt = Instant.now();
         this.cardsStudied = 0;
         this.cardsCorrect = 0;
@@ -46,9 +54,11 @@ public class StudySession {
     public Instant getFinishedAt() { return finishedAt; }
     public Integer getCardsStudied() { return cardsStudied; }
     public Integer getCardsCorrect() { return cardsCorrect; }
+    public String getTrackCode() { return trackCode != null ? trackCode : "JA"; }
 
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
+    public void setTrackCode(String trackCode) { this.trackCode = trackCode; }
     public void incrementStudied() { this.cardsStudied++; }
     public void incrementCorrect() { this.cardsCorrect++; }
 

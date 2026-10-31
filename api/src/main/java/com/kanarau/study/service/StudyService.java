@@ -12,10 +12,15 @@ import com.kanarau.study.dto.QuizAnswerDto;
 import com.kanarau.study.dto.SubmitSessionRequest;
 import com.kanarau.study.entity.StudySession;
 import com.kanarau.study.repository.StudySessionRepository;
+import com.kanarau.course.entity.CourseDeckProgress;
+import com.kanarau.course.entity.UserTrackStats;
+import com.kanarau.course.repository.CourseDeckProgressRepository;
+import com.kanarau.course.repository.UserTrackStatsRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 
 @Service
@@ -27,6 +32,8 @@ public class StudyService {
     private final UserRepository userRepository;
     private final SrsAlgorithm srsAlgorithm;
     private final com.kanarau.progress.service.ProgressService progressService;
+    private final CourseDeckProgressRepository courseDeckProgressRepository;
+    private final UserTrackStatsRepository userTrackStatsRepository;
 
     public StudyService(
             StudySessionRepository studySessionRepository,
@@ -34,7 +41,9 @@ public class StudyService {
             ReviewLogRepository reviewLogRepository,
             UserRepository userRepository,
             SrsAlgorithm srsAlgorithm,
-            com.kanarau.progress.service.ProgressService progressService
+            com.kanarau.progress.service.ProgressService progressService,
+            CourseDeckProgressRepository courseDeckProgressRepository,
+            UserTrackStatsRepository userTrackStatsRepository
     ) {
         this.studySessionRepository = studySessionRepository;
         this.userProgressRepository = userProgressRepository;
@@ -42,6 +51,8 @@ public class StudyService {
         this.userRepository = userRepository;
         this.srsAlgorithm = srsAlgorithm;
         this.progressService = progressService;
+        this.courseDeckProgressRepository = courseDeckProgressRepository;
+        this.userTrackStatsRepository = userTrackStatsRepository;
     }
 
     @Transactional
@@ -50,8 +61,13 @@ public class StudyService {
             return Map.of("xp_gained", 0);
         }
 
-        // 1. Record session with realistic start time based on actual duration
-        StudySession session = new StudySession(userId, req.deckId() != null ? req.deckId() : 1L);
+        String track = (req.trackCode() != null && !req.trackCode().isBlank())
+                ? req.trackCode().trim().toUpperCase()
+                : "JA";
+        Long deckId = req.deckId() != null ? req.deckId() : 1L;
+
+        // 1. Record session with trackCode and realistic start time based on actual duration
+        StudySession session = new StudySession(userId, deckId, track);
         long durationMs = req.totalTimeMs() > 0 ? req.totalTimeMs() : (Math.max(1, req.totalCards()) * 15000L);
         session.setStartedAt(Instant.now().minusMillis(durationMs));
         for (int i = 0; i < req.totalCards(); i++) session.incrementStudied();
@@ -59,27 +75,58 @@ public class StudyService {
         session.setFinishedAt(Instant.now());
         studySessionRepository.save(session);
 
-        // 2. Process each answer into SRS
+        // 2. Process each answer into SRS if kotoba
         if (req.answers() != null) {
             for (QuizAnswerDto a : req.answers()) {
-                recordSingleAnswer(userId, a);
+                try {
+                    recordSingleAnswer(userId, a);
+                } catch (Exception ignored) {}
             }
         }
 
-        // 3. Update user XP and compute updated streak
-        int updatedStreak = progressService.computeStreak(userId);
+        // 3. Persistent course deck progress (for non-JA or course decks >= 1000)
+        if (!"JA".equals(track) || deckId >= 1000) {
+            try {
+                CourseDeckProgress cdp = courseDeckProgressRepository.findByUserIdAndDeckId(userId, deckId)
+                        .orElseGet(() -> new CourseDeckProgress(userId, track, deckId, 100, true));
+                cdp.setProgressPercent(100);
+                cdp.setCompleted(true);
+                cdp.setUpdatedAt(Instant.now());
+                courseDeckProgressRepository.save(cdp);
+            } catch (Exception ignored) {}
+        }
+
+        // 4. Update track-specific stats (isolated XP and streak per language track)
+        UserTrackStats trackStats = userTrackStatsRepository.findByUserIdAndTrackCode(userId, track)
+                .orElseGet(() -> new UserTrackStats(userId, track));
+        trackStats.addXp(req.xpGained());
+        int trackStreak = progressService.computeStreak(userId, track);
+        trackStats.setStreak(trackStreak);
+        trackStats.setLongestStreak(Math.max(trackStats.getLongestStreak(), trackStreak));
+        trackStats.setLastStudiedDate(LocalDate.now());
+        trackStats.setUpdatedAt(Instant.now());
+        userTrackStatsRepository.save(trackStats);
+
+        // 5. Update user table (sync Japanese XP & streak for backward compatibility)
         userRepository.findById(userId).ifPresent(user -> {
-            user.addXp(req.xpGained());
-            long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
-            int minXp = (int) (distinctKotobas * 10);
-            if (minXp > user.getTotalXp()) {
-                user.setTotalXp(minXp);
+            if ("JA".equals(track)) {
+                user.addXp(req.xpGained());
+                long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
+                int minXp = (int) (distinctKotobas * 10);
+                if (minXp > user.getTotalXp()) {
+                    user.setTotalXp(minXp);
+                }
+                user.setStreak(trackStreak);
             }
-            user.setStreak(updatedStreak);
             userRepository.save(user);
         });
 
-        return Map.of("xp_gained", req.xpGained(), "streak", updatedStreak);
+        return Map.of(
+                "xp_gained", req.xpGained(),
+                "streak", trackStreak,
+                "total_xp", trackStats.getTotalXp(),
+                "track_code", track
+        );
     }
 
     @Transactional

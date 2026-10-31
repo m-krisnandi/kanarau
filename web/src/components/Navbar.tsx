@@ -11,7 +11,7 @@ import { SettingsDrawer } from './SettingsDrawer';
 import { CourseSwitcherModal } from './CourseSwitcherModal';
 import { useCourseStore } from '@/stores/courseStore';
 import { progressApi } from '@/services/api';
-import { getUserKey, computeLocalStreak } from '@/utils/userProgressHelper';
+import { getUserKey, computeLocalStreak, computeTrackLocalStreak } from '@/utils/userProgressHelper';
 
 const JLPT_LEVEL_OPTIONS: { level: JLPTLevel; label: Record<Language, string> }[] = [
   { level: 'N5', label: { id: 'N5 - Pemula (Beginner)', en: 'N5 - Beginner', my: 'N5 - အခြေခံအဆင့်' } },
@@ -34,16 +34,16 @@ export const Navbar: React.FC = () => {
   const [levelMenuOpen, setLevelMenuOpen] = useState(false);
   const [levelToast, setLevelToast] = useState<string | null>(null);
   const userKey = getUserKey(user);
-  const [streak, setStreak] = useState<number>(() => computeLocalStreak(userKey, user?.streak));
+  const [streak, setStreak] = useState<number>(() => computeTrackLocalStreak(userKey, activeTrack, user?.streak));
 
   useEffect(() => {
     async function loadRealStreak() {
       try {
-        const res = await progressApi.getOverallStats();
-        const effectiveStreak = computeLocalStreak(userKey, res?.data?.current_streak ?? user?.streak);
+        const res = await progressApi.getOverallStats(activeTrack);
+        const effectiveStreak = computeTrackLocalStreak(userKey, activeTrack, res?.data?.current_streak);
         setStreak(effectiveStreak);
       } catch {
-        const effectiveStreak = computeLocalStreak(userKey, user?.streak);
+        const effectiveStreak = computeTrackLocalStreak(userKey, activeTrack);
         setStreak(effectiveStreak);
       }
     }
@@ -52,7 +52,7 @@ export const Navbar: React.FC = () => {
     const handleProgressUpdate = () => void loadRealStreak();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [user]);
+  }, [user, userKey, activeTrack]);
 
   const handleSelectLevel = (lvl: JLPTLevel) => {
     setLevel(lvl);

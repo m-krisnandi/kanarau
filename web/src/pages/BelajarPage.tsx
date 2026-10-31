@@ -13,7 +13,7 @@ import { BunpoPracticeView } from '@/components/bunpo/BunpoPracticeView';
 import { DokkaiPracticeView } from '@/components/dokkai/DokkaiPracticeView';
 import { ChoukaiPracticeView } from '@/components/choukai/ChoukaiPracticeView';
 import { TanyaAiModal } from '@/components/TanyaAiModal';
-import { getUserKey } from '@/utils/userProgressHelper';
+import { getUserKey, mergeTrackDeckProgress } from '@/utils/userProgressHelper';
 import {
   ArrowLeft,
   ChevronDown,
@@ -83,6 +83,7 @@ export const BelajarPage: React.FC = () => {
         if (activeTrack !== 'JA') {
           const res = await courseApi.getDecks(activeTrack, activeLevel, language);
           if (res?.data && res.data.length > 0) {
+            const userKey = getUserKey(user);
             const courseDecks: Deck[] = res.data.map((cd) => ({
               id: cd.id,
               name: cd.title || cd.title_target,
@@ -92,7 +93,8 @@ export const BelajarPage: React.FC = () => {
               total_cards: cd.item_count,
               progress_percent: cd.progress_percent || 0,
             }));
-            setDecks(courseDecks);
+            const mergedDecks = mergeTrackDeckProgress(courseDecks, userKey, activeTrack);
+            setDecks(mergedDecks);
             setMaxUnlockedDay(999);
             setCurrentTodayDay(courseDecks[0]?.day_number || 1);
             setOpenWeeks({ 1: true });

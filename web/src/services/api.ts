@@ -339,12 +339,17 @@ export const jishoApi = {
 
 // ─── Progress ────────────────────────────────────────────────────────
 export const progressApi = {
-  getOverallStats() {
-    return request<ApiResponse<OverallStats>>('/progress/stats');
+  getOverallStats(track?: string) {
+    const query = track ? `?track=${encodeURIComponent(track)}` : '';
+    return request<ApiResponse<OverallStats>>(`/progress/stats${query}`);
   },
 
-  getCalendar(year?: number, month?: number) {
-    const query = year && month ? `?year=${year}&month=${month}` : '';
+  getCalendar(year?: number, month?: number, track?: string) {
+    const params = new URLSearchParams();
+    if (year) params.set('year', String(year));
+    if (month) params.set('month', String(month));
+    if (track) params.set('track', track);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return request<ApiResponse<MonthlyCalendar>>(
       `/progress/calendar${query}`
     );
@@ -417,8 +422,9 @@ export const adminApi = {
 
 // ─── Leaderboard ───────────────────────────────────────────────────────
 export const leaderboardApi = {
-  getLeaderboard() {
-    return request<ApiResponse<LeaderboardData>>('/leaderboard');
+  getLeaderboard(track?: string) {
+    const query = track ? `?track=${encodeURIComponent(track)}` : '';
+    return request<ApiResponse<LeaderboardData>>(`/leaderboard${query}`);
   },
 };
 

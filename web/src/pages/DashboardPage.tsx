@@ -18,7 +18,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useReviewStore } from '@/stores/reviewStore';
 import { useTranslation } from '@/stores/languageStore';
-import { reviewApi, progressApi } from '@/services/api';
+import { reviewApi, progressApi, courseApi } from '@/services/api';
 import type { OverallStats, DayStats } from '@/types';
 import { useCourseStore } from '@/stores/courseStore';
 import { DailyFocusRoutineCard } from '@/components/DailyFocusRoutineCard';
@@ -35,8 +35,13 @@ import {
   mergeOverallStats,
   mergeCalendarDays,
   computeLocalStreak,
+  computeTrackLocalStreak,
   getLocalDailyActivity,
   getEffectiveUserXp,
+  getTrackUserXp,
+  mergeTrackDeckProgress,
+  mergeTrackOverallStats,
+  mergeTrackCalendarDays,
 } from '@/utils/userProgressHelper';
 
 export const DashboardPage: React.FC = () => {
@@ -60,7 +65,7 @@ export const DashboardPage: React.FC = () => {
   const [advanceDayTrigger, setAdvanceDayTrigger] = useState(0);
 
   const level = currentLevel;
-  const effectiveUserXp = getEffectiveUserXp(user, overallStats);
+  const effectiveUserXp = getTrackUserXp(user, activeTrack, overallStats);
   const userLvl = calculateUserLevel(effectiveUserXp, language);
   const userKey = getUserKey(user);
 
@@ -84,12 +89,29 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     async function loadDeckProgress() {
       try {
+        if (activeTrack !== 'JA') {
+          const res = await courseApi.getDecks(activeTrack, activeLevel, language);
+          const rawDecks = (res?.data || []).map((cd: any) => ({
+            id: cd.id,
+            deck_id: cd.id,
+            deck_name: cd.title || cd.title_target,
+            name: cd.title || cd.title_target,
+            day_number: cd.day_number,
+            jlpt_level: activeLevel,
+            total_kotoba: cd.item_count,
+            kotoba_count: cd.item_count,
+            progress_percent: cd.progress_percent || 0,
+          }));
+          const merged = mergeTrackDeckProgress(rawDecks, userKey, activeTrack);
+          setMergedDecks(merged);
+          return;
+        }
         const res = await progressApi.getDeckProgress();
         const rawDecks = res?.data || [];
-        const merged = mergeDeckProgress(rawDecks, userKey);
+        const merged = mergeTrackDeckProgress(rawDecks, userKey, 'JA');
         setMergedDecks(merged);
       } catch {
-        setMergedDecks(mergeDeckProgress([], userKey));
+        setMergedDecks(mergeTrackDeckProgress([], userKey, activeTrack));
       }
     }
     loadDeckProgress();
@@ -97,7 +119,7 @@ export const DashboardPage: React.FC = () => {
     const handleProgressUpdate = () => void loadDeckProgress();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [user, userKey]);
+  }, [user, userKey, activeTrack, activeLevel, language]);
 
   useEffect(() => {
     function loadModuleResults() {
@@ -134,20 +156,20 @@ export const DashboardPage: React.FC = () => {
           await useAuthStore.getState().fetchUser();
         } catch {}
         const [statsRes, calRes] = await Promise.all([
-          progressApi.getOverallStats(),
-          progressApi.getCalendar(),
+          progressApi.getOverallStats(activeTrack),
+          progressApi.getCalendar(undefined, undefined, activeTrack),
         ]);
-        const mergedStats = mergeOverallStats(statsRes?.data || null, userKey);
+        const mergedStats = mergeTrackOverallStats(statsRes?.data || null, userKey, activeTrack);
         setOverallStats(mergedStats);
 
         const rawCalDays = calRes?.data?.days || [];
-        const mergedCalDays = mergeCalendarDays(rawCalDays, userKey);
+        const mergedCalDays = mergeTrackCalendarDays(rawCalDays, userKey, activeTrack);
         setCalendarDays(mergedCalDays);
       } catch (err) {
         console.warn('Could not load weekly stats:', err);
-        const fallbackStats = mergeOverallStats(null, userKey);
+        const fallbackStats = mergeTrackOverallStats(null, userKey, activeTrack);
         setOverallStats(fallbackStats);
-        const fallbackCalDays = mergeCalendarDays([], userKey);
+        const fallbackCalDays = mergeTrackCalendarDays([], userKey, activeTrack);
         setCalendarDays(fallbackCalDays);
       }
     }
@@ -156,11 +178,11 @@ export const DashboardPage: React.FC = () => {
     const handleProgressUpdate = () => void loadStatsData();
     window.addEventListener('kanarau_progress_updated', handleProgressUpdate);
     return () => window.removeEventListener('kanarau_progress_updated', handleProgressUpdate);
-  }, [user, userKey]);
+  }, [user, userKey, activeTrack]);
 
   const todayStr = formatLocalYMD();
-  const dailyActivities = getLocalDailyActivity(userKey);
-  const currentStreak = computeLocalStreak(userKey, overallStats?.current_streak ?? user?.streak);
+  const dailyActivities = getLocalDailyActivity(userKey, activeTrack);
+  const currentStreak = computeTrackLocalStreak(userKey, activeTrack, overallStats?.current_streak);
 
   // Cycle Mastery: Calculate active target day and module completion status across the level
   const cycleInfo = useMemo(() => {

@@ -34,9 +34,12 @@ public class ProgressController {
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<ApiResponse<OverallStatsResponse>> getStats(Authentication auth) {
+    public ResponseEntity<ApiResponse<OverallStatsResponse>> getStats(
+            @RequestParam(required = false, defaultValue = "JA") String track,
+            Authentication auth
+    ) {
         Long userId = getUserId(auth);
-        OverallStatsResponse stats = progressService.getOverallStats(userId);
+        OverallStatsResponse stats = progressService.getOverallStats(userId, track);
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
@@ -44,13 +47,14 @@ public class ProgressController {
     public ResponseEntity<ApiResponse<MonthlyCalendarResponse>> getCalendar(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
+            @RequestParam(required = false, defaultValue = "JA") String track,
             Authentication auth
     ) {
         Long userId = getUserId(auth);
         LocalDate today = LocalDate.now(studyZone);
         int y = (year != null) ? year : today.getYear();
         int m = (month != null) ? month : today.getMonthValue();
-        MonthlyCalendarResponse calendar = progressService.getCalendar(userId, y, m);
+        MonthlyCalendarResponse calendar = progressService.getCalendar(userId, y, m, track);
         return ResponseEntity.ok(ApiResponse.ok(calendar));
     }
 

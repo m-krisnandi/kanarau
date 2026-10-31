@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+import com.kanarau.course.entity.CourseDeckProgress;
+import com.kanarau.course.repository.CourseDeckProgressRepository;
+
 @Component
 public class IndonesianCourseStrategy implements CourseTrackStrategy {
 
@@ -23,15 +26,18 @@ public class IndonesianCourseStrategy implements CourseTrackStrategy {
     private final CourseLevelRepository levelRepository;
     private final CourseDeckRepository deckRepository;
     private final CourseItemRepository itemRepository;
+    private final CourseDeckProgressRepository courseDeckProgressRepository;
 
     public IndonesianCourseStrategy(CourseTrackRepository trackRepository,
                                     CourseLevelRepository levelRepository,
                                     CourseDeckRepository deckRepository,
-                                    CourseItemRepository itemRepository) {
+                                    CourseItemRepository itemRepository,
+                                    CourseDeckProgressRepository courseDeckProgressRepository) {
         this.trackRepository = trackRepository;
         this.levelRepository = levelRepository;
         this.deckRepository = deckRepository;
         this.itemRepository = itemRepository;
+        this.courseDeckProgressRepository = courseDeckProgressRepository;
     }
 
     @Override
@@ -83,9 +89,19 @@ public class IndonesianCourseStrategy implements CourseTrackStrategy {
     public List<CourseDeckDto> getDecks(String levelCode, String myLang, Long userId) {
         String level = (levelCode != null && !levelCode.isBlank()) ? levelCode.trim() : "BIPA-1";
         List<CourseDeck> decks = deckRepository.findByTrackCodeAndLevelCodeOrderByDayNumberAsc("ID", level);
+
+        Map<Long, Integer> progressMap = new HashMap<>();
+        if (userId != null) {
+            List<CourseDeckProgress> userProg = courseDeckProgressRepository.findByUserIdAndTrackCode(userId, "ID");
+            for (CourseDeckProgress p : userProg) {
+                progressMap.put(p.getDeckId(), p.getProgressPercent());
+            }
+        }
+
         List<CourseDeckDto> list = new ArrayList<>();
         for (CourseDeck d : decks) {
-            list.add(CourseDeckDto.from(d, myLang, 0));
+            int pct = progressMap.getOrDefault(d.getId(), 0);
+            list.add(CourseDeckDto.from(d, myLang, pct));
         }
         return list;
     }

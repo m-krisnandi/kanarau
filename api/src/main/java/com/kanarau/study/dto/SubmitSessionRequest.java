@@ -10,5 +10,6 @@ public record SubmitSessionRequest(
         @JsonProperty("accuracy_percent") int accuracyPercent,
         @JsonProperty("total_time_ms") long totalTimeMs,
         @JsonProperty("xp_gained") int xpGained,
+        @JsonProperty("track_code") String trackCode,
         List<QuizAnswerDto> answers
 ) {}

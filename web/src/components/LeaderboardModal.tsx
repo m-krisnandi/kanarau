@@ -4,19 +4,41 @@ import { leaderboardApi } from '@/services/api';
 import type { LeaderboardData, LeaderboardEntry } from '@/types';
 import { useTranslation } from '@/stores/languageStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useCourseStore, TrackCode } from '@/stores/courseStore';
 import { calculateUserLevel } from '@/utils/levelHelper';
-import { getEffectiveUserXp } from '@/utils/userProgressHelper';
+import {
+  getEffectiveUserXp,
+  getTrackUserXp,
+  getUserKey,
+  computeTrackLocalStreak,
+} from '@/utils/userProgressHelper';
 
 interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const TRACKS: { code: TrackCode; flag: string; label: string }[] = [
+  { code: 'JA', flag: '🇯🇵', label: 'JLPT' },
+  { code: 'ID', flag: '🇮🇩', label: 'BIPA' },
+  { code: 'MY', flag: '🇲🇲', label: 'Myanmar' },
+  { code: 'EN', flag: '🇬🇧', label: 'English' },
+];
+
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onClose }) => {
   const { t, language } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const activeTrack = useCourseStore((state) => state.activeTrack);
+  const [selectedTrack, setSelectedTrack] = useState<TrackCode>(activeTrack || 'JA');
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync selectedTrack with activeTrack whenever modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedTrack(activeTrack || 'JA');
+    }
+  }, [isOpen, activeTrack]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -25,7 +47,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
     async function fetchLeaderboard() {
       setLoading(true);
       try {
-        const res = await leaderboardApi.getLeaderboard();
+        const res = await leaderboardApi.getLeaderboard(selectedTrack);
         if (isMounted && res?.data) {
           setData(res.data);
         }
@@ -40,25 +62,29 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
     return () => {
       isMounted = false;
     };
-  }, [isOpen]);
+  }, [isOpen, selectedTrack]);
 
-  const effectiveUserXp = getEffectiveUserXp(user);
+  const userKey = getUserKey(user);
+  const effectiveTrackXp =
+    selectedTrack === 'JA'
+      ? getEffectiveUserXp(user)
+      : getTrackUserXp(user, selectedTrack);
 
-  // Sync authStore if stored user total_xp is lower than their effective progress XP
+  // Sync authStore if stored user total_xp is lower than their effective progress XP (Japanese track only)
   useEffect(() => {
-    if (user && (user.total_xp || 0) < effectiveUserXp) {
+    if (selectedTrack === 'JA' && user && (user.total_xp || 0) < effectiveTrackXp) {
       useAuthStore.setState((state) => {
         if (!state.user) return state;
         return {
           ...state,
           user: {
             ...state.user,
-            total_xp: effectiveUserXp,
+            total_xp: effectiveTrackXp,
           },
         };
       });
     }
-  }, [user, effectiveUserXp]);
+  }, [user, effectiveTrackXp, selectedTrack]);
 
   if (!isOpen) return null;
 
@@ -73,8 +99,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
     );
     if (isMe) {
       foundMeInTop = true;
-      const effectiveXp = Math.max(u.total_xp || 0, effectiveUserXp);
+      const effectiveXp = Math.max(u.total_xp || 0, effectiveTrackXp);
       const lvlInfo = calculateUserLevel(effectiveXp, language);
+      const streak = selectedTrack === 'JA'
+        ? Math.max(u.streak || 0, user?.streak || 0)
+        : computeTrackLocalStreak(userKey, selectedTrack, u.streak || 0);
       return {
         ...u,
         is_current_user: true,
@@ -82,25 +111,27 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
         total_xp: effectiveXp,
         gamification_level: lvlInfo.level,
         level_title: lvlInfo.title,
-        streak: Math.max(u.streak || 0, user?.streak || 0),
+        streak,
       };
     }
     return u;
   });
 
   // If user has earned XP or is logged in and not found in top_users list:
-  if (!foundMeInTop && (user || effectiveUserXp > 0)) {
+  if (!foundMeInTop && (user || effectiveTrackXp > 0)) {
     const fallbackId = typeof user?.id === 'number' ? user.id : (Number(user?.id) || 999999);
     const fallbackName = user?.displayName || user?.name || 'Murid Kanarau';
-    const fallbackStreak = user?.streak || 1;
-    const fallbackLevel = user?.current_level || 'N2';
-    const lvlInfo = calculateUserLevel(effectiveUserXp, language);
+    const fallbackStreak = selectedTrack === 'JA'
+      ? (user?.streak || 1)
+      : computeTrackLocalStreak(userKey, selectedTrack, data?.current_user_entry?.streak || 0);
+    const fallbackLevel = selectedTrack === 'JA' ? (user?.current_level || 'N2') : `${selectedTrack} A1`;
+    const lvlInfo = calculateUserLevel(effectiveTrackXp, language);
 
     topUsers.push({
       rank: 0,
       user_id: fallbackId,
       display_name: fallbackName,
-      total_xp: effectiveUserXp,
+      total_xp: effectiveTrackXp,
       gamification_level: lvlInfo.level,
       level_title: lvlInfo.title,
       streak: fallbackStreak,
@@ -133,11 +164,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
   const remainingUsers = displayTopUsers.slice(3);
 
   const rawMyEntry = data?.current_user_entry;
-  const myTotalXp = Math.max(rawMyEntry?.total_xp || 0, effectiveUserXp);
+  const myTotalXp = Math.max(rawMyEntry?.total_xp || 0, effectiveTrackXp);
   const myLevelInfo = calculateUserLevel(myTotalXp, language);
   const numericUserId = (typeof user?.id === 'number' ? user.id : Number(user?.id)) || rawMyEntry?.user_id || 0;
+  const myTrackStreak = selectedTrack === 'JA'
+    ? Math.max(rawMyEntry?.streak || 0, user?.streak || 1)
+    : computeTrackLocalStreak(userKey, selectedTrack, rawMyEntry?.streak || 0);
 
-  const myEntry: LeaderboardEntry | null = (user || effectiveUserXp > 0)
+  const myEntry: LeaderboardEntry | null = (user || effectiveTrackXp > 0)
     ? {
         rank: currentRankInAll || rawMyEntry?.rank || (displayTopUsers.length + 1),
         user_id: numericUserId,
@@ -145,8 +179,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
         total_xp: myTotalXp,
         gamification_level: myLevelInfo.level,
         level_title: myLevelInfo.title,
-        streak: Math.max(rawMyEntry?.streak || 0, user?.streak || 1),
-        jlpt_level: user?.current_level || rawMyEntry?.jlpt_level || 'N2',
+        streak: myTrackStreak,
+        jlpt_level: selectedTrack === 'JA' ? (user?.current_level || rawMyEntry?.jlpt_level || 'N2') : `${selectedTrack} A1`,
         is_current_user: true,
       }
     : null;
@@ -188,6 +222,28 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isOpen, onCl
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Track Selector Tabs */}
+        <div className="px-4 py-2.5 bg-stone-100/70 dark:bg-slate-900/60 border-b border-stone-200/80 dark:border-slate-800/80 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {TRACKS.map((trk) => {
+            const isSelected = selectedTrack === trk.code;
+            return (
+              <button
+                key={trk.code}
+                type="button"
+                onClick={() => setSelectedTrack(trk.code)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 text-stone-600 dark:text-slate-300 hover:bg-stone-200/70 dark:hover:bg-slate-700 border border-stone-200 dark:border-slate-700'
+                }`}
+              >
+                <span className="text-sm leading-none">{trk.flag}</span>
+                <span>{trk.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Area */}

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 @RestController
 @RequestMapping({"/leaderboard", "/progress/leaderboard"})
 public class LeaderboardController {
@@ -39,9 +41,12 @@ public class LeaderboardController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<LeaderboardResponse>> getLeaderboard(Authentication auth) {
+    public ResponseEntity<ApiResponse<LeaderboardResponse>> getLeaderboard(
+            @RequestParam(required = false, defaultValue = "JA") String track,
+            Authentication auth
+    ) {
         Long userId = getUserId(auth);
-        LeaderboardResponse response = leaderboardService.getLeaderboard(userId);
+        LeaderboardResponse response = leaderboardService.getLeaderboard(userId, track);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

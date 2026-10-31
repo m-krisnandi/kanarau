@@ -118,6 +118,7 @@ export interface QuizAnswer {
 export interface SessionResult {
   session_id?: number;
   deck_id?: number | string;
+  track_code?: string;
   total_cards: number;
   cards_studied?: number;
   correct_count?: number;

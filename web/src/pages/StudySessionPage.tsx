@@ -318,17 +318,19 @@ export const StudySessionPage: React.FC = () => {
     const userKey = getUserKey(useAuthStore.getState().user);
     clearActiveStudySession(userKey, String(deckId || 1), studyMode);
 
-    // Optimistically update total_xp in authStore immediately so results screen reflects it
-    useAuthStore.setState((state) => {
-      if (!state.user) return state;
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          total_xp: (state.user.total_xp || 0) + xpGained,
-        },
-      };
-    });
+    // Optimistically update total_xp in authStore if Japanese track
+    if (track === 'JA') {
+      useAuthStore.setState((state) => {
+        if (!state.user) return state;
+        return {
+          ...state,
+          user: {
+            ...state.user,
+            total_xp: (state.user.total_xp || 0) + xpGained,
+          },
+        };
+      });
+    }
 
     const effectiveAnswers = answersRef.current.length > 0
       ? answersRef.current
@@ -354,6 +356,7 @@ export const StudySessionPage: React.FC = () => {
 
     const result: SessionResult = {
       deck_id: numericDeckId,
+      track_code: track,
       total_cards: totalUniqueCards,
       correct_count: totalUniqueCards,
       accuracy_percent: 100,
@@ -372,18 +375,25 @@ export const StudySessionPage: React.FC = () => {
         totalUniqueCards,
         totalUniqueCards,
         totalTimeMs,
-        deckTotalCards || totalUniqueCards
+        deckTotalCards || totalUniqueCards,
+        track
       );
     } catch {}
 
     try {
-      await studyApi.submitSession(result);
+      const submitRes = await studyApi.submitSession(result);
       await useAuthStore.getState().fetchUser();
-      setTotalXpAfterSession(useAuthStore.getState().user?.total_xp ?? null);
+      const resTotalXp = (submitRes?.data as any)?.total_xp;
+      if (typeof resTotalXp === 'number') {
+        setTotalXpAfterSession(resTotalXp);
+      } else {
+        setTotalXpAfterSession(xpGained);
+      }
     } catch (err) {
       console.error('Failed to submit session to backend', err);
+      setTotalXpAfterSession(xpGained);
     }
-  }, [answers, initialCards.length, cards.length, deckId, studyMode]);
+  }, [answers, initialCards.length, cards.length, deckId, studyMode, track]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < cards.length - 1) {
@@ -569,7 +579,9 @@ export const StudySessionPage: React.FC = () => {
   // --- RESULTS SCREEN ---
   if (isFinished) {
     const displayCards = initialCards.length > 0 ? initialCards : cards.slice(0, 15);
-    const effectiveXp = Math.max(user?.total_xp ?? 0, totalXpAfterSession ?? 0, earnedXp);
+    const effectiveXp = (track === 'JA')
+      ? Math.max(user?.total_xp ?? 0, totalXpAfterSession ?? 0, earnedXp)
+      : Math.max(totalXpAfterSession ?? 0, earnedXp);
 
     return (
       <>
@@ -941,18 +953,40 @@ export const StudySessionPage: React.FC = () => {
 
               {/* Context: Example Sentence & Translation */}
               {hintDetails.exampleSentence && (
-                <div className="space-y-1 bg-white/80 rounded-xl p-2.5 border border-amber-200/50">
-                  <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center space-x-1">
-                    <BookOpen className="w-3 h-3 text-amber-600 shrink-0" />
-                    <span>{t.studySession.hintExample}</span>
+                <div className="space-y-1.5 bg-white/90 dark:bg-stone-900/90 rounded-xl p-2.5 border border-amber-200/70 shadow-2xs">
+                  <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wide flex items-center justify-between">
+                    <div className="flex items-center space-x-1">
+                      <BookOpen className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span>{t.studySession.hintExample}</span>
+                    </div>
+                    {/* Natural Audio Button for Example Sentence */}
+                    <button
+                      type="button"
+                      onClick={() => playUniversalAudio(hintDetails.exampleSentence || '', targetLanguage, 1.0)}
+                      className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-100/90 hover:bg-amber-200 text-amber-900 text-[10px] font-bold transition-all active:scale-95 cursor-pointer border border-amber-300/80 shadow-2xs"
+                      title="Dengarkan Contoh Kalimat / Listen Natural Audio"
+                    >
+                      <Volume2 className="w-3 h-3 text-amber-700 shrink-0" />
+                      <span>Audio</span>
+                    </button>
                   </div>
-                  <p className="font-jp text-xs sm:text-sm text-[#1E1B18] font-medium leading-relaxed">
+                  <p className="font-jp text-xs sm:text-sm text-[#1E1B18] dark:text-stone-100 font-medium leading-relaxed">
                     {hintDetails.exampleSentence}
                   </p>
                   {hintDetails.exampleTranslation && (
-                    <p className="text-[11px] text-[#57534E] leading-normal pt-1 border-t border-amber-100/80 italic">
-                      "{hintDetails.exampleTranslation}"
-                    </p>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-amber-100/80">
+                      <p className="text-[11px] text-[#57534E] dark:text-stone-300 leading-normal italic">
+                        "{hintDetails.exampleTranslation}"
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => playUniversalAudio(hintDetails.exampleTranslation || '', language, 1.0)}
+                        className="p-1 rounded-full text-amber-700 hover:bg-amber-100/80 dark:hover:bg-amber-950/50 transition-colors shrink-0 cursor-pointer"
+                        title="Dengarkan Terjemahan / Listen Translation"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

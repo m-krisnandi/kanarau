@@ -155,63 +155,71 @@ export function recordLocalStudySession(
   cardsStudied: number,
   cardsCorrect: number,
   durationMs: number,
-  deckTotalCards: number = cardsStudied
+  deckTotalCards: number = cardsStudied,
+  track: string = 'JA'
 ) {
   try {
     const todayStr = formatLocalYMD();
     const durationMinutes = Math.max(1, Math.round(durationMs / 60000));
+    const normalizedTrack = (track || 'JA').trim().toUpperCase();
 
-    // 1. Update deck progress
-    const deckKey = `kanarau_local_progress_${userKey}`;
-    const existingDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
-      localStorage.getItem(deckKey) || '{}'
-    );
-    const previousDeck = existingDecks[String(deckId)];
-    const totalCards = Math.max(previousDeck?.total || 0, deckTotalCards, cardsStudied);
-    existingDecks[String(deckId)] = {
-      deck_id: deckId,
-      percent: 100,
-      learned: totalCards,
-      total: totalCards,
-      timestamp: Date.now(),
-      completedDate: todayStr,
-      cardsCorrect: totalCards,
-    };
-    localStorage.setItem(deckKey, JSON.stringify(existingDecks));
+    // 1. Update deck progress for this specific track and legacy
+    const trackDeckKey = `kanarau_local_progress_${userKey}_${normalizedTrack}`;
+    const legacyDeckKey = `kanarau_local_progress_${userKey}`;
+    [trackDeckKey, legacyDeckKey].forEach((dKey) => {
+      const existingDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
+        localStorage.getItem(dKey) || '{}'
+      );
+      const previousDeck = existingDecks[String(deckId)];
+      const totalCards = Math.max(previousDeck?.total || 0, deckTotalCards, cardsStudied);
+      existingDecks[String(deckId)] = {
+        deck_id: deckId,
+        percent: 100,
+        learned: totalCards,
+        total: totalCards,
+        timestamp: Date.now(),
+        completedDate: todayStr,
+        cardsCorrect: totalCards,
+      };
+      localStorage.setItem(dKey, JSON.stringify(existingDecks));
+    });
 
-    // 2. Update daily activity
-    const activityKey = `kanarau_daily_activity_${userKey}`;
-    const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
-      localStorage.getItem(activityKey) || '{}'
-    );
-    const prevToday = existingActivities[todayStr] || {
-      date: todayStr,
-      studied: true,
-      minutes: 0,
-      cardsStudied: 0,
-      cardsCorrect: 0,
-      accuracy: 100,
-      goiCompleted: true,
-      hasRealStudySession: true,
-      timestamp: Date.now(),
-    };
+    // 2. Update daily activity for this specific track and legacy
+    const trackActivityKey = `kanarau_daily_activity_${userKey}_${normalizedTrack}`;
+    const legacyActivityKey = `kanarau_daily_activity_${userKey}`;
+    [trackActivityKey, legacyActivityKey].forEach((aKey) => {
+      const existingActivities: Record<string, LocalDailyActivityItem> = JSON.parse(
+        localStorage.getItem(aKey) || '{}'
+      );
+      const prevToday = existingActivities[todayStr] || {
+        date: todayStr,
+        studied: true,
+        minutes: 0,
+        cardsStudied: 0,
+        cardsCorrect: 0,
+        accuracy: 100,
+        goiCompleted: true,
+        hasRealStudySession: true,
+        timestamp: Date.now(),
+      };
 
-    const newCardsStudied = prevToday.cardsStudied + cardsStudied;
-    const newCardsCorrect = prevToday.cardsCorrect + cardsCorrect;
-    const newAccuracy = newCardsStudied > 0 ? Math.round((newCardsCorrect / newCardsStudied) * 100) : 100;
+      const newCardsStudied = prevToday.cardsStudied + cardsStudied;
+      const newCardsCorrect = prevToday.cardsCorrect + cardsCorrect;
+      const newAccuracy = newCardsStudied > 0 ? Math.round((newCardsCorrect / newCardsStudied) * 100) : 100;
 
-    existingActivities[todayStr] = {
-      ...prevToday,
-      studied: true,
-      minutes: prevToday.minutes + durationMinutes,
-      cardsStudied: newCardsStudied,
-      cardsCorrect: newCardsCorrect,
-      accuracy: newAccuracy,
-      goiCompleted: true,
-      hasRealStudySession: true,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(activityKey, JSON.stringify(existingActivities));
+      existingActivities[todayStr] = {
+        ...prevToday,
+        studied: true,
+        minutes: prevToday.minutes + durationMinutes,
+        cardsStudied: newCardsStudied,
+        cardsCorrect: newCardsCorrect,
+        accuracy: newAccuracy,
+        goiCompleted: true,
+        hasRealStudySession: true,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(aKey, JSON.stringify(existingActivities));
+    });
 
     // 3. Dispatch event for instant reactive UI sync
     if (typeof window !== 'undefined') {
@@ -477,16 +485,19 @@ export function recordChoukaiCompletion(
   }
 }
 
-export function getLocalDailyActivity(userKey: string): Record<string, LocalDailyActivityItem> {
+export function getLocalDailyActivity(userKey: string, track: string = 'JA'): Record<string, LocalDailyActivityItem> {
   try {
-    const activityKey = `kanarau_daily_activity_${userKey}`;
+    const normalizedTrack = (track || 'JA').trim().toUpperCase();
+    const trackActivityKey = `kanarau_daily_activity_${userKey}_${normalizedTrack}`;
     let activities: Record<string, LocalDailyActivityItem> = JSON.parse(
-      localStorage.getItem(activityKey) || '{}'
+      localStorage.getItem(trackActivityKey) || '{}'
     );
+    if (normalizedTrack === 'JA' && Object.keys(activities).length === 0) {
+      activities = JSON.parse(localStorage.getItem(`kanarau_daily_activity_${userKey}`) || '{}');
+    }
     const todayStr = formatLocalYMD();
 
     // Verify today's record: ONLY keep today if there was an actual study session or module completed today!
-    // Simply opening the app must NEVER count as studying today or invent 15 minutes!
     const todayRecord = activities[todayStr];
     if (todayRecord) {
       const localBunpo = readBestMatchingStorage<Record<string, any>>('kanarau_bunpo_results', userKey) || {};
@@ -499,25 +510,29 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
       const hasReviewToday = Boolean(todayRecord.reviewCompleted && (todayRecord.cardsReviewed || 0) > 0);
       const hasRealStudySession = Boolean(todayRecord.hasRealStudySession);
 
-      // If todayRecord does not have any confirmed study action, purge it so opening the app doesn't fake 15 mins!
       if (!hasRealStudySession && !hasBunpoToday && !hasDokkaiToday && !hasChoukaiToday && !hasReviewToday) {
         delete activities[todayStr];
         try {
-          localStorage.setItem(activityKey, JSON.stringify(activities));
+          localStorage.setItem(trackActivityKey, JSON.stringify(activities));
         } catch {}
       }
     }
 
     // Backfill past deck activities ONLY to their respective PAST completed dates (never today)
-    const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
-      'kanarau_local_progress',
-      userKey
-    ) || {};
+    const trackDeckKey = `kanarau_local_progress_${userKey}_${normalizedTrack}`;
+    let localDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
+      localStorage.getItem(trackDeckKey) || '{}'
+    );
+    if (normalizedTrack === 'JA' && Object.keys(localDecks).length === 0) {
+      localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+        'kanarau_local_progress',
+        userKey
+      ) || {};
+    }
 
     Object.values(localDecks).forEach((d) => {
       if ((d.percent && d.percent > 0) || (d.learned && d.learned > 0)) {
         const dDate = d.completedDate || (d.timestamp ? formatLocalYMD(new Date(d.timestamp)) : null);
-        // Only backfill for PAST dates that are missing, never fabricate today's activity on app open
         if (!dDate || dDate === todayStr) return;
         if (!activities[dDate]) {
           activities[dDate] = {
@@ -541,9 +556,9 @@ export function getLocalDailyActivity(userKey: string): Record<string, LocalDail
   }
 }
 
-export function computeLocalStreak(userKey: string, apiStreak?: number): number {
+export function computeTrackLocalStreak(userKey: string, track: string = 'JA', apiStreak?: number): number {
   try {
-    const activities = getLocalDailyActivity(userKey);
+    const activities = getLocalDailyActivity(userKey, track);
     const today = new Date();
     const todayStr = formatLocalYMD(today);
 
@@ -583,19 +598,35 @@ export function computeLocalStreak(userKey: string, apiStreak?: number): number 
   }
 }
 
+export function computeLocalStreak(userKey: string, apiStreak?: number): number {
+  return computeTrackLocalStreak(userKey, 'JA', apiStreak);
+}
+
 export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckProgress[] {
+  return mergeTrackDeckProgress(decks, userKey, 'JA') as DeckProgress[];
+}
+
+export function mergeTrackDeckProgress(decks: any[], userKey: string, track: string = 'JA'): any[] {
   try {
-    const localSaved = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
-      'kanarau_local_progress',
-      userKey
+    const normalizedTrack = (track || 'JA').trim().toUpperCase();
+    const trackDeckKey = `kanarau_local_progress_${userKey}_${normalizedTrack}`;
+    let localSaved: Record<string, LocalDeckProgressItem> = JSON.parse(
+      localStorage.getItem(trackDeckKey) || '{}'
     );
+    if (Object.keys(localSaved).length === 0 && normalizedTrack === 'JA') {
+      localSaved = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+        'kanarau_local_progress',
+        userKey
+      ) || {};
+    }
     if (!localSaved || Object.keys(localSaved).length === 0) return decks;
 
     return decks.map((d) => {
-      const local = localSaved[String(d.deck_id)];
+      const deckId = String(d.id || d.deck_id);
+      const local = localSaved[deckId];
       if (local && (local.percent > (d.progress_percent || 0) || (local.learned || 0) > (d.learned || 0))) {
         const isComplete = local.percent >= 100;
-        const totalWords = d.total_kotoba || 30;
+        const totalWords = d.total_kotoba || d.kotoba_count || d.total_cards || 30;
         const effectiveLearned = isComplete
           ? Math.max(d.learned || 0, local.learned || 0, totalWords - (d.mastered || 0) - (d.reviewing || 0))
           : Math.max(d.learned || 0, local.learned || 0);
@@ -613,12 +644,19 @@ export function mergeDeckProgress(decks: DeckProgress[], userKey: string): DeckP
   }
 }
 
-export function getLocalTotalCardsLearned(userKey: string): number {
+export function getTrackLocalTotalCardsLearned(userKey: string, track: string = 'JA'): number {
   try {
-    const localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
-      'kanarau_local_progress',
-      userKey
-    ) || {};
+    const normalizedTrack = (track || 'JA').trim().toUpperCase();
+    const trackDeckKey = `kanarau_local_progress_${userKey}_${normalizedTrack}`;
+    let localDecks: Record<string, LocalDeckProgressItem> = JSON.parse(
+      localStorage.getItem(trackDeckKey) || '{}'
+    );
+    if (Object.keys(localDecks).length === 0 && normalizedTrack === 'JA') {
+      localDecks = readBestMatchingStorage<Record<string, LocalDeckProgressItem>>(
+        'kanarau_local_progress',
+        userKey
+      ) || {};
+    }
     return Object.values(localDecks).reduce(
       (acc, item) => acc + (item.learned || 0),
       0
@@ -626,6 +664,10 @@ export function getLocalTotalCardsLearned(userKey: string): number {
   } catch {
     return 0;
   }
+}
+
+export function getLocalTotalCardsLearned(userKey: string): number {
+  return getTrackLocalTotalCardsLearned(userKey, 'JA');
 }
 
 export function getEffectiveUserXp(
@@ -639,18 +681,37 @@ export function getEffectiveUserXp(
   return Math.max(user?.total_xp ?? 0, xpFromCards);
 }
 
-export function mergeOverallStats(stats: OverallStats | null, userKey: string): OverallStats {
-  try {
-    const localActivities = getLocalDailyActivity(userKey);
-    const todayStr = formatLocalYMD();
+export function getTrackUserXp(
+  user: { id?: number | string | null; email?: string | null; total_xp?: number } | null | undefined,
+  track: string = 'JA',
+  stats?: OverallStats | null
+): number {
+  const normalizedTrack = (track || 'JA').trim().toUpperCase();
+  if (normalizedTrack === 'JA') {
+    return getEffectiveUserXp(user, stats);
+  }
 
-    const localTotalLearned = getLocalTotalCardsLearned(userKey);
+  const userKey = getUserKey(user);
+  const localLearned = getTrackLocalTotalCardsLearned(userKey, normalizedTrack);
+  const apiCards = stats?.total_cards_learned || 0;
+  const cards = Math.max(apiCards, localLearned);
+  return cards * 10;
+}
+
+export function mergeOverallStats(stats: OverallStats | null, userKey: string): OverallStats {
+  return mergeTrackOverallStats(stats, userKey, 'JA');
+}
+
+export function mergeTrackOverallStats(stats: OverallStats | null, userKey: string, track: string = 'JA'): OverallStats {
+  try {
+    const localActivities = getLocalDailyActivity(userKey, track);
+    const localTotalLearned = getTrackLocalTotalCardsLearned(userKey, track);
     const localTotalMinutes = Object.values(localActivities).reduce(
       (acc, item) => acc + (item.minutes || 0),
       0
     );
     const localStudyDays = Object.values(localActivities).filter((item) => item.studied).length;
-    const streak = computeLocalStreak(userKey, stats?.current_streak);
+    const streak = computeTrackLocalStreak(userKey, track, stats?.current_streak);
 
     const totalLearned = Math.max(stats?.total_cards_learned || 0, localTotalLearned);
     const totalMinutes = Math.max(stats?.total_study_time_minutes || 0, localTotalMinutes);
@@ -681,8 +742,12 @@ export function mergeOverallStats(stats: OverallStats | null, userKey: string): 
 }
 
 export function mergeCalendarDays(days: DayStats[], userKey: string): DayStats[] {
+  return mergeTrackCalendarDays(days, userKey, 'JA');
+}
+
+export function mergeTrackCalendarDays(days: DayStats[], userKey: string, track: string = 'JA'): DayStats[] {
   try {
-    const localActivities = getLocalDailyActivity(userKey);
+    const localActivities = getLocalDailyActivity(userKey, track);
     const todayStr = formatLocalYMD();
 
     let hasToday = false;

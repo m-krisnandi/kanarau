@@ -12,6 +12,9 @@ import com.kanarau.progress.dto.MonthlyCalendarResponse;
 import com.kanarau.progress.dto.OverallStatsResponse;
 import com.kanarau.review.entity.UserProgress;
 import com.kanarau.review.repository.UserProgressRepository;
+import com.kanarau.course.entity.CourseDeckProgress;
+import com.kanarau.course.repository.CourseDeckProgressRepository;
+import com.kanarau.course.repository.UserTrackStatsRepository;
 import com.kanarau.study.entity.StudySession;
 import com.kanarau.study.repository.StudySessionRepository;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,8 @@ public class ProgressService {
     private final DeckKotobaRepository deckKotobaRepository;
     private final UserProgressRepository userProgressRepository;
     private final StudySessionRepository studySessionRepository;
+    private final CourseDeckProgressRepository courseDeckProgressRepository;
+    private final UserTrackStatsRepository userTrackStatsRepository;
     private final LocalDate examDate;
     private final JlptLevel examLevel;
     private final ZoneId studyZone;
@@ -38,6 +43,8 @@ public class ProgressService {
             DeckKotobaRepository deckKotobaRepository,
             UserProgressRepository userProgressRepository,
             StudySessionRepository studySessionRepository,
+            CourseDeckProgressRepository courseDeckProgressRepository,
+            UserTrackStatsRepository userTrackStatsRepository,
             @Value("${kanarau.jlpt.exam-date:2026-12-06}") String examDate,
             @Value("${kanarau.jlpt.exam-level:N2}") String examLevel,
             @Value("${kanarau.jlpt.timezone:Asia/Jakarta}") String timezone
@@ -46,27 +53,41 @@ public class ProgressService {
         this.deckKotobaRepository = deckKotobaRepository;
         this.userProgressRepository = userProgressRepository;
         this.studySessionRepository = studySessionRepository;
+        this.courseDeckProgressRepository = courseDeckProgressRepository;
+        this.userTrackStatsRepository = userTrackStatsRepository;
         this.examDate = LocalDate.parse(examDate);
         this.examLevel = JlptLevel.valueOf(examLevel.toUpperCase(Locale.ROOT));
         this.studyZone = ZoneId.of(timezone);
     }
 
     public OverallStatsResponse getOverallStats(Long userId) {
+        return getOverallStats(userId, "JA");
+    }
+
+    public OverallStatsResponse getOverallStats(Long userId, String trackCode) {
+        String track = (trackCode != null && !trackCode.isBlank()) ? trackCode.trim().toUpperCase() : "JA";
         if (userId == null) {
             return new OverallStatsResponse(0, 0, 0, 0, 0, 0, 0);
         }
 
-        int streak = computeStreak(userId);
-        long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
-        long masteredCount = userProgressRepository.countMasteredByUser(userId);
-        long reviewCount = userProgressRepository.countReviewByUser(userId);
-        long learningCount = userProgressRepository.countLearningByUser(userId);
-        long totalCards = distinctKotobas > 0 ? distinctKotobas : (masteredCount + reviewCount + learningCount);
+        int streak = computeStreak(userId, track);
+        long totalCards;
+        if ("JA".equals(track)) {
+            long distinctKotobas = userProgressRepository.countDistinctKotobaByUser(userId);
+            long masteredCount = userProgressRepository.countMasteredByUser(userId);
+            long reviewCount = userProgressRepository.countReviewByUser(userId);
+            long learningCount = userProgressRepository.countLearningByUser(userId);
+            totalCards = distinctKotobas > 0 ? distinctKotobas : (masteredCount + reviewCount + learningCount);
+        } else {
+            List<CourseDeckProgress> cdpList = courseDeckProgressRepository.findByUserIdAndTrackCode(userId, track);
+            long completedDecks = cdpList.stream().filter(p -> Boolean.TRUE.equals(p.getCompleted()) || p.getProgressPercent() >= 100).count();
+            totalCards = completedDecks * 10;
+        }
 
-        List<StudySession> sessions = studySessionRepository.findByUserIdOrderByStartedAtDesc(userId);
+        List<StudySession> sessions = studySessionRepository.findByUserIdAndTrackCodeOrderByStartedAtDesc(userId, track);
 
-        long totalStudied = studySessionRepository.totalCardsStudiedByUser(userId);
-        long totalCorrect = studySessionRepository.totalCardsCorrectByUser(userId);
+        long totalStudied = studySessionRepository.totalCardsStudiedByUserAndTrackCode(userId, track);
+        long totalCorrect = studySessionRepository.totalCardsCorrectByUserAndTrackCode(userId, track);
         int accuracy = totalStudied > 0 ? (int) Math.round(((double) totalCorrect / totalStudied) * 100) : 0;
 
         int totalMinutes = 0;
@@ -99,6 +120,11 @@ public class ProgressService {
     }
 
     public MonthlyCalendarResponse getCalendar(Long userId, int year, int month) {
+        return getCalendar(userId, year, month, "JA");
+    }
+
+    public MonthlyCalendarResponse getCalendar(Long userId, int year, int month, String trackCode) {
+        String track = (trackCode != null && !trackCode.isBlank()) ? trackCode.trim().toUpperCase() : "JA";
         YearMonth ym = YearMonth.of(year, month);
         int daysInMonth = ym.lengthOfMonth();
         List<MonthlyCalendarResponse.DayStatsDto> dayList = new ArrayList<>();
@@ -107,7 +133,7 @@ public class ProgressService {
         Instant end = ym.plusMonths(1).atDay(1).atStartOfDay(studyZone).toInstant();
 
         List<StudySession> sessions = (userId != null)
-                ? studySessionRepository.findByUserIdAndDateRange(userId, start, end)
+                ? studySessionRepository.findByUserIdAndTrackCodeAndDateRange(userId, track, start, end)
                 : Collections.emptyList();
 
         Map<Integer, List<StudySession>> sessionsByDay = sessions.stream()
@@ -220,7 +246,12 @@ public class ProgressService {
     }
 
     public int computeStreak(Long userId) {
-        List<StudySession> sessions = studySessionRepository.findByUserIdOrderByStartedAtDesc(userId);
+        return computeStreak(userId, "JA");
+    }
+
+    public int computeStreak(Long userId, String trackCode) {
+        String track = (trackCode != null && !trackCode.isBlank()) ? trackCode.trim().toUpperCase() : "JA";
+        List<StudySession> sessions = studySessionRepository.findByUserIdAndTrackCodeOrderByStartedAtDesc(userId, track);
         if (sessions.isEmpty()) return 0;
 
         Set<LocalDate> dates = sessions.stream()
