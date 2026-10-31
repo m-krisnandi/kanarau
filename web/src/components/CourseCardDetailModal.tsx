@@ -228,9 +228,9 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                   </div>
                   <h4 className="text-xs sm:text-sm font-extrabold text-amber-950 dark:text-amber-200">
                     {isMy
-                      ? 'ဝါကျဖွဲ့စည်းပုံ နှိုင်းယှဉ်ချက် (S-P-O vs S-O-V)'
+                      ? 'ဝါကျဖွဲ့စည်းပုံ နှိုင်းယှဉ်ချက် (S-V-O vs S-O-V)'
                       : isEn
-                      ? 'Word Order Contrast (S-P-O vs S-O-V)'
+                      ? 'Word Order Contrast (S-V-O vs S-O-V)'
                       : 'Pola Susunan Kalimat (S-P-O vs S-O-V)'}
                   </h4>
                 </div>
@@ -241,30 +241,32 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
 
               {/* Comparison Formula Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {/* Indonesian SPO */}
+                {/* Indonesian SPO / SVO */}
                 <div className="p-2.5 rounded-xl bg-white dark:bg-[#1A2234] border border-amber-100 dark:border-amber-900/50 space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between text-[11px] font-bold text-stone-800 dark:text-stone-200">
-                    <span>🇮🇩 အင်ဒိုနီးရှား (Indonesian)</span>
-                    <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">S - P - O</span>
+                    <span>{isMy ? '🇮🇩 အင်ဒိုနီးရှား' : isEn ? '🇮🇩 Indonesian' : '🇮🇩 Bahasa Indonesia'}</span>
+                    <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">
+                      {isMy ? 'S - V - O' : isEn ? 'S - V - O' : 'S - P - O'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold flex-wrap">
                     <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      {isMy ? 'Subjek (ကတ္တား)' : 'Subjek (S)'}
+                      {isMy ? 'ကတ္တား (S)' : isEn ? 'Subject (S)' : 'Subjek (S)'}
                     </span>
                     <span className="text-stone-400">➔</span>
                     <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      {isMy ? 'Predikat (ကြိယာ)' : 'Predikat (P)'}
+                      {isMy ? 'ကြိယာ (V)' : isEn ? 'Verb (V)' : 'Predikat (P)'}
                     </span>
                     <span className="text-stone-400">➔</span>
                     <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                      {isMy ? 'Objek (ကံ)' : 'Objek (O)'}
+                      {isMy ? 'ကံ (O)' : isEn ? 'Object (O)' : 'Objek (O)'}
                     </span>
                   </div>
                   <p className="text-[10px] text-stone-600 dark:text-zinc-400 leading-tight">
                     {isMy
-                      ? 'ကြိယာ (Predikat) သည် ကံ (Objek) ၏ ရှေ့တွင် လာပါသည်။'
+                      ? 'အင်ဒိုနီးရှားတွင် ကြိယာ (Verb) သည် ကံ (Object) ၏ ရှေ့တွင် လာပါသည်။'
                       : isEn
-                      ? 'The Predicate/Verb comes BEFORE the Object.'
+                      ? 'In Indonesian, the Verb comes BEFORE the Object.'
                       : 'Predikat (kata kerja) mendahului Objek.'}
                   </p>
                 </div>
@@ -272,27 +274,27 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                 {/* Myanmar SOV */}
                 <div className="p-2.5 rounded-xl bg-white dark:bg-[#1A2234] border border-amber-100 dark:border-amber-900/50 space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between text-[11px] font-bold text-stone-800 dark:text-stone-200">
-                    <span>🇲🇲 မြန်မာ (Burmese)</span>
+                    <span>{isMy ? '🇲🇲 မြန်မာ' : isEn ? '🇲🇲 Burmese' : '🇲🇲 Bahasa Myanmar'}</span>
                     <span className="font-mono text-amber-600 dark:text-amber-400 font-extrabold">S - O - V</span>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold flex-wrap">
                     <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      {isMy ? 'Subjek (ကတ္တား)' : 'Subjek (S)'}
+                      {isMy ? 'ကတ္တား (S)' : isEn ? 'Subject (S)' : 'Subjek (S)'}
                     </span>
                     <span className="text-stone-400">➔</span>
                     <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                      {isMy ? 'Objek (ကံ)' : 'Objek (O)'}
+                      {isMy ? 'ကံ (O)' : isEn ? 'Object (O)' : 'Objek (O)'}
                     </span>
                     <span className="text-stone-400">➔</span>
                     <span className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      {isMy ? 'Predikat (ကြိယာ)' : 'Predikat (V)'}
+                      {isMy ? 'ကြိယာ (V)' : isEn ? 'Verb (V)' : 'Predikat (V)'}
                     </span>
                   </div>
                   <p className="text-[10px] text-stone-600 dark:text-zinc-400 leading-tight">
                     {isMy
-                      ? 'ကြိယာ (Verb) သည် ဝါကျ၏ အဆုံးသတ်တွင် အမြဲရှိပါသည်။'
+                      ? 'မြန်မာဘာသာတွင် ကြိယာ (Verb) သည် ဝါကျ၏ အဆုံးသတ်တွင် အမြဲရှိပါသည်။'
                       : isEn
-                      ? 'The Predicate/Verb always comes at the very END.'
+                      ? 'In Burmese, the Verb always comes at the very END.'
                       : 'Kata kerja selalu diletakkan di akhir kalimat.'}
                   </p>
                 </div>
@@ -314,11 +316,11 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                   <p className="text-[11px] text-stone-700 dark:text-stone-300 leading-relaxed">
                     {isMy ? (
                       <>
-                        အင်ဒိုနီးရှားတွင် <strong className="text-stone-900 dark:text-white">"{item.example_target}"</strong> ဟု ပြောရာတွင် ကြိယာ/ခံစားချက် (Predikat) ကို အစပိုင်းတွင် ထားသော်လည်း၊ မြန်မာဘာသာ <strong className="text-stone-900 dark:text-white">"{item.example_meaning}"</strong> တွင်မူ ကံ သို့မဟုတ် ခံစားချက်ကို အဆုံးသတ်တွင် ထားပါသည်။
+                        အင်ဒိုနီးရှားတွင် <strong className="text-stone-900 dark:text-white">"{item.example_target}"</strong> ဟု ပြောရာတွင် ကြိယာ (Verb) ကို အစပိုင်း/အလယ်တွင် ထားသော်လည်း၊ မြန်မာဘာသာ <strong className="text-stone-900 dark:text-white">"{item.example_meaning}"</strong> တွင်မူ ကြိယာကို အဆုံးသတ်တွင် ထားပါသည်။
                       </>
                     ) : isEn ? (
                       <>
-                        In Indonesian <strong className="text-stone-900 dark:text-white">"{item.example_target}"</strong>, the predicate/verb comes earlier, whereas in Burmese <strong className="text-stone-900 dark:text-white">"{item.example_meaning}"</strong>, the verb is positioned at the end.
+                        In Indonesian <strong className="text-stone-900 dark:text-white">"{item.example_target}"</strong>, the verb comes earlier, whereas in Burmese <strong className="text-stone-900 dark:text-white">"{item.example_meaning}"</strong>, the verb is positioned at the end.
                       </>
                     ) : (
                       <>
@@ -334,11 +336,29 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                 <div className="font-bold text-stone-700 dark:text-stone-300">
                   {isMy ? 'ဝါကျ အစိတ်အပိုင်းများ အဓိပ္ပာယ်သတ်မှတ်ချက်:' : isEn ? 'Grammar Role Legend:' : 'Keterangan Unsur Kalimat:'}
                 </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                  <div>• <strong>Subjek:</strong> {isMy ? 'ကတ္တား (လုပ်ဆောင်သူ)' : 'Subjek / Pelaku'}</div>
-                  <div>• <strong>Predikat:</strong> {isMy ? 'ကြိယာ/နာမဝိသေသန' : 'Kata Kerja / Sifat'}</div>
-                  <div>• <strong>Objek:</strong> {isMy ? 'ကံ (ခံရသူ/အရာဝတ္ထု)' : 'Objek / Sasaran'}</div>
-                  <div>• <strong>Keterangan:</strong> {isMy ? 'အခြေအနေပြ (အချိန်/နေရာ)' : 'Keterangan Tempat/Waktu'}</div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  {isMy ? (
+                    <>
+                      <div>• <strong>ကတ္တား (Subject):</strong> လုပ်ဆောင်သူ</div>
+                      <div>• <strong>ကြိယာ (Verb):</strong> ပြုလုပ်မှု/အခြေအနေ</div>
+                      <div>• <strong>ကံ (Object):</strong> ခံရသူ/အရာဝတ္ထု</div>
+                      <div>• <strong>အခြေအနေပြ (Modifier):</strong> အချိန်/နေရာ</div>
+                    </>
+                  ) : isEn ? (
+                    <>
+                      <div>• <strong>Subject (S):</strong> Actor / Doer</div>
+                      <div>• <strong>Verb (V):</strong> Action / State</div>
+                      <div>• <strong>Object (O):</strong> Target / Receiver</div>
+                      <div>• <strong>Modifier (Adv):</strong> Time / Place</div>
+                    </>
+                  ) : (
+                    <>
+                      <div>• <strong>Subjek:</strong> Pelaku</div>
+                      <div>• <strong>Predikat:</strong> Kata Kerja / Sifat</div>
+                      <div>• <strong>Objek:</strong> Sasaran / Objek</div>
+                      <div>• <strong>Keterangan:</strong> Keterangan Tempat / Waktu</div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -349,14 +369,14 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                     type="button"
                     onClick={() => {
                       const prompt = isMy
-                        ? `အင်ဒိုနီးရှားစကားလုံး "${item.target_text}" နှင့် ဥပမာဝါကျ "${item.example_target || item.target_text}" ၏ ဝါကျဖွဲ့စည်းပုံ (Subjek, Predikat, Objek, Keterangan) ကို မြန်မာဘာသာ (S-O-V) နှင့် အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံကို အသေးစိတ် ခွဲခြမ်းပြပေးပါ။ (JLPT သို့မဟုတ် ဂျပန်စာ မပါဝင်ရပါ)`
+                        ? `အင်ဒိုနီးရှားစကားလုံး "${item.target_text}" နှင့် ဥပမာဝါကျ "${item.example_target || item.target_text}" ၏ ဝါကျဖွဲ့စည်းပုံ (Subject, Verb, Object, Modifier) ကို မြန်မာဘာသာ (S-O-V) နှင့် အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံကို အသေးစိတ် ခွဲခြမ်းပြပေးပါ။ (JLPT သို့မဟုတ် ဂျပန်စာ မပါဝင်ရပါ)`
                         : isEn
-                        ? `Explain the SPO vs SOV word order for Indonesian word "${item.target_text}" and sentence "${item.example_target || item.target_text}" compared to Burmese. Do not mention JLPT.`
+                        ? `Explain the SVO vs SOV word order for Indonesian word "${item.target_text}" and sentence "${item.example_target || item.target_text}" compared to Burmese. Do not mention JLPT.`
                         : `Jelaskan analisis pola kalimat S-P-O kosakata "${item.target_text}" dan kalimat "${item.example_target || item.target_text}" beserta perbandingannya dengan bahasa berpola SOV.`;
                       const displayText = isMy
-                        ? `"${item.target_text}" ဝါကျဖွဲ့စည်းပုံ (S-P-O vs S-O-V) ခွဲခြမ်းစိတ်ဖြာချက်`
+                        ? `"${item.target_text}" ဝါကျဖွဲ့စည်းပုံ (S-V-O vs S-O-V) ခွဲခြမ်းစိတ်ဖြာချက်`
                         : isEn
-                        ? `Sentence Structure (SPO vs SOV): "${item.target_text}"`
+                        ? `Sentence Structure (SVO vs SOV): "${item.target_text}"`
                         : `Analisis Kalimat SPO: "${item.target_text}"`;
                       stopAudio();
                       onClose();
@@ -367,9 +387,9 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                     <span>
                       {isMy
-                        ? 'AI အား S-P-O ဝါကျဖွဲ့စည်းပုံ အသေးစိတ် မေးမြန်းရန်'
+                        ? 'AI အား S-V-O ဝါကျဖွဲ့စည်းပုံ အသေးစိတ် မေးမြန်းရန်'
                         : isEn
-                        ? 'Ask AI to Analyze SPO Word Order'
+                        ? 'Ask AI to Analyze SVO Word Order'
                         : 'Tanya AI Bedah Struktur SPO'}
                     </span>
                   </button>
@@ -387,23 +407,29 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                     <Layers className="w-3.5 h-3.5" />
                   </div>
                   <h4 className="text-xs sm:text-sm font-extrabold text-emerald-950 dark:text-emerald-200">
-                    Perbedaan Struktur Kalimat (S-O-V vs S-P-O)
+                    {isEn ? 'Sentence Structure Contrast (S-O-V vs S-V-O)' : 'Perbedaan Struktur Kalimat (S-O-V vs S-P-O)'}
                   </h4>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
-                  Kata Kerja di Akhir
+                  {isEn ? 'Verb at End' : 'Kata Kerja di Akhir'}
                 </span>
               </div>
               <p className="text-[11px] text-stone-700 dark:text-stone-300 leading-relaxed">
-                Dalam Bahasa Myanmar, kalimat menggunakan urutan <strong>S - O - V (Subjek ➔ Objek ➔ Predikat)</strong>. Berbeda dengan Bahasa Indonesia (S-P-O), kata kerja selalu berada di akhir kalimat!
+                {isEn
+                  ? 'In Burmese, sentences follow S - O - V word order (Subject ➔ Object ➔ Verb). Unlike English or Indonesian, the main verb is placed at the end!'
+                  : 'Dalam Bahasa Myanmar, kalimat menggunakan urutan S - O - V (Subjek ➔ Objek ➔ Predikat). Berbeda dengan Bahasa Indonesia (S-P-O), kata kerja selalu berada di akhir kalimat!'}
               </p>
               {onAskAi && (
                 <div className="pt-1 flex justify-center">
                   <button
                     type="button"
                     onClick={() => {
-                      const prompt = `Jelaskan kaidah urutan kalimat SOV dalam Bahasa Myanmar untuk kata "${item.target_text}". Berikan contoh kalimat praktis dan bandingkan dengan susunan SPO bahasa Indonesia.`;
-                      const displayText = `Pola Kalimat SOV Myanmar: "${item.target_text}"`;
+                      const prompt = isEn
+                        ? `Explain the SOV sentence structure rule in Burmese for the word "${item.target_text}". Provide practical examples and compare with SVO order.`
+                        : `Jelaskan kaidah urutan kalimat SOV dalam Bahasa Myanmar untuk kata "${item.target_text}". Berikan contoh kalimat praktis dan bandingkan dengan susunan SPO bahasa Indonesia.`;
+                      const displayText = isEn
+                        ? `Burmese SOV Sentence Pattern: "${item.target_text}"`
+                        : `Pola Kalimat SOV Myanmar: "${item.target_text}"`;
                       stopAudio();
                       onClose();
                       onAskAi(prompt, displayText);
@@ -411,7 +437,7 @@ export const CourseCardDetailModal: React.FC<CourseCardDetailModalProps> = ({
                     className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Tanya AI Bedah Pola SOV Bahasa Myanmar</span>
+                    <span>{isEn ? 'Ask AI to Analyze Burmese SOV Pattern' : 'Tanya AI Bedah Pola SOV Bahasa Myanmar'}</span>
                   </button>
                 </div>
               )}

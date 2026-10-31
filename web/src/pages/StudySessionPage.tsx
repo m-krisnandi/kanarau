@@ -484,14 +484,14 @@ export const StudySessionPage: React.FC = () => {
 
     if (targetLanguage === 'id') {
       prompt = language === 'my'
-        ? `အင်ဒိုနီးရှားဘာသာ (${activeLevel}) ဝေါဟာရ "${word}" အကြောင်းကို ရှင်းပြပေးပါ။\n၁။ အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ (ဖော်မလ်/အလွတ်သဘော)\n၂။ ဝါကျဖွဲ့စည်းပုံ (S-P-O vs S-O-V): အင်ဒိုနီးရှားတွင် ကြိယာသည် ကံရှေ့တွင်လာပြီး မြန်မာစကားနှင့် အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ\n၃။ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် မြန်မာဘာသာပြန်\nကျေးဇူးပြု၍ JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်။`
+        ? `အင်ဒိုနီးရှားဘာသာ (${activeLevel}) ဝေါဟာရ "${word}" အကြောင်းကို ရှင်းပြပေးပါ။\n၁။ အဓိပ္ပာယ်နှင့် သုံးစွဲပုံ (ဖော်မလ်/အလွတ်သဘော)\n၂။ ဝါကျဖွဲ့စည်းပုံ (S-V-O vs S-O-V): အင်ဒိုနီးရှားတွင် ကြိယာသည် ကံရှေ့တွင်လာပြီး မြန်မာစကားနှင့် အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ\n၃။ လက်တွေ့ကျသော ဥပမာစာကြောင်း ၁ ကြောင်းနှင့် မြန်မာဘာသာပြန်\nကျေးဇူးပြု၍ JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်။`
         : language === 'en'
-        ? `Explain the Indonesian (${activeLevel}) word "${word}". Provide meaning, sentence structure breakdown (SPO order vs SOV), and 1 practical example with translation. Do not mention JLPT or Japanese.`
+        ? `Explain the Indonesian (${activeLevel}) word "${word}". Provide meaning, sentence structure breakdown (SVO order vs SOV), and 1 practical example with translation. Do not mention JLPT or Japanese.`
         : `Jelaskan secara ringkas kosakata Bahasa Indonesia (${activeLevel}) "${word}". Berikan nuansa pemakaian, analisis pola kalimat (SPO), dan 1 contoh praktis kalimat.`;
       display = language === 'my'
-        ? `"${word}" ဝါကျဖွဲ့စည်းပုံ (S-P-O) နှင့် အဓိပ္ပာယ်`
+        ? `"${word}" ဝါကျဖွဲ့စည်းပုံ (S-V-O) နှင့် အဓိပ္ပာယ်`
         : language === 'en'
-        ? `"${word}" Meaning & SPO Sentence Structure`
+        ? `"${word}" Meaning & SVO Sentence Structure`
         : `Arti & Pola SPO "${word}"`;
     } else if (targetLanguage === 'my') {
       prompt = language === 'id'
@@ -526,7 +526,7 @@ export const StudySessionPage: React.FC = () => {
 
     if (targetLanguage === 'id') {
       prompt = language === 'my'
-        ? `ကျွန်ုပ်သည် အင်ဒိုနီးရှားဘာသာ (${activeLevel}) မေးခွန်း "${word}" (အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်နှင့် ဝါကျဖွဲ့စည်းပုံ (S-P-O) ကွာခြားချက်ကို မြန်မာဘာသာဖြင့် တိုတိုရှင်းရှင်း ရှင်းပြပေးပါ။ (JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်)`
+        ? `ကျွန်ုပ်သည် အင်ဒိုနီးရှားဘာသာ (${activeLevel}) မေးခွန်း "${word}" (အဓိပ္ပာယ်: "${meaning}") ကို ဖြေဆိုခဲ့သည်။ ကျွန်ုပ်၏ ရွေးချယ်မှုမှာ "${selectedChoice}" ဖြစ်ပြီး မှန်ကန်သောအဖြေမှာ "${currentCard.correct_answer}" ဖြစ်သည်။ ကျွန်ုပ်ရွေးချယ်မှု အဘယ်ကြောင့် မှားယွင်းရသနည်း၊ အဓိပ္ပာယ်နှင့် ဝါကျဖွဲ့စည်းပုံ (S-V-O) ကွာခြားချက်ကို မြန်မာဘာသာဖြင့် တိုတိုရှင်းရှင်း ရှင်းပြပေးပါ။ (JLPT သို့မဟုတ် ဂျပန်စာနှင့် ပတ်သက်သောအရာများ လုံးဝမထည့်ပါနှင့်)`
         : language === 'en'
         ? `I answered an Indonesian (${activeLevel}) question about "${word}". I chose "${selectedChoice}", but the correct answer is "${currentCard.correct_answer}". Briefly explain why my choice was wrong and the usage/SPO word order difference.`
         : `Saya menjawab soal Bahasa Indonesia (${activeLevel}) tentang "${word}". Pilihan saya "${selectedChoice}", jawaban benar "${currentCard.correct_answer}". Jelaskan singkat mengapa pilihan saya keliru dan apa perbedaannya.`;

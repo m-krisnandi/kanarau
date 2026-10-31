@@ -129,11 +129,11 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
     if (targetLanguage === 'id') {
       if (language === 'my') {
         list.push(
-          'အခြေခံ ဝါကျဖွဲ့စည်းပုံ (S-P-O vs S-O-V) ကွာခြားချက်နှင့် ဥပမာများ',
-          'အင်ဒိုနီးရှားတွင် ကြိယာ (Predikat) နှင့် ကံ (Objek) အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ',
+          'အခြေခံ ဝါကျဖွဲ့စည်းပုံ (S-V-O vs S-O-V) ကွာခြားချက်နှင့် ဥပမာများ',
+          'အင်ဒိုနီးရှားတွင် ကြိယာ (Verb) နှင့် ကံ (Object) အစီအစဉ် ပြောင်းပြန်ဖြစ်ပုံ',
           'အင်ဒိုနီးရှား နာမ်စား "Kami" နှင့် "Kita" ခွဲခြားနည်း',
           '"Selamat pagi" နှင့် "Selamat siang" အသုံးပြုပုံ ကွာခြားချက်',
-          'Subjek, Predikat, Objek, Keterangan (S-P-O-K) အသုံးပြုပုံ'
+          'အင်ဒိုနီးရှား ဝါကျအစိတ်အပိုင်းများ (Subject, Verb, Object, Modifier) အသုံးပြုပုံ'
         );
       } else if (language === 'en') {
         list.push(
@@ -619,9 +619,9 @@ const TanyaAiModalComponent: React.FC<TanyaAiModalProps> = ({
               placeholder={
                 targetLanguage === 'id'
                   ? language === 'my'
-                    ? 'အင်ဒိုနီးရှား ဝေါဟာရ၊ ဝါကျဖွဲ့စည်းပုံ (S-P-O) သို့မဟုတ် သဒ္ဒါကို မေးမြန်းပါ...'
+                    ? 'အင်ဒိုနီးရှား ဝေါဟာရ၊ ဝါကျဖွဲ့စည်းပုံ (S-V-O) သို့မဟုတ် သဒ္ဒါကို မေးမြန်းပါ...'
                     : language === 'en'
-                    ? 'Ask about Indonesian vocabulary, SPO sentence structure, or grammar...'
+                    ? 'Ask about Indonesian vocabulary, SVO sentence structure, or grammar...'
                     : 'Tanyakan kosakata, struktur kalimat S-P-O, atau tata bahasa BIPA...'
                   : targetLanguage === 'my'
                   ? language === 'id'
