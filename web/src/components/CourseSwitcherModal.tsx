@@ -20,6 +20,16 @@ interface LanguageOption {
   flag: string;
 }
 
+interface LevelOption {
+  code: string;
+  nameId: string;
+  nameEn: string;
+  nameMy: string;
+  descId: string;
+  descEn: string;
+  descMy: string;
+}
+
 interface TargetOption {
   code: TargetLanguage;
   trackCode: TrackCode;
@@ -27,7 +37,7 @@ interface TargetOption {
   nameEn: string;
   nameMy: string;
   flag: string;
-  levels: { code: string; name: string; desc: string }[];
+  levels: LevelOption[];
 }
 
 const MY_LANG_OPTIONS: LanguageOption[] = [
@@ -45,11 +55,51 @@ const TARGET_COURSES: TargetOption[] = [
     nameMy: 'အင်ဒိုနီးရှားဘာသာစကား (BIPA)',
     flag: '🇮🇩',
     levels: [
-      { code: 'BIPA-1', name: 'BIPA 1 (A1)', desc: 'Pemula: Salam, Angka, Kosakata Esensial & Fonetik' },
-      { code: 'BIPA-2', name: 'BIPA 2 (A2)', desc: 'Dasar: Kehidupan Sehari-hari, Arah & Belanja' },
-      { code: 'BIPA-3', name: 'BIPA 3 (B1)', desc: 'Menengah: Pola Kalimat & Imbuhan me-, ber-, di-' },
-      { code: 'BIPA-4', name: 'BIPA 4 (B2)', desc: 'Menengah Atas: Percakapan Kerja, Sosial & Budaya' },
-      { code: 'BIPA-5', name: 'BIPA 5 (C1)', desc: 'Mahir: Wacana Formal, Esai & Standar UKBI' },
+      {
+        code: 'BIPA-1',
+        nameId: 'BIPA 1 (A1)',
+        nameEn: 'BIPA 1 (A1)',
+        nameMy: 'BIPA 1 (A1)',
+        descId: 'Pemula: Salam, Angka, Kosakata Esensial & Fonetik',
+        descEn: 'Beginner: Greetings, Numbers, Essential Vocab & Phonetics',
+        descMy: 'အခြေခံ- နှုတ်ဆက်ခြင်း၊ ဂဏန်းများနှင့် အခြေခံစကားလုံးများ',
+      },
+      {
+        code: 'BIPA-2',
+        nameId: 'BIPA 2 (A2)',
+        nameEn: 'BIPA 2 (A2)',
+        nameMy: 'BIPA 2 (A2)',
+        descId: 'Dasar: Kehidupan Sehari-hari, Arah & Belanja',
+        descEn: 'Elementary: Daily Life, Directions & Shopping',
+        descMy: 'အခြေခံအဆင့်- နေ့စဉ်ဘဝ၊ လမ်းညွှန်ချက်များနှင့် ဈေးဝယ်ခြင်း',
+      },
+      {
+        code: 'BIPA-3',
+        nameId: 'BIPA 3 (B1)',
+        nameEn: 'BIPA 3 (B1)',
+        nameMy: 'BIPA 3 (B1)',
+        descId: 'Menengah: Pola Kalimat & Imbuhan me-, ber-, di-',
+        descEn: 'Intermediate: Sentence Patterns & Affixes me-, ber-, di-',
+        descMy: 'အလယ်အလတ်- ဝါကျတည်ဆောက်ပုံနှင့် ရှေ့ဆက်စကားလုံးများ',
+      },
+      {
+        code: 'BIPA-4',
+        nameId: 'BIPA 4 (B2)',
+        nameEn: 'BIPA 4 (B2)',
+        nameMy: 'BIPA 4 (B2)',
+        descId: 'Menengah Atas: Percakapan Kerja, Sosial & Budaya',
+        descEn: 'Upper-Intermediate: Workplace, Social & Cultural Fluency',
+        descMy: 'အထက်တန်း- လုပ်ငန်းခွင်နှင့် လူမှုဆက်ဆံရေးစကားပြော',
+      },
+      {
+        code: 'BIPA-5',
+        nameId: 'BIPA 5 (C1)',
+        nameEn: 'BIPA 5 (C1)',
+        nameMy: 'BIPA 5 (C1)',
+        descId: 'Mahir: Wacana Formal, Esai & Standar UKBI',
+        descEn: 'Advanced: Formal Discourse, Essays & UKBI Standard',
+        descMy: 'ကျွမ်းကျင်- တရားဝင်ရေးသားပြောဆိုမှုနှင့် UKBI စာမေးပွဲအဆင့်',
+      },
     ],
   },
   {
@@ -60,11 +110,51 @@ const TARGET_COURSES: TargetOption[] = [
     nameMy: 'မြန်မာဘာသာစကား',
     flag: '🇲🇲',
     levels: [
-      { code: 'FOUNDATION', name: 'Fondasi Huruf', desc: '33 Konsonan Akshara & Vokal Dasar' },
-      { code: 'MLT-1', name: 'MLT 1 (Dasar)', desc: 'Aturan Nada, Medial Ya-Pin/Wa-Hswe & Kata Esensial' },
-      { code: 'MLT-2', name: 'MLT 2 (Menengah)', desc: 'Pola Kalimat SOV, Partikel Penghubung & Dialog' },
-      { code: 'MLT-3', name: 'MLT 3 (Lanjutan)', desc: 'Teks Bacaan Menengah & Percakapan Sosial' },
-      { code: 'MLT-4', name: 'MLT 4 (Mahir)', desc: 'Bahasa Tulis Baku, Formal & Sastra Myanmar' },
+      {
+        code: 'FOUNDATION',
+        nameId: 'Fondasi Huruf',
+        nameEn: 'Alphabet Foundation',
+        nameMy: 'အက္ခရာအခြေခံ',
+        descId: '33 Konsonan Akshara & Vokal Dasar',
+        descEn: '33 Burmese Consonants & Core Vowels',
+        descMy: 'အခြေခံဗျည်း ၃၃ လုံးနှင့် သရများ',
+      },
+      {
+        code: 'MLT-1',
+        nameId: 'MLT 1 (Dasar)',
+        nameEn: 'MLT 1 (Elementary)',
+        nameMy: 'MLT 1 (အခြေခံ)',
+        descId: 'Aturan Nada, Medial Ya-Pin/Wa-Hswe & Kata Esensial',
+        descEn: 'Tone Rules, Medials Ya-Pin/Wa-Hswe & Everyday Words',
+        descMy: 'အသံထွက်စည်းမျဉ်းများနှင့် နေ့စဉ်သုံးစကားလုံးများ',
+      },
+      {
+        code: 'MLT-2',
+        nameId: 'MLT 2 (Menengah)',
+        nameEn: 'MLT 2 (Intermediate)',
+        nameMy: 'MLT 2 (အလယ်အလတ်)',
+        descId: 'Pola Kalimat SOV, Partikel Penghubung & Dialog',
+        descEn: 'SOV Sentence Patterns, Particles & Dialogues',
+        descMy: 'ဝါကျတည်ဆောက်ပုံနှင့် လက်တွေ့စကားပြော',
+      },
+      {
+        code: 'MLT-3',
+        nameId: 'MLT 3 (Lanjutan)',
+        nameEn: 'MLT 3 (Upper-Int)',
+        nameMy: 'MLT 3 (အဆင့်မြင့်)',
+        descId: 'Teks Bacaan Menengah & Percakapan Sosial',
+        descEn: 'Reading Comprehension & Social Interaction',
+        descMy: 'စာဖတ်စွမ်းရည်နှင့် လူမှုဆက်ဆံရေး',
+      },
+      {
+        code: 'MLT-4',
+        nameId: 'MLT 4 (Mahir)',
+        nameEn: 'MLT 4 (Advanced)',
+        nameMy: 'MLT 4 (ကျွမ်းကျင်)',
+        descId: 'Bahasa Tulis Baku, Formal & Sastra Myanmar',
+        descEn: 'Literary Burmese & Advanced Proficiency',
+        descMy: 'အဆင့်မြင့် စာပေဘာသာစကားနှင့် ရေးသားချက်များ',
+      },
     ],
   },
   {
@@ -75,11 +165,51 @@ const TARGET_COURSES: TargetOption[] = [
     nameMy: 'ဂျပန်ဘာသာစကား (JLPT)',
     flag: '🇯🇵',
     levels: [
-      { code: 'N5', name: 'JLPT N5', desc: 'Tingkat Pemula Dasar' },
-      { code: 'N4', name: 'JLPT N4', desc: 'Tingkat Dasar Lanjutan' },
-      { code: 'N3', name: 'JLPT N3', desc: 'Tingkat Menengah' },
-      { code: 'N2', name: 'JLPT N2', desc: 'Tingkat Menengah Atas' },
-      { code: 'N1', name: 'JLPT N1', desc: 'Tingkat Mahir Profesional' },
+      {
+        code: 'N5',
+        nameId: 'JLPT N5',
+        nameEn: 'JLPT N5',
+        nameMy: 'JLPT N5',
+        descId: 'Tingkat Pemula Dasar',
+        descEn: 'Beginner Level',
+        descMy: 'အခြေခံစတင်သူအဆင့်',
+      },
+      {
+        code: 'N4',
+        nameId: 'JLPT N4',
+        nameEn: 'JLPT N4',
+        nameMy: 'JLPT N4',
+        descId: 'Tingkat Dasar Lanjutan',
+        descEn: 'Elementary Level',
+        descMy: 'အခြေခံအဆင့်မြင့်',
+      },
+      {
+        code: 'N3',
+        nameId: 'JLPT N3',
+        nameEn: 'JLPT N3',
+        nameMy: 'JLPT N3',
+        descId: 'Tingkat Menengah',
+        descEn: 'Intermediate Level',
+        descMy: 'အလယ်အလတ်အဆင့်',
+      },
+      {
+        code: 'N2',
+        nameId: 'JLPT N2',
+        nameEn: 'JLPT N2',
+        nameMy: 'JLPT N2',
+        descId: 'Tingkat Menengah Atas',
+        descEn: 'Upper-Intermediate Level',
+        descMy: 'အထက်တန်းအလယ်အလတ်',
+      },
+      {
+        code: 'N1',
+        nameId: 'JLPT N1',
+        nameEn: 'JLPT N1',
+        nameMy: 'JLPT N1',
+        descId: 'Tingkat Mahir Profesional',
+        descEn: 'Advanced Professional Level',
+        descMy: 'ကျွမ်းကျင်အဆင့်',
+      },
     ],
   },
   {
@@ -90,10 +220,42 @@ const TARGET_COURSES: TargetOption[] = [
     nameMy: 'အင်္ဂလိပ်ဘာသာစကား (TOEIC/IELTS)',
     flag: '🇬🇧',
     levels: [
-      { code: 'CEFR-A2', name: 'Elementary (A2)', desc: 'Percakapan Praktis & Kosakata Sehari-hari' },
-      { code: 'CEFR-B1', name: 'Intermediate (B1)', desc: 'Bahasa Inggris Kerja & Percakapan Lancar' },
-      { code: 'CEFR-B2', name: 'Upper-Int (B2)', desc: 'Negosiasi, Presentasi & Persiapan IELTS 6.5+' },
-      { code: 'CEFR-C1', name: 'Advanced (C1)', desc: 'Komunikasi Profesional & Akademik' },
+      {
+        code: 'CEFR-A2',
+        nameId: 'Elementary (A2)',
+        nameEn: 'Elementary (A2)',
+        nameMy: 'Elementary (A2)',
+        descId: 'Percakapan Praktis & Kosakata Sehari-hari',
+        descEn: 'Practical English & Daily Vocabulary',
+        descMy: 'လက်တွေ့သုံး အင်္ဂလိပ်စကားပြောနှင့် အခြေခံများ',
+      },
+      {
+        code: 'CEFR-B1',
+        nameId: 'Intermediate (B1)',
+        nameEn: 'Intermediate (B1)',
+        nameMy: 'Intermediate (B1)',
+        descId: 'Bahasa Inggris Kerja & Percakapan Lancar',
+        descEn: 'Workplace & Conversational English',
+        descMy: 'အလုပ်ခွင်သုံး အင်္ဂလိပ်စကားပြော',
+      },
+      {
+        code: 'CEFR-B2',
+        nameId: 'Upper-Int (B2)',
+        nameEn: 'Upper-Int (B2)',
+        nameMy: 'Upper-Int (B2)',
+        descId: 'Negosiasi, Presentasi & Persiapan IELTS 6.5+',
+        descEn: 'Business Fluency & IELTS 6.5+ Prep',
+        descMy: 'စီးပွားရေးသုံးနှင့် IELTS 6.5+ ပြင်ဆင်မှု',
+      },
+      {
+        code: 'CEFR-C1',
+        nameId: 'Advanced (C1)',
+        nameEn: 'Advanced (C1)',
+        nameMy: 'Advanced (C1)',
+        descId: 'Komunikasi Profesional & Akademik',
+        descEn: 'Professional & Academic Communication',
+        descMy: 'အဆင့်မြင့် ပရော်ဖက်ရှင်နယ် အင်္ဂလိပ်စာ',
+      },
     ],
   },
 ];
@@ -296,14 +458,20 @@ export const CourseSwitcherModal: React.FC = () => {
                         : 'border-stone-200/80 dark:border-[#232F46] bg-white dark:bg-[#0B0F19]/40 hover:bg-stone-50 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    <div className="space-y-0.5">
-                      <span className="font-extrabold text-xs text-stone-900 dark:text-white block">
-                        {lvl.name}
-                      </span>
-                      <span className="text-[11px] text-stone-500 dark:text-slate-400 block leading-relaxed line-clamp-1">
-                        {lvl.desc}
-                      </span>
-                    </div>
+                    {(() => {
+                      const levelTitle = isMyanmarLang ? (lvl.nameMy || lvl.nameEn) : isEnLang ? lvl.nameEn : lvl.nameId;
+                      const levelDesc = isMyanmarLang ? (lvl.descMy || lvl.descEn) : isEnLang ? lvl.descEn : lvl.descId;
+                      return (
+                        <div className="space-y-0.5">
+                          <span className="font-extrabold text-xs text-stone-900 dark:text-white block">
+                            {levelTitle}
+                          </span>
+                          <span className="text-[11px] text-stone-500 dark:text-slate-400 block leading-relaxed line-clamp-1">
+                            {levelDesc}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     {isSelected && <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 ml-2" />}
                   </button>
                 );

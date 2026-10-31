@@ -77,11 +77,11 @@ public class IndonesianCourseStrategy implements CourseTrackStrategy {
         }
 
         return List.of(
-                new CourseLevelDto("ID", "BIPA-1", "BIPA 1 (A1)", "my".equalsIgnoreCase(myLang) ? "အခြေခံ- နှုတ်ဆက်ခြင်း၊ ဂဏန်းများနှင့် အခြေခံစကားလုံးများ" : "Pemula: Salam, Angka, Kosakata Esensial & Pelafalan", 1),
-                new CourseLevelDto("ID", "BIPA-2", "BIPA 2 (A2)", "my".equalsIgnoreCase(myLang) ? "အခြေခံအဆင့်- နေ့စဉ်ဘဝ၊ လမ်းညွှန်ချက်များနှင့် ဈေးဝယ်ခြင်း" : "Dasar: Kehidupan Sehari-hari, Arah & Belanja", 2),
-                new CourseLevelDto("ID", "BIPA-3", "BIPA 3 (B1)", "my".equalsIgnoreCase(myLang) ? "အလယ်အလတ်- ဝါကျတည်ဆောက်ပုံနှင့် ရှေ့ဆက်စကားလုံးများ" : "Menengah: Pola Kalimat & Imbuhan me-, ber-, di-", 3),
-                new CourseLevelDto("ID", "BIPA-4", "BIPA 4 (B2)", "my".equalsIgnoreCase(myLang) ? "အထက်တန်း- လုပ်ငန်းခွင်နှင့် လူမှုဆက်ဆံရေးစကားပြော" : "Menengah Atas: Percakapan Kerja, Sosial & Budaya", 4),
-                new CourseLevelDto("ID", "BIPA-5", "BIPA 5 (C1)", "my".equalsIgnoreCase(myLang) ? "ကျွမ်းကျင်- တရားဝင်ရေးသားပြောဆိုမှုနှင့် UKBI စာမေးပွဲအဆင့်" : "Mahir: Wacana Formal, Esai & Standar UKBI", 5)
+                new CourseLevelDto("ID", "BIPA-1", "BIPA 1 (A1)", "my".equalsIgnoreCase(myLang) ? "အခြေခံ- နှုတ်ဆက်ခြင်း၊ ဂဏန်းများနှင့် အခြေခံစကားလုံးများ" : ("en".equalsIgnoreCase(myLang) ? "Beginner: Greetings, Numbers & Essentials" : "Pemula: Salam, Angka, Kosakata Esensial & Pelafalan"), 1),
+                new CourseLevelDto("ID", "BIPA-2", "BIPA 2 (A2)", "my".equalsIgnoreCase(myLang) ? "အခြေခံအဆင့်- နေ့စဉ်ဘဝ၊ လမ်းညွှန်ချက်များနှင့် ဈေးဝယ်ခြင်း" : ("en".equalsIgnoreCase(myLang) ? "Elementary: Daily Life, Directions & Shopping" : "Dasar: Kehidupan Sehari-hari, Arah & Belanja"), 2),
+                new CourseLevelDto("ID", "BIPA-3", "BIPA 3 (B1)", "my".equalsIgnoreCase(myLang) ? "အလယ်အလတ်- ဝါကျတည်ဆောက်ပုံနှင့် ရှေ့ဆက်စကားလုံးများ" : ("en".equalsIgnoreCase(myLang) ? "Intermediate: Sentence Patterns & Affixes" : "Menengah: Pola Kalimat & Imbuhan me-, ber-, di-"), 3),
+                new CourseLevelDto("ID", "BIPA-4", "BIPA 4 (B2)", "my".equalsIgnoreCase(myLang) ? "အထက်တန်း- လုပ်ငန်းခွင်နှင့် လူမှုဆက်ဆံရေးစကားပြော" : ("en".equalsIgnoreCase(myLang) ? "Upper-Intermediate: Workplace & Society" : "Menengah Atas: Percakapan Kerja, Sosial & Budaya"), 4),
+                new CourseLevelDto("ID", "BIPA-5", "BIPA 5 (C1)", "my".equalsIgnoreCase(myLang) ? "ကျွမ်းကျင်- တရားဝင်ရေးသားပြောဆိုမှုနှင့် UKBI စာမေးပွဲအဆင့်" : ("en".equalsIgnoreCase(myLang) ? "Advanced: Formal Discourse & UKBI Standard" : "Mahir: Wacana Formal, Esai & Standar UKBI"), 5)
         );
     }
 

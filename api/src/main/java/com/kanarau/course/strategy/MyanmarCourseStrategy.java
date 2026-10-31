@@ -77,11 +77,11 @@ public class MyanmarCourseStrategy implements CourseTrackStrategy {
         }
 
         return List.of(
-                new CourseLevelDto("MY", "FOUNDATION", "Fondasi Huruf", "id".equalsIgnoreCase(myLang) ? "33 Konsonan Akshara & Vokal Dasar" : "33 Burmese Consonants & Core Vowels", 1),
-                new CourseLevelDto("MY", "MLT-1", "MLT 1 (Dasar)", "id".equalsIgnoreCase(myLang) ? "Aturan Nada, Medial Ya-Pin/Wa-Hswe & Kata Esensial" : "Tone Rules, Medials & Everyday Words", 2),
-                new CourseLevelDto("MY", "MLT-2", "MLT 2 (Menengah)", "id".equalsIgnoreCase(myLang) ? "Pola Kalimat SOV, Partikel Penghubung & Situasi Nyata" : "SOV Sentence Pattern, Particles & Dialogues", 3),
-                new CourseLevelDto("MY", "MLT-3", "MLT 3 (Lanjutan)", "id".equalsIgnoreCase(myLang) ? "Teks Bacaan Menengah & Percakapan Sosial" : "Reading Comprehension & Social Interaction", 4),
-                new CourseLevelDto("MY", "MLT-4", "MLT 4 (Mahir)", "id".equalsIgnoreCase(myLang) ? "Bahasa Tulis Baku, Formal & Sastra Myanmar" : "Literary Burmese & Advanced Proficiency", 5)
+                new CourseLevelDto("MY", "FOUNDATION", "Fondasi Huruf", "id".equalsIgnoreCase(myLang) ? "33 Konsonan Akshara & Vokal Dasar" : ("my".equalsIgnoreCase(myLang) ? "အခြေခံဗျည်း ၃၃ လုံးနှင့် သရများ" : "33 Burmese Consonants & Core Vowels"), 1),
+                new CourseLevelDto("MY", "MLT-1", "MLT 1 (Dasar)", "id".equalsIgnoreCase(myLang) ? "Aturan Nada, Medial Ya-Pin/Wa-Hswe & Kata Esensial" : ("my".equalsIgnoreCase(myLang) ? "အသံထွက်စည်းမျဉ်းများနှင့် နေ့စဉ်သုံးစကားလုံးများ" : "Tone Rules, Medials & Everyday Words"), 2),
+                new CourseLevelDto("MY", "MLT-2", "MLT 2 (Menengah)", "id".equalsIgnoreCase(myLang) ? "Pola Kalimat SOV, Partikel Penghubung & Situasi Nyata" : ("my".equalsIgnoreCase(myLang) ? "ဝါကျတည်ဆောက်ပုံနှင့် လက်တွေ့စကားပြော" : "SOV Sentence Pattern, Particles & Dialogues"), 3),
+                new CourseLevelDto("MY", "MLT-3", "MLT 3 (Lanjutan)", "id".equalsIgnoreCase(myLang) ? "Teks Bacaan Menengah & Percakapan Sosial" : ("my".equalsIgnoreCase(myLang) ? "စာဖတ်စွမ်းရည်နှင့် လူမှုဆက်ဆံရေး" : "Reading Comprehension & Social Interaction"), 4),
+                new CourseLevelDto("MY", "MLT-4", "MLT 4 (Mahir)", "id".equalsIgnoreCase(myLang) ? "Bahasa Tulis Baku, Formal & Sastra Myanmar" : ("my".equalsIgnoreCase(myLang) ? "အဆင့်မြင့် စာပေဘာသာစကားနှင့် ရေးသားချက်များ" : "Literary Burmese & Advanced Proficiency"), 5)
         );
     }
 

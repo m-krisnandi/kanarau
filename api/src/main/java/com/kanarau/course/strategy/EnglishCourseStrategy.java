@@ -48,10 +48,10 @@ public class EnglishCourseStrategy implements CourseTrackStrategy {
     @Override
     public List<CourseLevelDto> getLevels(String myLang) {
         return List.of(
-                new CourseLevelDto("EN", "CEFR-A2", "Elementary (A2)", "id".equalsIgnoreCase(myLang) ? "Percakapan Praktis & Kosakata Sehari-hari (TOEIC 400+)" : "Practical English & Basics (TOEIC 400+)", 1),
-                new CourseLevelDto("EN", "CEFR-B1", "Intermediate (B1)", "id".equalsIgnoreCase(myLang) ? "Bahasa Inggris Kerja & Percakapan Lancar (TOEIC 550+)" : "Workplace & Conversational English (TOEIC 550+)", 2),
-                new CourseLevelDto("EN", "CEFR-B2", "Upper-Int (B2)", "id".equalsIgnoreCase(myLang) ? "Negosiasi, Presentasi & Persiapan IELTS 6.5+" : "Business Fluency & IELTS 6.5+ Prep", 3),
-                new CourseLevelDto("EN", "CEFR-C1", "Advanced (C1)", "id".equalsIgnoreCase(myLang) ? "Komunikasi Profesional & Akademik Tingkat Tinggi" : "Professional & Academic Fluency", 4)
+                new CourseLevelDto("EN", "CEFR-A2", "Elementary (A2)", "id".equalsIgnoreCase(myLang) ? "Percakapan Praktis & Kosakata Sehari-hari (TOEIC 400+)" : ("my".equalsIgnoreCase(myLang) ? "လက်တွေ့သုံး အင်္ဂလိပ်စကားပြောနှင့် အခြေခံများ" : "Practical English & Basics (TOEIC 400+)"), 1),
+                new CourseLevelDto("EN", "CEFR-B1", "Intermediate (B1)", "id".equalsIgnoreCase(myLang) ? "Bahasa Inggris Kerja & Percakapan Lancar (TOEIC 550+)" : ("my".equalsIgnoreCase(myLang) ? "အလုပ်ခွင်သုံး အင်္ဂလိပ်စကားပြော" : "Workplace & Conversational English (TOEIC 550+)"), 2),
+                new CourseLevelDto("EN", "CEFR-B2", "Upper-Int (B2)", "id".equalsIgnoreCase(myLang) ? "Negosiasi, Presentasi & Persiapan IELTS 6.5+" : ("my".equalsIgnoreCase(myLang) ? "စီးပွားရေးသုံးနှင့် IELTS 6.5+ ပြင်ဆင်မှု" : "Business Fluency & IELTS 6.5+ Prep"), 3),
+                new CourseLevelDto("EN", "CEFR-C1", "Advanced (C1)", "id".equalsIgnoreCase(myLang) ? "Komunikasi Profesional & Akademik Tingkat Tinggi" : ("my".equalsIgnoreCase(myLang) ? "အဆင့်မြင့် ပရော်ဖက်ရှင်နယ် အင်္ဂလိပ်စာ" : "Professional & Academic Fluency"), 4)
         );
     }
 
