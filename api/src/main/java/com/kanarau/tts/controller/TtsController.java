@@ -61,16 +61,18 @@ if __name__ == '__main__':
     }
 
     @GetMapping("/tts")
-    public ResponseEntity<byte[]> getJapaneseAudio(
+    public ResponseEntity<byte[]> getAudio(
             @RequestParam("text") String text,
-            @RequestParam(value = "voice", defaultValue = "female") String voice
+            @RequestParam(value = "voice", defaultValue = "female") String voice,
+            @RequestParam(value = "lang", defaultValue = "ja") String lang
     ) {
         if (text == null || text.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
         String cleanText = text.trim();
-        byte[] audioBytes = getOrSynthesizeAudio(cleanText, voice);
+        String normalizedLang = lang != null ? lang.trim().toLowerCase() : "ja";
+        byte[] audioBytes = getOrSynthesizeAudio(cleanText, voice, normalizedLang);
 
         if (audioBytes == null || audioBytes.length == 0) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
@@ -82,28 +84,28 @@ if __name__ == '__main__':
         return new ResponseEntity<>(audioBytes, headers, HttpStatus.OK);
     }
 
-    private byte[] getOrSynthesizeAudio(String text, String voice) {
+    private byte[] getOrSynthesizeAudio(String text, String voice, String lang) {
         try {
             File cacheFolder = new File(CACHE_DIR);
             if (!cacheFolder.exists()) {
                 cacheFolder.mkdirs();
             }
 
-            String cacheKey = md5(voice + "_" + text);
+            String cacheKey = md5(lang + "_" + voice + "_" + text);
             File cacheFile = new File(cacheFolder, cacheKey + ".mp3");
 
             if (cacheFile.exists() && cacheFile.length() > 0) {
                 return Files.readAllBytes(cacheFile.toPath());
             }
 
-            // Synthesize using Edge TTS
-            byte[] synthesized = synthesizeEdgeTts(text, voice, cacheFile);
+            // Synthesize using Edge Neural TTS
+            byte[] synthesized = synthesizeEdgeTts(text, voice, lang, cacheFile);
             if (synthesized != null && synthesized.length > 0) {
                 return synthesized;
             }
 
             // Fallback to Google Translate TTS
-            byte[] fallback = fetchGoogleTtsAudio(text);
+            byte[] fallback = fetchGoogleTtsAudio(text, lang);
             if (fallback != null && fallback.length > 0) {
                 Files.write(cacheFile.toPath(), fallback);
                 return fallback;
@@ -113,25 +115,31 @@ if __name__ == '__main__':
         return null;
     }
 
-    private byte[] synthesizeEdgeTts(String text, String voice, File targetFile) {
+    private byte[] synthesizeEdgeTts(String text, String voice, String lang, File targetFile) {
         try {
             String edgeVoice;
-            String pitch;
+            String pitch = "0";
 
-            switch (voice.toLowerCase()) {
-                case "male":
-                    edgeVoice = "ja-JP-KeitaNeural";
-                    pitch = "0";
-                    break;
-                case "child":
-                    edgeVoice = "ja-JP-NanamiNeural";
-                    pitch = "+25Hz";
-                    break;
-                case "female":
-                default:
-                    edgeVoice = "ja-JP-NanamiNeural";
-                    pitch = "0";
-                    break;
+            if ("id".equals(lang)) {
+                edgeVoice = "male".equalsIgnoreCase(voice) ? "id-ID-ArdiNeural" : "id-ID-GadisNeural";
+            } else if ("my".equals(lang)) {
+                edgeVoice = "male".equalsIgnoreCase(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
+            } else if ("en".equals(lang)) {
+                edgeVoice = "male".equalsIgnoreCase(voice) ? "en-US-GuyNeural" : "en-US-JennyNeural";
+            } else {
+                switch (voice.toLowerCase()) {
+                    case "male":
+                        edgeVoice = "ja-JP-KeitaNeural";
+                        break;
+                    case "child":
+                        edgeVoice = "ja-JP-NanamiNeural";
+                        pitch = "+25Hz";
+                        break;
+                    case "female":
+                    default:
+                        edgeVoice = "ja-JP-NanamiNeural";
+                        break;
+                }
             }
 
             ProcessBuilder pb = new ProcessBuilder(
@@ -153,10 +161,15 @@ if __name__ == '__main__':
         return null;
     }
 
-    private byte[] fetchGoogleTtsAudio(String chunk) {
+    private byte[] fetchGoogleTtsAudio(String chunk, String lang) {
         try {
+            String targetTl = "ja";
+            if ("id".equals(lang)) targetTl = "id";
+            else if ("my".equals(lang)) targetTl = "my";
+            else if ("en".equals(lang)) targetTl = "en";
+
             String encoded = URLEncoder.encode(chunk, StandardCharsets.UTF_8);
-            String urlString = "https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&q=" + encoded;
+            String urlString = "https://translate.google.com/translate_tts?ie=UTF-8&tl=" + targetTl + "&client=tw-ob&q=" + encoded;
 
             HttpURLConnection conn = (HttpURLConnection) URI.create(urlString).toURL().openConnection();
             conn.setRequestMethod("GET");

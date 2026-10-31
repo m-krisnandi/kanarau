@@ -472,15 +472,23 @@ export const BelajarPage: React.FC = () => {
             <span className="text-xl">{activeTrack === 'ID' ? '🇮🇩' : activeTrack === 'MY' ? '🇲🇲' : '🇬🇧'}</span>
             <div>
               <h3 className="font-extrabold text-xs text-indigo-950 dark:text-indigo-200">
-                {activeTrack === 'ID' ? 'Kurikulum Bahasa Indonesia (BIPA)' : activeTrack === 'MY' ? 'Kurikulum Bahasa Myanmar (Burmese)' : 'English Proficiency Track'}
+                {language === 'my'
+                  ? (activeTrack === 'ID' ? 'အင်ဒိုနီးရှားဘာသာစကား သင်ရိုးညွှန်းတမ်း (BIPA)' : activeTrack === 'MY' ? 'မြန်မာဘာသာစကား သင်ရိုးညွှန်းတမ်း' : 'အင်္ဂလိပ်ဘာသာစကား သင်ရိုးညွှန်းတမ်း')
+                  : language === 'en'
+                  ? (activeTrack === 'ID' ? 'Indonesian Language Curriculum (BIPA)' : activeTrack === 'MY' ? 'Burmese Language Curriculum' : 'English Proficiency Track')
+                  : (activeTrack === 'ID' ? 'Kurikulum Bahasa Indonesia (BIPA)' : activeTrack === 'MY' ? 'Kurikulum Bahasa Myanmar (Burmese)' : 'Kurikulum Bahasa Inggris')}
               </h3>
               <p className="text-[10px] text-indigo-700 dark:text-indigo-300">
-                Level {activeLevel} · Modul Bertahap & Audio Pengucapan
+                {language === 'my'
+                  ? `အဆင့် ${activeLevel} · အဆင့်လိုက်သင်ခန်းစာများနှင့် သဘာဝကျသော အသံထွက်`
+                  : language === 'en'
+                  ? `Level ${activeLevel} · Step-by-Step Modules & Native Audio`
+                  : `Level ${activeLevel} · Modul Bertahap & Audio Pengucapan`}
               </p>
             </div>
           </div>
           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
-            {decks.length} Deck
+            {decks.length} {language === 'my' ? 'ခု' : language === 'en' ? 'Decks' : 'Deck'}
           </span>
         </div>
       )}
@@ -522,7 +530,13 @@ export const BelajarPage: React.FC = () => {
           {/* Header Action: Sort order */}
            <div className="flex items-center justify-between px-1 gap-2">
              <span className="text-xs font-bold text-[#78716C] uppercase tracking-wider font-mono">
-               {t.belajar.curriculumTitle(currentLevel)}
+               {activeTrack === 'JA'
+                 ? t.belajar.curriculumTitle(currentLevel)
+                 : language === 'my'
+                 ? `နေ့စဉ် ဝေါဟာရ သင်ရိုးညွှန်းတမ်း ( ${activeLevel} )`
+                 : language === 'en'
+                 ? `Daily Vocabulary Curriculum ( ${activeLevel} )`
+                 : `Kurikulum Kosakata Harian ( ${activeLevel} )`}
              </span>
              <div className="flex items-center gap-2 shrink-0">
                {standardDecks.length > 0 && (

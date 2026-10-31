@@ -949,6 +949,7 @@ function fallbackPlayDokkaiViaTTS(
 
 /**
  * Universal Audio Player supporting multiple learning targets (Indonesian, Burmese, English, Japanese)
+ * Connects directly to backend Neural TTS for human-grade, natural pronunciation.
  */
 export function playUniversalAudio(
   text: string,
@@ -977,12 +978,50 @@ export function playUniversalAudio(
     return;
   }
 
+  // 1. Primary: Use high-fidelity Neural Studio TTS from backend (/api/v1/tts)
+  try {
+    const encoded = encodeURIComponent(cleanText);
+    const audioUrl = `/api/v1/tts?text=${encoded}&lang=${lang}&voice=female`;
+    const audio = new Audio(audioUrl);
+    activeAudio = audio;
+    audio.playbackRate = Math.min(2.0, Math.max(0.5, speed));
+
+    audio.onended = () => {
+      activeAudio = null;
+      onEnd?.();
+    };
+
+    audio.onerror = () => {
+      if (isPlaybackCancelled) return;
+      activeAudio = null;
+      fallbackUniversalSpeechSynthesis(cleanText, lang, speed, onEnd);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        if (isPlaybackCancelled) return;
+        activeAudio = null;
+        fallbackUniversalSpeechSynthesis(cleanText, lang, speed, onEnd);
+      });
+    }
+  } catch {
+    fallbackUniversalSpeechSynthesis(cleanText, lang, speed, onEnd);
+  }
+}
+
+function fallbackUniversalSpeechSynthesis(
+  text: string,
+  lang: string,
+  speed: number = 1.0,
+  onEnd?: () => void
+): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onEnd?.();
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(cleanText);
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = Math.min(2.0, Math.max(0.5, speed));
   utterance.pitch = 1.0;
 
@@ -990,15 +1029,34 @@ export function playUniversalAudio(
 
   if (lang === 'id') {
     utterance.lang = 'id-ID';
-    const idVoice = voices.find((v) => v.lang === 'id-ID' || v.lang.startsWith('id') || v.name.toLowerCase().includes('indonesia'));
+    const idVoice = voices.find(
+      (v) =>
+        v.name.includes('Gadis') ||
+        v.name.includes('Damayanti') ||
+        v.name.includes('Google') ||
+        v.lang === 'id-ID' ||
+        v.lang.startsWith('id')
+    );
     if (idVoice) utterance.voice = idVoice;
   } else if (lang === 'my') {
     utterance.lang = 'my-MM';
-    const myVoice = voices.find((v) => v.lang === 'my-MM' || v.lang.startsWith('my') || v.name.toLowerCase().includes('myanmar') || v.name.toLowerCase().includes('burmese'));
+    const myVoice = voices.find(
+      (v) =>
+        v.lang === 'my-MM' ||
+        v.lang.startsWith('my') ||
+        v.name.toLowerCase().includes('myanmar') ||
+        v.name.toLowerCase().includes('burmese')
+    );
     if (myVoice) utterance.voice = myVoice;
   } else if (lang === 'en') {
     utterance.lang = 'en-US';
-    const enVoice = voices.find((v) => v.lang === 'en-US' || v.lang.startsWith('en'));
+    const enVoice = voices.find(
+      (v) =>
+        v.name.includes('Jenny') ||
+        v.name.includes('Google') ||
+        v.name.includes('Samantha') ||
+        v.lang === 'en-US'
+    );
     if (enVoice) utterance.voice = enVoice;
   } else {
     utterance.lang = lang;
